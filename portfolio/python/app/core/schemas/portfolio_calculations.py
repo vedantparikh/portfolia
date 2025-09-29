@@ -70,7 +70,7 @@ class BenchmarkPerformanceResponse(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Period start date")
     end_date: datetime = Field(..., description="Period end date")
     current_value: float = Field(..., description="Current hypothetical value")
-    total_invested: float = Field(..., description="Total amount invested")
+    total_invested_period: float = Field(..., description="Total amount invested")
     metrics: PerformanceMetrics = Field(..., description="Performance metrics")
     calculation_date: datetime = Field(
         ..., description="When calculation was performed"

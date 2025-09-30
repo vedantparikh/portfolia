@@ -1449,58 +1449,6 @@ export const portfolioCalculationsAPI = {
     return response.data;
   },
 
-  /* 
-      CALCULATE ASSET PERFORMANCE - Calculate performance metrics for a specific asset within a portfolio
-      Parameters: portfolioId (string or number), assetId (string or number), requestData (object)
-      Returns: Server response with asset performance data
-    */
-  calculateAssetPerformance: async (portfolioId, assetId, requestData) => {
-    const response = await api.post(
-      `/portfolios/calculations/portfolio/${portfolioId}/asset/${assetId}/performance`,
-      requestData
-    );
-    return response.data;
-  },
-
-  /* 
-      GET ASSET PERFORMANCE - Get asset performance metrics for a specific period
-      Parameters: portfolioId (string or number), assetId (string or number), period (string), endDate (string)
-      Returns: Server response with asset performance data
-    */
-  getAssetPerformance: async (
-    portfolioId,
-    assetId,
-    period = "inception",
-    endDate = null
-  ) => {
-    const response = await api.get(
-      `/portfolios/calculations/portfolio/${portfolioId}/asset/${assetId}/performance`,
-      {
-        params: { period, end_date: endDate },
-      }
-    );
-    return response.data;
-  },
-
-  /* 
-      GET ASSET MULTI PERIOD PERFORMANCE - Calculate asset performance across multiple periods
-      Parameters: portfolioId (string or number), assetId (string or number), periods (array), endDate (string)
-      Returns: Server response with asset multi-period performance data
-    */
-  getAssetMultiPeriodPerformance: async (
-    portfolioId,
-    assetId,
-    periods = ["3m", "6m", "1y", "ytd", "inception"],
-    endDate = null
-  ) => {
-    const response = await api.get(
-      `/portfolios/calculations/portfolio/${portfolioId}/asset/${assetId}/multi-period`,
-      {
-        params: { periods, end_date: endDate },
-      }
-    );
-    return response.data;
-  },
 
   /* 
       CALCULATE BENCHMARK PERFORMANCE - Calculate hypothetical performance if money was invested in benchmark

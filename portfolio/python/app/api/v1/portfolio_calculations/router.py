@@ -18,9 +18,6 @@ from sqlalchemy.orm import Session
 from app.core.auth.dependencies import get_current_user
 from app.core.database.connection import get_db
 from app.core.schemas.portfolio_calculations import (
-    AssetMultiPeriodPerformanceResponse,
-    AssetPerformanceCalculationRequest,
-    AssetPerformanceResponse,
     AvailablePeriodsResponse,
     BenchmarkPerformanceCalculationRequest,
     BenchmarkPerformanceResponse,
@@ -93,10 +90,10 @@ async def get_available_periods():
     "/portfolio/{portfolio_id}/performance", response_model=PortfolioPerformanceResponse
 )
 async def calculate_portfolio_performance(
-    portfolio_id: int,
-    request: PerformanceCalculationRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        portfolio_id: int,
+        request: PerformanceCalculationRequest,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Calculate comprehensive portfolio performance metrics.
@@ -130,11 +127,11 @@ async def calculate_portfolio_performance(
     "/portfolio/{portfolio_id}/performance", response_model=PortfolioPerformanceResponse
 )
 async def get_portfolio_performance(
-    portfolio_id: int,
-    period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
-    end_date: Optional[datetime] = Query(None, description="End date for calculation"),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        portfolio_id: int,
+        period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
+        end_date: Optional[datetime] = Query(None, description="End date for calculation"),
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Get portfolio performance metrics for a specific period.
@@ -168,20 +165,20 @@ async def get_portfolio_performance(
     response_model=MultiPeriodPerformanceResponse,
 )
 async def get_multi_period_performance(
-    portfolio_id: int,
-    periods: List[str] = Query(
-        default=[
-            PeriodType.LAST_3_MONTHS,
-            PeriodType.LAST_6_MONTHS,
-            PeriodType.LAST_1_YEAR,
-            PeriodType.YTD,
-            PeriodType.INCEPTION,
-        ],
-        description="List of periods to calculate",
-    ),
-    end_date: Optional[datetime] = Query(None, description="End date for calculations"),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        portfolio_id: int,
+        periods: List[str] = Query(
+            default=[
+                PeriodType.LAST_3_MONTHS,
+                PeriodType.LAST_6_MONTHS,
+                PeriodType.LAST_1_YEAR,
+                PeriodType.YTD,
+                PeriodType.INCEPTION,
+            ],
+            description="List of periods to calculate",
+        ),
+        end_date: Optional[datetime] = Query(None, description="End date for calculations"),
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Calculate portfolio performance across multiple periods.
@@ -192,11 +189,9 @@ async def get_multi_period_performance(
         service = PortfolioCalculationService(db)
 
         # Get portfolio name
-        portfolio = service._get_portfolio(portfolio_id, current_user.id)
+        portfolio = service.get_portfolio(portfolio_id, current_user.id)
         if not portfolio:
             raise HTTPException(status_code=404, detail="Portfolio not found")
-
-        current_value = service._get_current_portfolio_value(portfolio_id)
 
         period_summaries = []
         period_names = {
@@ -250,188 +245,11 @@ async def get_multi_period_performance(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post(
-    "/portfolio/{portfolio_id}/asset/{asset_id}/performance",
-    response_model=AssetPerformanceResponse,
-)
-async def calculate_asset_performance(
-    portfolio_id: int,
-    asset_id: int,
-    request: AssetPerformanceCalculationRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """
-    Calculate performance metrics for a specific asset within a portfolio.
-
-    Calculates CAGR, XIRR, TWR, and MWR for the specified asset and period.
-    """
-    try:
-        service = PortfolioCalculationService(db)
-
-        result = await service.calculate_asset_performance(
-            portfolio_id=portfolio_id,
-            asset_id=asset_id,
-            user_id=current_user.id,
-            period=request.period,
-            end_date=request.end_date,
-        )
-
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-
-        return AssetPerformanceResponse(**result)
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error calculating asset performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get(
-    "/portfolio/{portfolio_id}/asset/{asset_id}/performance",
-    response_model=AssetPerformanceResponse,
-)
-async def get_asset_performance(
-    portfolio_id: int,
-    asset_id: int,
-    period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
-    end_date: Optional[datetime] = Query(None, description="End date for calculation"),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """
-    Get asset performance metrics for a specific period.
-
-    Query parameter version of asset performance calculation.
-    """
-    try:
-        service = PortfolioCalculationService(db)
-
-        result = await service.calculate_asset_performance(
-            portfolio_id=portfolio_id,
-            asset_id=asset_id,
-            user_id=current_user.id,
-            period=period,
-            end_date=end_date,
-        )
-
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-
-        return AssetPerformanceResponse(**result)
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error calculating asset performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.get(
-    "/portfolio/{portfolio_id}/asset/{asset_id}/multi-period",
-    response_model=AssetMultiPeriodPerformanceResponse,
-)
-async def get_asset_multi_period_performance(
-    portfolio_id: int,
-    asset_id: int,
-    periods: List[str] = Query(
-        default=[
-            PeriodType.LAST_3_MONTHS,
-            PeriodType.LAST_6_MONTHS,
-            PeriodType.LAST_1_YEAR,
-            PeriodType.YTD,
-            PeriodType.INCEPTION,
-        ],
-        description="List of periods to calculate",
-    ),
-    end_date: Optional[datetime] = Query(None, description="End date for calculations"),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    """
-    Calculate asset performance across multiple periods.
-
-    Returns performance metrics for all specified periods for a specific asset.
-    """
-    try:
-        service = PortfolioCalculationService(db)
-
-        # Verify portfolio and get asset info
-        portfolio = service._get_portfolio(portfolio_id, current_user.id)
-        if not portfolio:
-            raise HTTPException(status_code=404, detail="Portfolio not found")
-
-        from app.core.database.models import Asset
-
-        asset = service.db.query(Asset).filter(Asset.id == asset_id).first()
-        if not asset:
-            raise HTTPException(status_code=404, detail="Asset not found")
-
-        current_value = service._get_current_asset_value(portfolio_id, asset_id)
-
-        period_summaries = []
-        period_names = {
-            PeriodType.LAST_3_MONTHS: "Last 3 Months",
-            PeriodType.LAST_6_MONTHS: "Last 6 Months",
-            PeriodType.LAST_1_YEAR: "Last 1 Year",
-            PeriodType.LAST_2_YEARS: "Last 2 Years",
-            PeriodType.LAST_3_YEARS: "Last 3 Years",
-            PeriodType.LAST_5_YEARS: "Last 5 Years",
-            PeriodType.YTD: "Year to Date",
-            PeriodType.INCEPTION: "Since Inception",
-        }
-
-        for period in periods:
-            try:
-                result = await service.calculate_asset_performance(
-                    portfolio_id=portfolio_id,
-                    asset_id=asset_id,
-                    user_id=current_user.id,
-                    period=period,
-                    end_date=end_date,
-                )
-
-                if "error" not in result:
-                    period_summaries.append(
-                        {
-                            "period": period,
-                            "period_name": period_names.get(period, period),
-                            "start_date": result.get("start_date"),
-                            "end_date": result.get("end_date"),
-                            "metrics": result.get("metrics", {}),
-                        }
-                    )
-
-            except Exception as e:
-                logger.warning(
-                    f"Failed to calculate asset performance for period {period}: {e}"
-                )
-                continue
-
-        return AssetMultiPeriodPerformanceResponse(
-            portfolio_id=portfolio_id,
-            asset_id=asset_id,
-            asset_symbol=asset.symbol,
-            asset_name=asset.name,
-            current_value=current_value,
-            periods=period_summaries,
-            calculation_date=datetime.now(),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error calculating asset multi-period performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
 @router.post("/benchmark/performance", response_model=BenchmarkPerformanceResponse)
 async def calculate_benchmark_performance(
-    request: BenchmarkPerformanceCalculationRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        request: BenchmarkPerformanceCalculationRequest,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Calculate hypothetical performance if money was invested in benchmark.
@@ -454,7 +272,7 @@ async def calculate_benchmark_performance(
 
         result = await service.calculate_benchmark_performance(
             benchmark_symbol=request.benchmark_symbol,
-            investment_amounts=investment_amounts,
+            cash_flows=investment_amounts,
             period=request.period,
             end_date=request.end_date,
         )
@@ -474,12 +292,12 @@ async def calculate_benchmark_performance(
     response_model=PortfolioBenchmarkComparisonResponse,
 )
 async def compare_portfolio_to_benchmark(
-    portfolio_id: int,
-    benchmark_symbol: str,
-    period: str = Query(default=PeriodType.INCEPTION, description="Comparison period"),
-    end_date: Optional[datetime] = Query(None, description="End date for comparison"),
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        portfolio_id: int,
+        benchmark_symbol: str,
+        period: str = Query(default=PeriodType.INCEPTION, description="Comparison period"),
+        end_date: Optional[datetime] = Query(None, description="End date for comparison"),
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Compare portfolio performance to benchmark using same investment schedule.
@@ -511,9 +329,9 @@ async def compare_portfolio_to_benchmark(
     "/portfolio/{portfolio_id}/overview", response_model=PortfolioPerformanceOverview
 )
 async def get_portfolio_performance_overview(
-    portfolio_id: int,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+        portfolio_id: int,
+        db: Session = Depends(get_db),
+        current_user=Depends(get_current_user),
 ):
     """
     Get comprehensive portfolio performance overview.
@@ -525,7 +343,7 @@ async def get_portfolio_performance_overview(
         service = PortfolioCalculationService(db)
 
         # Verify portfolio
-        portfolio = service._get_portfolio(portfolio_id, current_user.id)
+        portfolio = service.get_portfolio(portfolio_id, current_user.id)
         if not portfolio:
             raise HTTPException(status_code=404, detail="Portfolio not found")
 
@@ -537,7 +355,7 @@ async def get_portfolio_performance_overview(
         # 4. Optionally compare to benchmark
 
         # For now, return a basic response
-        current_value = service._get_current_portfolio_value(portfolio_id)
+        current_value = service.get_current_portfolio_value(portfolio_id)
 
         # Get basic portfolio performance
         portfolio_performance = await service.calculate_portfolio_performance(

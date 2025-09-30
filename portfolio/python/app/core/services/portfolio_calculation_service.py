@@ -113,7 +113,7 @@ class PortfolioCalculationService:
         start_date = PeriodType.get_start_date(period, end_date)
 
         # Get portfolio and verify ownership
-        portfolio = self._get_portfolio(portfolio_id, user_id)
+        portfolio = self.get_portfolio(portfolio_id, user_id)
         if not portfolio:
             raise ValueError(f"Portfolio {portfolio_id} not found or not accessible")
 
@@ -154,7 +154,7 @@ class PortfolioCalculationService:
             )
 
         # Get current portfolio value
-        current_value, value_errors = self._get_current_portfolio_value(portfolio_id)
+        current_value, value_errors = self.get_current_portfolio_value(portfolio_id)
 
         if value_errors:
             return {
@@ -1248,7 +1248,7 @@ class PortfolioCalculationService:
         return cash_flows
 
     # Database Helper Methods
-    def _get_portfolio(self, portfolio_id: int, user_id: int) -> Optional[Portfolio]:
+    def get_portfolio(self, portfolio_id: int, user_id: int) -> Optional[Portfolio]:
         """Get portfolio and verify ownership."""
         return (
             self.db.query(Portfolio)
@@ -1273,7 +1273,7 @@ class PortfolioCalculationService:
 
         return query.order_by(Transaction.transaction_date).all()
 
-    def _get_current_portfolio_value(
+    def get_current_portfolio_value(
             self, portfolio_id: int
     ) -> tuple[float, list[str]]:
         """
@@ -1331,7 +1331,7 @@ class PortfolioCalculationService:
                 target_date = pd.Timestamp(target_date)
 
             # Use asof to find the last available price on or before target date
-            price_row = price_data.asof(target_date)
+            price_row = price_data.asof(target_date.date())
 
             if pd.notna(price_row["Close"]):
                 return float(price_row["Close"])

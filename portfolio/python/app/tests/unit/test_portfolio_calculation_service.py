@@ -579,7 +579,7 @@ class TestPortfolioCalculationService:
             sample_portfolio_asset
         ]
 
-        value = calculation_service._get_current_portfolio_value(1)
+        value = calculation_service.get_current_portfolio_value(1)
 
         assert value == 25000.0
 
@@ -594,7 +594,7 @@ class TestPortfolioCalculationService:
             portfolio_asset
         ]
 
-        value = calculation_service._get_current_portfolio_value(1)
+        value = calculation_service.get_current_portfolio_value(1)
 
         # Should fallback to cost basis
         assert value == 18500.0

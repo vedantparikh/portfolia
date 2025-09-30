@@ -355,7 +355,7 @@ async def get_portfolio_performance_overview(
         # 4. Optionally compare to benchmark
 
         # For now, return a basic response
-        current_value = service.get_current_portfolio_value(portfolio_id)
+        current_value = await service.get_current_portfolio_value(portfolio_id)
 
         # Get basic portfolio performance
         portfolio_performance = await service.calculate_portfolio_performance(

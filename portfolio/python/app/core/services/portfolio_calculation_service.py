@@ -27,6 +27,7 @@ from app.core.database.models import (
     TransactionType,
 )
 from app.core.services.market_data_service import MarketDataService
+from core.services.market_data_service import market_data_service
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ class PortfolioCalculationService:
             )
 
         # Get current portfolio value
-        current_value, value_errors = self.get_current_portfolio_value(portfolio_id)
+        current_value, value_errors = await self.get_current_portfolio_value(portfolio_id)
 
         if value_errors:
             return {
@@ -176,24 +177,24 @@ class PortfolioCalculationService:
             }
         # Generate daily portfolio value history for risk calculations
         portfolio_history_df = await self._get_portfolio_history(
-            portfolio_id, all_transactions, actual_start_date, end_date
+            all_transactions, actual_start_date, end_date
         )
 
         volatility = self._calculate_volatility(portfolio_history_df)
         max_drawdown = self._calculate_max_drawdown(portfolio_history_df)
         # Calculate CAGR
         cagr = await self._calculate_cagr(
-            portfolio_id, all_transactions, current_value, actual_start_date, end_date
+            all_transactions, current_value, actual_start_date, end_date
         )
 
         # Calculate XIRR
         xirr_value = await self._calculate_xirr(
-            portfolio_id, all_transactions, current_value, actual_start_date, end_date
+            all_transactions, current_value, actual_start_date, end_date
         )
 
         # Calculate TWR
         twr_value = await self._calculate_twr(
-            portfolio_id, all_transactions, current_value, actual_start_date, end_date
+            all_transactions, current_value, actual_start_date, end_date
         )
 
         result = {
@@ -272,7 +273,7 @@ class PortfolioCalculationService:
 
             # Calculate XIRR
             xirr_value = self._calculate_benchmark_xirr(
-                period_cash_flows, current_value, start_date, end_date
+                period_cash_flows, current_value, end_date
             )
 
             # Calculate TWR
@@ -396,7 +397,6 @@ class PortfolioCalculationService:
     # CAGR Calculation Methods
     async def _calculate_cagr(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
             current_value: float,
             start_date: Optional[datetime],
@@ -413,7 +413,7 @@ class PortfolioCalculationService:
         try:
             # Get beginning value
             beginning_value = await self._get_portfolio_value_at_date(
-                portfolio_id, all_transactions, start_date
+                all_transactions, start_date
             )
 
             if beginning_value <= 0:
@@ -506,7 +506,6 @@ class PortfolioCalculationService:
     # XIRR Calculation Methods
     async def _calculate_xirr(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
             current_value: float,
             start_date: Optional[datetime],
@@ -524,7 +523,7 @@ class PortfolioCalculationService:
             if start_date:
                 # For period calculations, add initial portfolio value as outflow
                 initial_value = await self._get_portfolio_value_at_date(
-                    portfolio_id, all_transactions, start_date
+                    all_transactions, start_date
                 )
                 if initial_value > 0:
                     dates.append(start_date)
@@ -580,7 +579,6 @@ class PortfolioCalculationService:
             self,
             cash_flows: List[CashFlow],
             current_value: float,
-            start_date: Optional[datetime],  # pylint: disable=unused-argument
             end_date: datetime,
     ) -> Optional[float]:
         """Calculate XIRR for benchmark investment."""
@@ -622,7 +620,6 @@ class PortfolioCalculationService:
     # TWR Calculation Methods
     async def _calculate_twr(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
             current_value: float,
             start_date: Optional[datetime],
@@ -650,7 +647,7 @@ class PortfolioCalculationService:
                 # No cash flows, calculate simple return
                 if start_date:
                     initial_value = await self._get_portfolio_value_at_date(
-                        portfolio_id, all_transactions, start_date
+                        all_transactions, start_date
                     )
                     if initial_value is None or initial_value <= 0:
                         logger.warning("Cannot calculate TWR: invalid initial value")
@@ -671,9 +668,7 @@ class PortfolioCalculationService:
 
             # Calculate TWR with cash flows
             return await self._calculate_twr_with_cash_flows(
-                portfolio_id,
                 all_transactions,
-                current_value,
                 start_date,
                 end_date,
                 cash_flow_dates,
@@ -751,9 +746,7 @@ class PortfolioCalculationService:
 
     async def _calculate_twr_with_cash_flows(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
-            current_value: float,  # pylint: disable=unused-argument
             start_date: Optional[datetime],
             end_date: datetime,
             cash_flow_dates: List[datetime],
@@ -773,7 +766,7 @@ class PortfolioCalculationService:
 
             for i, (period_start, period_end) in enumerate(sub_periods):
                 sub_return = await self._calculate_sub_period_return(
-                    portfolio_id, all_transactions, period_start, period_end
+                    all_transactions, period_start, period_end
                 )
 
                 if sub_return is None:
@@ -823,7 +816,6 @@ class PortfolioCalculationService:
 
     async def _calculate_sub_period_return(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
             period_start: datetime,
             period_end: datetime,
@@ -832,12 +824,12 @@ class PortfolioCalculationService:
         try:
             # Market Value at the beginning of the sub-period (before any cash flows)
             start_value_before_cf = await self._get_portfolio_value_at_date(
-                portfolio_id, all_transactions, period_start
+                all_transactions, period_start
             )
 
             # Market Value at the end of the sub-period
             end_value = await self._get_portfolio_value_at_date(
-                portfolio_id, all_transactions, period_end
+                all_transactions, period_end
             )
 
             # Cash flows that happen at the beginning of this period (at period_start)
@@ -1050,7 +1042,6 @@ class PortfolioCalculationService:
     # Helper Methods
     async def _get_portfolio_value_at_date(
             self,
-            portfolio_id: int,  # pylint: disable=unused-argument
             all_transactions: List[Transaction],
             target_date: Optional[datetime],
     ) -> float:
@@ -1273,44 +1264,57 @@ class PortfolioCalculationService:
 
         return query.order_by(Transaction.transaction_date).all()
 
-    def get_current_portfolio_value(
+    async def get_current_portfolio_value(
             self, portfolio_id: int
     ) -> tuple[float, list[str]]:
         """
-        Get current total value of portfolio.
+        Get the current total value of the portfolio, fetch the latest asset
+        prices, and update them in the database.
 
         Returns:
             Tuple of (total_value, error_messages)
         """
         try:
-            assets = (
+            # Query all assets belonging to the specified portfolio
+            portfolio_assets = (
                 self.db.query(PortfolioAsset)
                 .filter(PortfolioAsset.portfolio_id == portfolio_id)
                 .all()
             )
 
-            total_value = 0.0
+            total_portfolio_value = 0.0
             errors = []
 
-            for asset in assets:
-                if asset.current_value is not None:
-                    total_value += float(asset.current_value)
-                elif asset.quantity and asset.quantity > 0:
-                    # Never use cost basis as fallback - log error instead
-                    asset_obj = (
-                        self.db.query(Asset).filter(Asset.id == asset.asset_id).first()
-                    )
-                    symbol = (
-                        asset_obj.symbol if asset_obj else f"Asset ID {asset.asset_id}"
-                    )
-                    error_msg = (
-                        f"No current market value available for {symbol} "
-                        f"(quantity: {asset.quantity})"
-                    )
-                    logger.error(error_msg)
+            for asset in portfolio_assets:
+                # Get the base asset info (like its symbol)
+                asset_obj = self.db.query(Asset).filter(Asset.id == asset.asset_id).first()
+                if not asset_obj:
+                    errors.append(f"Asset metadata not found for PortfolioAsset ID {asset.id}")
+                    continue
+
+                # Fetch the new price from the market data service
+                new_price = await self.market_data_service.get_current_price(symbol=asset_obj.symbol)
+
+                if new_price is not None:
+                    # Calculate the new total value for this specific asset holding
+                    new_asset_total_value = float(asset.quantity) * new_price
+                    asset.current_value = new_asset_total_value
+
+                    # Add to the running total for the whole portfolio
+                    total_portfolio_value += new_asset_total_value
+                else:
+                    symbol = asset_obj.symbol
+                    error_msg = f"Could not fetch new market value for {symbol} (quantity: {asset.quantity})"
+                    logger.warning(error_msg)
                     errors.append(error_msg)
 
-            return total_value, errors
+                    # Use the stale value for the total, but don't update the DB with it
+                    if asset.current_value is not None:
+                        total_portfolio_value += float(asset.current_value)
+
+            self.db.commit()
+
+            return total_portfolio_value, errors
 
         except Exception as e:
             error_msg = f"Error getting current portfolio value: {e}"
@@ -1441,7 +1445,6 @@ class PortfolioCalculationService:
 
     async def _get_portfolio_history(
             self,
-            portfolio_id: int,
             all_transactions: List[Transaction],
             start_date: Optional[datetime],
             end_date: datetime,
@@ -1542,45 +1545,3 @@ class PortfolioCalculationService:
                 elif t.transaction_type == TransactionType.SELL:
                     holdings[asset_id] -= quantity
         return {k: v for k, v in holdings.items() if v > 1e-9}
-
-    def _get_current_portfolio_value_from_db(
-            self, portfolio_id: int
-    ) -> tuple[float, list[str]]:
-        """
-        Get current total value of portfolio from PortfolioAsset table.
-        This is faster than calculating from scratch but relies on updated data.
-        """
-        # This is the existing method, renamed for clarity
-        # ... (implementation from previous version) ...
-        try:
-            assets = (
-                self.db.query(PortfolioAsset)
-                .filter(PortfolioAsset.portfolio_id == portfolio_id)
-                .all()
-            )
-
-            total_value = 0.0
-            errors = []
-
-            for asset in assets:
-                if asset.current_value is not None:
-                    total_value += float(asset.current_value)
-                elif asset.quantity and asset.quantity > 0:
-                    asset_obj = (
-                        self.db.query(Asset).filter(Asset.id == asset.asset_id).first()
-                    )
-                    symbol = (
-                        asset_obj.symbol if asset_obj else f"Asset ID {asset.asset_id}"
-                    )
-                    error_msg = (
-                        f"No current market value available for {symbol}"
-                    )
-                    logger.error(error_msg)
-                    errors.append(error_msg)
-
-            return total_value, errors
-
-        except Exception as e:
-            error_msg = f"Error getting current portfolio value: {e}"
-            logger.error(error_msg)
-            return 0.0, [error_msg]

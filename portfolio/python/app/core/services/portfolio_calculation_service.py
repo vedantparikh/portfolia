@@ -417,10 +417,26 @@ class PortfolioCalculationService:
             )
 
             if beginning_value <= 0:
-                logger.warning(
-                    "Beginning value is zero or negative, cannot calculate CAGR"
-                )
-                return None
+                if start_date is None and all_transactions:
+                    net_investment = sum(
+                        float(t.total_amount)
+                        for t in all_transactions
+                        if t.transaction_type == TransactionType.BUY
+                    ) - sum(
+                        float(t.total_amount)
+                        for t in all_transactions
+                        if t.transaction_type == TransactionType.SELL
+                    )
+
+                    if net_investment > 0:
+                        beginning_value = net_investment
+                    else:
+                        logger.warning("Net investment is zero or negative, cannot calculate CAGR")
+                        return None
+                else:
+                    # For periods other than inception, a zero value is an actual problem
+                    logger.warning("Beginning value is zero or negative for a non-inception period")
+                    return None
 
             if current_value < 0:
                 return -100.0  # Total loss

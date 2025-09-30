@@ -380,6 +380,9 @@ class PortfolioCalculationService:
                 "twr_difference": self._safe_subtract(
                     portfolio_metrics.get("twr"), benchmark_metrics.get("twr")
                 ),
+                "mwr_difference": self._safe_subtract(
+                    portfolio_metrics.get("mwr"), benchmark_metrics.get("mwr")
+                ),
                 "outperforming_cagr": self._is_outperforming(
                     portfolio_metrics.get("cagr"), benchmark_metrics.get("cagr")
                 ),

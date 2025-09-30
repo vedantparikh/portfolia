@@ -239,7 +239,6 @@ async def get_multi_period_performance(
         return MultiPeriodPerformanceResponse(
             portfolio_id=portfolio_id,
             portfolio_name=portfolio.name,
-            current_value=current_value,
             periods=period_summaries,
             calculation_date=datetime.now(),
         )

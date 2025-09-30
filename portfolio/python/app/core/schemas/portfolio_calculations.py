@@ -20,7 +20,6 @@ class PerformanceMetrics(BaseModel):
     twr: Optional[float] = Field(None, description="Time-Weighted Return (%)")
     mwr: Optional[float] = Field(None, description="Money-Weighted Return (%)")
     volatility: Optional[float] = Field(None, description="Volatility (%)")
-    sharpe_ratio: Optional[float] = Field(None, description="Sharpe Ratio")
     max_drawdown: Optional[float] = Field(None, description="Maximum Drawdown (%)")
 
 
@@ -70,7 +69,6 @@ class BenchmarkPerformanceResponse(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Period start date")
     end_date: datetime = Field(..., description="Period end date")
     current_value: float = Field(..., description="Current hypothetical value")
-    total_invested_period: float = Field(..., description="Total amount invested")
     metrics: PerformanceMetrics = Field(..., description="Performance metrics")
     calculation_date: datetime = Field(
         ..., description="When calculation was performed"
@@ -129,7 +127,6 @@ class MultiPeriodPerformanceResponse(BaseModel):
 
     portfolio_id: int = Field(..., description="Portfolio ID")
     portfolio_name: str = Field(..., description="Portfolio name")
-    current_value: float = Field(..., description="Current portfolio value")
     periods: List[PeriodPerformanceSummary] = Field(
         ..., description="Performance by period"
     )

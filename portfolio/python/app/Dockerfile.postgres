@@ -1,4 +1,4 @@
-FROM postgres:15
+FROM postgres:16
 
 # Copy environment file
 COPY .env.docker /tmp/.env.docker

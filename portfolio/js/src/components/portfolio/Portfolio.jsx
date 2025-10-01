@@ -346,7 +346,8 @@ const Portfolio = () => {
     const totalValue = portfolioStats.total_current_value || 0;
     const totalCost = portfolioStats.total_cost_basis || 0;
     const totalGainLoss = portfolioStats.total_unrealized_pnl || 0;
-    const totalGainLossPercent = portfolioStats.total_unrealized_pnl_percent || 0;
+    const totalGainLossPercent =
+      portfolioStats.total_unrealized_pnl_percent || 0;
     const dayChange = portfolioStats.today_pnl || 0;
     const dayChangePercent = portfolioStats.today_pnl_percent || 0;
 
@@ -739,10 +740,12 @@ const Portfolio = () => {
                                   <div>
                                     <p className="text-sm font-medium text-gray-100">
                                       {transaction.transaction_type.toUpperCase()}{" "}
-                                      - {transaction.asset.symbol}
+                                      - {transaction.asset.name}
                                     </p>
                                     <p className="text-xs text-gray-400">
-                                      {formatDateTime(transaction.created_at)}
+                                      {formatDateTime(
+                                        transaction.transaction_date
+                                      )}
                                     </p>
                                   </div>
                                 </div>

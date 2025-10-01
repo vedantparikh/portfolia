@@ -219,8 +219,8 @@ class PortfolioService:
                         portfolio_asset.todays_pnl_percent = Decimal("0")
                 else:
                     # Cannot calculate today's P&L without yesterday's close
-                    portfolio_asset.todays_pnl = None
-                    portfolio_asset.todays_pnl_percent = None
+                    portfolio_asset.todays_pnl = Decimal("0")
+                    portfolio_asset.todays_pnl_percent = Decimal("0")
 
             else:
                 # If we can't get current price, keep existing values or set to None

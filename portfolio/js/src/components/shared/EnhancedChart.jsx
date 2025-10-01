@@ -12,13 +12,18 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
+  TrendingDown,
   TrendingUp,
   X,
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../services/api";
-import { formatPercentage, formatVolume } from "../../utils/formatters.jsx";
+import {
+  formatCurrency,
+  formatPercentage,
+  formatVolume,
+} from "../../utils/formatters.jsx";
 
 const EnhancedChart = ({
   data = [],
@@ -36,14 +41,12 @@ const EnhancedChart = ({
   className = "",
   enableFullscreen = false,
   onFullscreenToggle,
-  // New props for statistical indicators
   showIndicators = true,
   enableIndicatorConfig = true,
   defaultIndicators = ["SMA", "EMA", "RSI"],
   onIndicatorsChange,
   assetId = null,
   showReturns = true,
-  // This new prop allows the parent to pass in indicator data directly
   indicatorOverlayData = null,
 }) => {
   const chartContainerRef = useRef(null);
@@ -55,17 +58,17 @@ const EnhancedChart = ({
   const [indicatorData, setIndicatorData] = useState({});
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [showReturnsPanel, setShowReturnsPanel] = useState(true);
-  const [returnsData, setReturnsData] = useState({});
+  const [metricsData, setMetricsData] = useState({});
   const [loadingIndicators, setLoadingIndicators] = useState(false);
 
-  // Load available indicators and configurations on mount
   useEffect(() => {
     if (showIndicators && enableIndicatorConfig) {
       loadIndicatorsData();
     }
   }, [showIndicators, enableIndicatorConfig]);
+
   const loadIndicatorData = useCallback(async () => {
-    if (!assetId || indicatorOverlayData) return; // Don't fetch if data is passed as prop
+    if (!assetId || indicatorOverlayData) return;
 
     try {
       setLoadingIndicators(true);
@@ -81,9 +84,8 @@ const EnhancedChart = ({
       setLoadingIndicators(false);
     }
   }, [assetId, indicatorOverlayData, selectedIndicators, period]);
-  // Load indicator data when selected indicators change or data is passed
+
   useEffect(() => {
-    // If data is provided via prop, use it and skip fetching.
     if (indicatorOverlayData) {
       const transformedData = {};
       if (Array.isArray(indicatorOverlayData)) {
@@ -94,9 +96,7 @@ const EnhancedChart = ({
                 time: new Date(item.date).getTime() / 1000,
                 value: item.value,
               }))
-              // FIX: Sort the data in ascending order by time
               .sort((a, b) => a.time - b.time);
-
             transformedData[series.indicator_name] = chartData;
           }
         });
@@ -104,7 +104,6 @@ const EnhancedChart = ({
       setIndicatorData(transformedData);
       return;
     }
-    // Otherwise, fetch it if needed
     if (selectedIndicators.length > 0 && assetId && data.length > 0) {
       loadIndicatorData();
     }
@@ -116,13 +115,58 @@ const EnhancedChart = ({
     loadIndicatorData,
   ]);
 
-  const calculateReturns = useCallback(() => {
-    if (!data || data.length === 0) return;
+  const getObvTrendDetails = (trend) => {
+    switch (trend) {
+      case "Rising OBV":
+        return {
+          text: "Rising (Confirmation)",
+          className: "text-success-400",
+          Icon: TrendingUp,
+        };
+      case "Falling OBV":
+        return {
+          text: "Falling (Confirmation)",
+          className: "text-danger-400",
+          Icon: TrendingDown,
+        };
+      case "Bearish Divergence":
+        return {
+          text: "Bearish Divergence",
+          className: "text-danger-400",
+          Icon: TrendingDown,
+        };
+      case "Bullish Divergence":
+        return {
+          text: "Bullish Divergence",
+          className: "text-success-400",
+          Icon: TrendingUp,
+        };
+      default:
+        return {
+          text: "Inconsistent",
+          className: "text-gray-400",
+          Icon: null,
+        };
+    }
+  };
 
-    // FIX: Use capitalized keys (Date, Close, High, Low)
+  const calculateMetrics = useCallback(() => {
+    if (!data || data.length < 2) return;
+
     const sortedData = [...data].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+
+    const dataWithReturns = sortedData.map((d, i) => {
+      if (i === 0) return { ...d, dailyReturn: 0 };
+      const yesterdayClose = sortedData[i - 1].close;
+      const dailyReturn =
+        yesterdayClose > 0
+          ? ((d.close - yesterdayClose) / yesterdayClose) * 100
+          : 0;
+      return { ...d, dailyReturn };
+    });
+
     const firstPrice = sortedData[0]?.close || 0;
     const lastPrice = sortedData[sortedData.length - 1]?.close || 0;
     const highPrice = Math.max(...sortedData.map((d) => d.high));
@@ -135,7 +179,81 @@ const EnhancedChart = ({
     const maxLoss =
       firstPrice > 0 ? ((lowPrice - firstPrice) / firstPrice) * 100 : 0;
 
-    setReturnsData({
+    const dailyReturns = dataWithReturns.slice(1).map((d) => d.dailyReturn);
+    const avgReturn =
+      dailyReturns.reduce((sum, val) => sum + val, 0) / dailyReturns.length;
+    const variance =
+      dailyReturns.reduce((sum, val) => sum + Math.pow(val - avgReturn, 2), 0) /
+      dailyReturns.length;
+    const volatility = Math.sqrt(variance);
+
+    let peak = -Infinity;
+    let maxDrawdown = 0;
+    sortedData.forEach((d) => {
+      if (d.high > peak) {
+        peak = d.high;
+      }
+      const drawdown = peak > 0 ? ((peak - d.low) / peak) * 100 : 0;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    });
+
+    let trueRanges = [];
+    for (let i = 1; i < sortedData.length; i++) {
+      const prev = sortedData[i - 1];
+      const curr = sortedData[i];
+      const tr1 = curr.high - curr.low;
+      const tr2 = Math.abs(curr.high - prev.close);
+      const tr3 = Math.abs(curr.low - prev.close);
+      trueRanges.push(Math.max(tr1, tr2, tr3));
+    }
+    const atr =
+      trueRanges.length > 0
+        ? trueRanges.slice(-14).reduce((sum, val) => sum + val, 0) /
+          Math.min(trueRanges.length, 14)
+        : 0;
+
+    let obvTrend = "Inconsistent";
+    const obvValues = [];
+    let cumulativeObv = 0;
+
+    for (let i = 1; i < sortedData.length; i++) {
+      const prev = sortedData[i - 1];
+      const curr = sortedData[i];
+      if (curr.close > prev.close) {
+        cumulativeObv += curr.volume;
+      } else if (curr.close < prev.close) {
+        cumulativeObv -= curr.volume;
+      }
+      obvValues.push({ x: i, y: cumulativeObv });
+    }
+
+    if (obvValues.length > 1) {
+      const n = obvValues.length;
+      const lastObv = obvValues[n - 1].y;
+      const firstObv = obvValues[0].y;
+      const obvSlope = lastObv - firstObv;
+      const priceSlope = lastPrice - firstPrice;
+
+      if (priceSlope > 0 && obvSlope > 0) {
+        obvTrend = "Rising OBV";
+      } else if (priceSlope < 0 && obvSlope < 0) {
+        obvTrend = "Falling OBV";
+      } else if (priceSlope > 0 && obvSlope < 0) {
+        obvTrend = "Bearish Divergence";
+      } else if (priceSlope < 0 && obvSlope > 0) {
+        obvTrend = "Bullish Divergence";
+      }
+    }
+
+    const {
+      text: obvTrendText,
+      className: obvTrendClassName,
+      Icon: obvTrendIcon,
+    } = getObvTrendDetails(obvTrend);
+
+    setMetricsData({
       totalReturn,
       maxGain,
       maxLoss,
@@ -143,15 +261,20 @@ const EnhancedChart = ({
       lowPrice,
       firstPrice,
       lastPrice,
+      volatility,
+      maxDrawdown,
+      atr,
+      obvTrendText,
+      obvTrendClassName,
+      obvTrendIcon,
     });
   }, [data]);
 
-  // Calculate returns data when period changes
   useEffect(() => {
     if (showReturns && data.length > 0) {
-      calculateReturns();
+      calculateMetrics();
     }
-  }, [data, period, showReturns, calculateReturns]);
+  }, [data, period, showReturns, calculateMetrics]);
 
   const loadIndicatorsData = async () => {
     try {
@@ -159,7 +282,6 @@ const EnhancedChart = ({
         statisticalIndicatorsAPI.getAvailableIndicators(),
         statisticalIndicatorsAPI.getConfigurations(),
       ]);
-      // FIX: Extract the 'indicators' array from the response object
       setAvailableIndicators(indicatorResponse?.indicators || []);
       setIndicatorConfigurations(configurations || []);
     } catch (error) {
@@ -171,14 +293,12 @@ const EnhancedChart = ({
     if (!data || data.length === 0) {
       return { candlestickData: [], volumeData: [] };
     }
-    // FIX: Use item.Date for sorting
     const sortedData = [...data].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const cData = sortedData
       .map((item) => {
-        // FIX: Use capitalized keys (Open, High, Low, Close, Volume)
         const open = Number(item.open);
         const high = Number(item.high);
         const low = Number(item.low);
@@ -197,19 +317,18 @@ const EnhancedChart = ({
         }
 
         return {
-          time: new Date(item.date).getTime() / 1000, // FIX: item.date -> item.Date
-          open: open,
-          high: high,
-          low: low,
-          close: close,
-          volume: volume,
+          time: new Date(item.date).getTime() / 1000,
+          open,
+          high,
+          low,
+          close,
+          volume,
         };
       })
       .filter(Boolean);
 
     const vData = sortedData
       .map((item) => {
-        // FIX: Use capitalized keys (Volume, Close, Open)
         const volume = Number(item.volume);
         const close = Number(item.close);
         const open = Number(item.open);
@@ -219,7 +338,7 @@ const EnhancedChart = ({
         }
 
         return {
-          time: new Date(item.date).getTime() / 1000, // FIX: item.date -> item.Date
+          time: new Date(item.date).getTime() / 1000,
           value: volume,
           color:
             close >= open ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
@@ -286,6 +405,7 @@ const EnhancedChart = ({
 
     let priceSeries;
 
+    // *** FIX: Reverted all series creation to the original chart.addSeries pattern ***
     if (chartType === "candlestick") {
       priceSeries = chart.addSeries(CandlestickSeries, {
         upColor: "#22c55e",
@@ -317,12 +437,10 @@ const EnhancedChart = ({
       priceSeries.setData(lineData);
     }
 
-    // Add indicator overlays
     if (showIndicators && Object.keys(indicatorData).length > 0) {
       Object.entries(indicatorData).forEach(
         ([indicatorName, indicatorValues]) => {
           if (indicatorValues && indicatorValues.length > 0) {
-            // Determine if this is a secondary axis indicator (like RSI)
             const isSecondaryAxis = isSecondaryAxisIndicator(indicatorName);
 
             const series = chart.addSeries(LineSeries, {
@@ -334,23 +452,20 @@ const EnhancedChart = ({
             });
             series.setData(indicatorValues);
 
-            // Add horizontal lines for RSI overbought/oversold levels
             if (indicatorName.toLowerCase().includes("rsi")) {
-              // Add overbought line at 70
               series.createPriceLine({
                 price: 70,
                 color: "#ef4444",
                 lineWidth: 1,
-                lineStyle: 2, // dashed
+                lineStyle: 2,
                 axisLabelVisible: true,
                 title: "Overbought (70)",
               });
-              // Add oversold line at 30
               series.createPriceLine({
                 price: 30,
                 color: "#22c55e",
                 lineWidth: 1,
-                lineStyle: 2, // dashed
+                lineStyle: 2,
                 axisLabelVisible: true,
                 title: "Oversold (30)",
               });
@@ -401,54 +516,51 @@ const EnhancedChart = ({
 
       if (chartType === "candlestick") {
         tooltipContent = `
-                    <div class="text-gray-100 font-semibold mb-2">${
-                      symbol || "Asset"
-                    } - ${date}</div>
-                    <div class="space-y-1 text-xs">
-                        <div class="flex justify-between"><span class="text-gray-400">Open:</span><span class="text-gray-200">$${
-                          data.open?.toFixed(2) || "N/A"
-                        }</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">High:</span><span class="text-success-400">$${
-                          data.high?.toFixed(2) || "N/A"
-                        }</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Low:</span><span class="text-danger-400">$${
-                          data.low?.toFixed(2) || "N/A"
-                        }</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Close:</span><span class="text-gray-200">$${
-                          data.close?.toFixed(2) || "N/A"
-                        }</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
-                          volume
-                        )}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
-                          data.close >= data.open
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }">${
+          <div class="text-gray-100 font-semibold mb-2">${
+            symbol || "Asset"
+          } - ${date}</div>
+          <div class="space-y-1 text-xs">
+            <div class="flex justify-between"><span class="text-gray-400">Open:</span><span class="text-gray-200">$${
+              data.open?.toFixed(2) || "N/A"
+            }</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">High:</span><span class="text-success-400">$${
+              data.high?.toFixed(2) || "N/A"
+            }</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Low:</span><span class="text-danger-400">$${
+              data.low?.toFixed(2) || "N/A"
+            }</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Close:</span><span class="text-gray-200">$${
+              data.close?.toFixed(2) || "N/A"
+            }</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
+              volume
+            )}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
+              data.close >= data.open
+                ? "text-success-400"
+                : "text-danger-400"
+            }">${
           data.close && data.open
             ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
             : "N/A"
         }</span></div>
-                    </div>
-                `;
+          </div>`;
       } else {
         tooltipContent = `
-                    <div class="text-gray-100 font-semibold mb-2">${
-                      symbol || "Asset"
-                    } - ${date}</div>
-                    <div class="space-y-1 text-xs">
-                        <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Price:</span><span class="text-primary-400">$${
-                          data.value?.toFixed(2) || "N/A"
-                        }</span></div>
-                        <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
-                          volume
-                        )}</span></div>
-                    </div>
-                `;
+          <div class="text-gray-100 font-semibold mb-2">${
+            symbol || "Asset"
+          } - ${date}</div>
+          <div class="space-y-1 text-xs">
+            <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Price:</span><span class="text-primary-400">$${
+              data.value?.toFixed(2) || "N/A"
+            }</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
+              volume
+            )}</span></div>
+          </div>`;
       }
 
-      // Add indicator values to tooltip
       if (showIndicators && Object.keys(indicatorData).length > 0) {
         tooltipContent += '<div class="border-t border-gray-600 mt-2 pt-2">';
         tooltipContent +=
@@ -466,13 +578,12 @@ const EnhancedChart = ({
                   .replace("_indicator", "")
                   .toUpperCase();
                 tooltipContent += `
-                                <div class="flex justify-between items-center">
-                                    <span class="text-gray-400">${displayName}:</span>
-                                    <span class="font-medium" style="color: ${color}">${
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-400">${displayName}:</span>
+                    <span class="font-medium" style="color: ${color}">${
                   indicatorValue.value?.toFixed(2) || "N/A"
                 }</span>
-                                </div>
-                            `;
+                  </div>`;
               }
             }
           }
@@ -531,10 +642,9 @@ const EnhancedChart = ({
   ]);
 
   const getIndicatorColor = (indicatorName) => {
-    // Use the 'name' from the API response (e.g., 'rsi_indicator')
     const colors = {
-      sma: "#ff6b6b", // Assuming SMA is a key
-      ema: "#4ecdc4", // Assuming EMA is a key
+      sma: "#ff6b6b",
+      ema: "#4ecdc4",
       rsi_indicator: "#45b7d1",
       macd_indicator: "#96ceb4",
       bollinger_bands_indicator: "#feca57",
@@ -543,16 +653,13 @@ const EnhancedChart = ({
       cci_indicator: "#5f27cd",
       roc_indicator: "#00d2d3",
       average_true_range_indicator: "#ff9f43",
-      // Add other names from your API response as needed
     };
-    // Fallback for names like 'SMA' if they are used
     return (
       colors[indicatorName] || colors[indicatorName.toLowerCase()] || "#8884d8"
     );
   };
 
   const isSecondaryAxisIndicator = (indicatorName) => {
-    // Indicators that should be displayed on the secondary (right) axis
     const secondaryAxisIndicators = [
       "rsi",
       "stoch",
@@ -561,7 +668,6 @@ const EnhancedChart = ({
       "williams",
       "momentum",
     ];
-
     const lowerName = indicatorName.toLowerCase();
     return secondaryAxisIndicators.some((indicator) =>
       lowerName.includes(indicator)
@@ -572,7 +678,6 @@ const EnhancedChart = ({
     const newIndicators = selectedIndicators.includes(indicator)
       ? selectedIndicators.filter((i) => i !== indicator)
       : [...selectedIndicators, indicator];
-
     setSelectedIndicators(newIndicators);
     if (onIndicatorsChange) {
       onIndicatorsChange(newIndicators);
@@ -587,10 +692,8 @@ const EnhancedChart = ({
     }
   };
 
-  // FIX: New helper function to format the description
   const formatIndicatorDescription = (description) => {
     if (!description) return "";
-    // Use regex to remove " indicator" from the end of the string, case-insensitive
     return description.replace(/ indicator$/i, "").trim();
   };
 
@@ -600,6 +703,9 @@ const EnhancedChart = ({
     { value: "6mo", label: "6 Months" },
     { value: "ytd", label: "YTD" },
     { value: "1y", label: "1 Year" },
+    { value: "2y", label: "2 Years" },
+    { value: "3y", label: "3 Years" },
+    { value: "4y", label: "4 Years" },
     { value: "5y", label: "5 Years" },
     { value: "max", label: "All" },
   ];
@@ -689,58 +795,88 @@ const EnhancedChart = ({
         </div>
       )}
 
-      {/* Returns Panel */}
       {showReturnsPanel && showReturns && (
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-gray-100 flex items-center">
               <TrendingUp className="w-5 h-5 mr-2 text-primary-400" />
-              Performance Returns
+              Performance Metrics
             </h3>
             <button
               onClick={() => setShowReturnsPanel(false)}
-              className="text-gray-400 hover:text-gray-1g00"
+              className="text-gray-400 hover:text-gray-100"
             >
               <X size={16} />
             </button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center">
               <p className="text-sm text-gray-400">Total Return</p>
               <p
                 className={`text-lg font-bold ${
-                  returnsData.totalReturn >= 0
+                  metricsData.totalReturn >= 0
                     ? "text-success-400"
                     : "text-danger-400"
                 }`}
               >
-                {formatPercentage(returnsData.totalReturn || 0)}
+                {formatPercentage(metricsData.totalReturn || 0)}
               </p>
             </div>
             <div className="text-center">
               <p className="text-sm text-gray-400">Max Gain</p>
               <p className="text-lg font-bold text-success-400">
-                {formatPercentage(returnsData.maxGain || 0)}
+                {formatPercentage(metricsData.maxGain || 0)}
               </p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-400">Max Loss</p>
+              <p className="text-sm text-gray-400">Max Loss vs Start</p>
               <p className="text-lg font-bold text-danger-400">
-                {formatPercentage(returnsData.maxLoss || 0)}
+                {formatPercentage(metricsData.maxLoss || 0)}
               </p>
             </div>
             <div className="text-center">
               <p className="text-sm text-gray-400">Price Range</p>
               <p className="text-sm font-medium text-gray-200">
-                ${returnsData.lowPrice?.toFixed(2) || "0"} - $
-                {returnsData.highPrice?.toFixed(2) || "0"}
+                {formatCurrency(metricsData.lowPrice || 0)} -{" "}
+                {formatCurrency(metricsData.highPrice || 0)}
               </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-400">Volatility (Daily)</p>
+              <p className="text-lg font-bold text-gray-200">
+                {formatPercentage(metricsData.volatility || 0)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-400">Max Drawdown</p>
+              <p className="text-lg font-bold text-danger-400">
+                -{formatPercentage(metricsData.maxDrawdown || 0)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-400">Avg. True Range (ATR)</p>
+              <p className="text-lg font-bold text-gray-200">
+                {formatCurrency(metricsData.atr || 0)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-400">OBV Trend</p>
+              <div
+                className={`flex items-center justify-center text-lg font-bold ${metricsData.obvTrendClassName}`}
+              >
+                {metricsData.obvTrendIcon && (
+                  <metricsData.obvTrendIcon
+                    className="mr-1 h-5 w-5"
+                    size={16}
+                  />
+                )}
+                <span>{metricsData.obvTrendText}</span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Indicators Panel */}
       {showIndicatorPanel && showIndicators && (
         <div className="card p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
@@ -780,7 +916,6 @@ const EnhancedChart = ({
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: getIndicatorColor(indicator.name) }}
                 />
-                {/* FIX: Show formatted description instead of name */}
                 <span>{formatIndicatorDescription(indicator.description)}</span>
               </button>
             ))}
@@ -791,7 +926,6 @@ const EnhancedChart = ({
               <p className="text-sm text-gray-400 mb-2">Active Indicators:</p>
               <div className="flex flex-wrap gap-2">
                 {selectedIndicators.map((indicatorName) => {
-                  // Find the full indicator object to get its description
                   const indicator = availableIndicators.find(
                     (i) => i.name === indicatorName
                   );
@@ -806,7 +940,6 @@ const EnhancedChart = ({
                           backgroundColor: getIndicatorColor(indicatorName),
                         }}
                       />
-                      {/* FIX: Show formatted description here as well */}
                       <span>
                         {indicator
                           ? formatIndicatorDescription(indicator.description)
@@ -837,7 +970,6 @@ const EnhancedChart = ({
         className="bg-dark-950 rounded-lg border border-dark-700 overflow-hidden"
       />
 
-      {/* Indicator Legend */}
       {showIndicators && Object.keys(indicatorData).length > 0 && (
         <div className="mt-4 p-3 bg-dark-800 rounded-lg border border-dark-600">
           <h4 className="text-sm font-medium text-gray-300 mb-2">

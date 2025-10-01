@@ -571,7 +571,7 @@ class TestPortfolioCalculationService:
         assert "mwr_difference" in comparison
         assert "outperforming" in comparison
 
-    def test_get_current_portfolio_value_success(
+    async def test_get_current_portfolio_value_success(
         self, calculation_service, sample_portfolio_asset
     ):
         """Test getting current portfolio value."""
@@ -579,11 +579,11 @@ class TestPortfolioCalculationService:
             sample_portfolio_asset
         ]
 
-        value = calculation_service._get_current_portfolio_value(1)
+        value = await calculation_service.get_current_portfolio_value(1)
 
         assert value == 25000.0
 
-    def test_get_current_portfolio_value_no_current_value(self, calculation_service):
+    async def test_get_current_portfolio_value_no_current_value(self, calculation_service):
         """Test getting current portfolio value when current_value is None."""
         # Mock portfolio asset with None current_value
         portfolio_asset = Mock(spec=PortfolioAsset)
@@ -594,7 +594,7 @@ class TestPortfolioCalculationService:
             portfolio_asset
         ]
 
-        value = calculation_service._get_current_portfolio_value(1)
+        value = await calculation_service.get_current_portfolio_value(1)
 
         # Should fallback to cost basis
         assert value == 18500.0

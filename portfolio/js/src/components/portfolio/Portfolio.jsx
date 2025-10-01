@@ -347,9 +347,8 @@ const Portfolio = () => {
     const totalCost = portfolioStats.total_cost_basis || 0;
     const totalGainLoss = portfolioStats.total_unrealized_pnl || 0;
     const totalGainLossPercent = portfolioStats.total_unrealized_pnl_percent || 0;
-    const dayChange = portfolioStats.day_change || 0;
-    const dayChangePercent =
-      totalValue > 0 ? (dayChange / totalValue) * 100 : 0;
+    const dayChange = portfolioStats.today_pnl || 0;
+    const dayChangePercent = portfolioStats.today_pnl_percent || 0;
 
     return {
       totalValue,

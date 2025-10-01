@@ -20,7 +20,6 @@ class PerformanceMetrics(BaseModel):
     twr: Optional[float] = Field(None, description="Time-Weighted Return (%)")
     mwr: Optional[float] = Field(None, description="Money-Weighted Return (%)")
     volatility: Optional[float] = Field(None, description="Volatility (%)")
-    sharpe_ratio: Optional[float] = Field(None, description="Sharpe Ratio")
     max_drawdown: Optional[float] = Field(None, description="Maximum Drawdown (%)")
 
 
@@ -42,26 +41,6 @@ class PortfolioPerformanceResponse(BaseModel):
     )
 
 
-class AssetPerformanceResponse(BaseModel):
-    """Asset performance calculation response."""
-
-    portfolio_id: int = Field(..., description="Portfolio ID")
-    asset_id: int = Field(..., description="Asset ID")
-    asset_symbol: str = Field(..., description="Asset symbol")
-    asset_name: str = Field(..., description="Asset name")
-    period: str = Field(..., description="Calculation period")
-    start_date: Optional[datetime] = Field(None, description="Period start date")
-    end_date: datetime = Field(..., description="Period end date")
-    current_value: float = Field(..., description="Current asset value in portfolio")
-    metrics: PerformanceMetrics = Field(..., description="Performance metrics")
-    calculation_date: datetime = Field(
-        ..., description="When calculation was performed"
-    )
-    error: Optional[str] = Field(
-        None, description="Error message if calculation failed"
-    )
-
-
 class BenchmarkPerformanceResponse(BaseModel):
     """Benchmark performance calculation response."""
 
@@ -70,7 +49,6 @@ class BenchmarkPerformanceResponse(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Period start date")
     end_date: datetime = Field(..., description="Period end date")
     current_value: float = Field(..., description="Current hypothetical value")
-    total_invested: float = Field(..., description="Total amount invested")
     metrics: PerformanceMetrics = Field(..., description="Performance metrics")
     calculation_date: datetime = Field(
         ..., description="When calculation was performed"
@@ -129,23 +107,6 @@ class MultiPeriodPerformanceResponse(BaseModel):
 
     portfolio_id: int = Field(..., description="Portfolio ID")
     portfolio_name: str = Field(..., description="Portfolio name")
-    current_value: float = Field(..., description="Current portfolio value")
-    periods: List[PeriodPerformanceSummary] = Field(
-        ..., description="Performance by period"
-    )
-    calculation_date: datetime = Field(
-        ..., description="When calculation was performed"
-    )
-
-
-class AssetMultiPeriodPerformanceResponse(BaseModel):
-    """Multi-period performance analysis response for an asset."""
-
-    portfolio_id: int = Field(..., description="Portfolio ID")
-    asset_id: int = Field(..., description="Asset ID")
-    asset_symbol: str = Field(..., description="Asset symbol")
-    asset_name: str = Field(..., description="Asset name")
-    current_value: float = Field(..., description="Current asset value in portfolio")
     periods: List[PeriodPerformanceSummary] = Field(
         ..., description="Performance by period"
     )
@@ -207,15 +168,6 @@ class PerformanceCalculationRequest(BaseModel):
     benchmark_symbol: Optional[str] = Field(
         None, description="Benchmark symbol for comparison"
     )
-
-
-class AssetPerformanceCalculationRequest(BaseModel):
-    """Request for asset performance calculation."""
-
-    portfolio_id: int = Field(..., description="Portfolio ID")
-    asset_id: int = Field(..., description="Asset ID")
-    period: str = Field(..., description="Calculation period")
-    end_date: Optional[datetime] = Field(None, description="End date for calculation")
 
 
 class BenchmarkPerformanceCalculationRequest(BaseModel):

@@ -176,7 +176,12 @@ class PortfolioService:
 
             # Get current price from yfinance
             current_price = await self.market_data_service.get_current_price(
-                asset.symbol
+                symbol=asset.symbol
+            )
+            last_trading_day_price = (
+                await self.market_data_service.get_yesterdays_close(
+                    symbol=asset.symbol
+                )
             )
 
             if current_price:
@@ -194,11 +199,36 @@ class PortfolioService:
                     portfolio_asset.unrealized_pnl_percent = Decimal(str(pnl_percent))
                 else:
                     portfolio_asset.unrealized_pnl_percent = Decimal("0")
+
+                # Calculate Today's P&L and Percentage
+                if last_trading_day_price:
+                    previous_day_value = float(last_trading_day_price) * float(
+                        portfolio_asset.quantity
+                    )
+                    todays_pnl_value = current_value - previous_day_value
+                    portfolio_asset.todays_pnl = Decimal(str(todays_pnl_value))
+
+                    if previous_day_value > 0:
+                        todays_pnl_percent = (
+                            todays_pnl_value / previous_day_value
+                        ) * 100
+                        portfolio_asset.todays_pnl_percent = Decimal(
+                            str(todays_pnl_percent)
+                        )
+                    else:
+                        portfolio_asset.todays_pnl_percent = Decimal("0")
+                else:
+                    # Cannot calculate today's P&L without yesterday's close
+                    portfolio_asset.todays_pnl = None
+                    portfolio_asset.todays_pnl_percent = None
+
             else:
                 # If we can't get current price, keep existing values or set to None
                 portfolio_asset.current_value = None
                 portfolio_asset.unrealized_pnl = None
                 portfolio_asset.unrealized_pnl_percent = None
+                portfolio_asset.todays_pnl = None
+                portfolio_asset.todays_pnl_percent = None
 
             # Calculate realized P&L
             realized_pnl, realized_pnl_percent = self._calculate_realized_pnl(
@@ -613,7 +643,7 @@ class PortfolioService:
         return True
 
     # Portfolio Analytics and Performance
-    def get_portfolio_summary(
+    async def get_portfolio_summary(
         self, portfolio_id: int, user_id: int
     ) -> PortfolioSummary:
         """Get comprehensive portfolio summary."""
@@ -626,6 +656,8 @@ class PortfolioService:
                 total_assets=0,
                 total_cost_basis=0.0,
                 total_current_value=0.0,
+                today_pnl=0.0,
+                today_pnl_percent=0.0,
                 total_unrealized_pnl=0.0,
                 total_unrealized_pnl_percent=0.0,
                 last_updated=None,
@@ -637,15 +669,37 @@ class PortfolioService:
         # Get portfolio assets
         assets = self.get_portfolio_assets(portfolio_id, user_id)
 
-        # Calculate summary metrics
-        total_cost_basis = sum(float(asset.cost_basis_total) for asset in assets)
-        total_current_value = sum(
-            float(asset.current_value or asset.cost_basis_total) for asset in assets
-        )
-        total_unrealized_pnl = total_current_value - total_cost_basis
+        # Initialize summary metrics
+        total_cost_basis = Decimal("0")
+        total_current_value = Decimal("0")
+        total_today_pnl = Decimal("0")
+
+        # Update each asset and aggregate the values
+        for asset in assets:
+            await self._update_asset_pnl(asset)  # This updates the asset object
+            total_cost_basis += asset.cost_basis_total
+            total_current_value += asset.current_value or asset.cost_basis_total
+            if asset.todays_pnl:
+                total_today_pnl += asset.todays_pnl
+
+        # Convert to float for calculations
+        total_cost_basis_f = float(total_cost_basis)
+        total_current_value_f = float(total_current_value)
+        total_today_pnl_f = float(total_today_pnl)
+
+        # Calculate unrealized P&L
+        total_unrealized_pnl = total_current_value_f - total_cost_basis_f
         total_unrealized_pnl_percent = (
-            (total_unrealized_pnl / total_cost_basis * 100)
-            if total_cost_basis > 0
+            (total_unrealized_pnl / total_cost_basis_f * 100)
+            if total_cost_basis_f > 0
+            else 0
+        )
+
+        # Calculate today's P&L percentage
+        total_previous_day_value = total_current_value_f - total_today_pnl_f
+        total_today_pnl_percent = (
+            (total_today_pnl_f / total_previous_day_value * 100)
+            if total_previous_day_value > 0
             else 0
         )
 
@@ -659,8 +713,10 @@ class PortfolioService:
             portfolio_name=portfolio.name,
             currency=portfolio.currency,
             total_assets=len(assets),
-            total_cost_basis=round(total_cost_basis, 2),
-            total_current_value=round(total_current_value, 2),
+            total_cost_basis=round(total_cost_basis_f, 2),
+            total_current_value=round(total_current_value_f, 2),
+            today_pnl=round(total_today_pnl_f, 2),
+            today_pnl_percent=round(total_today_pnl_percent, 2),
             total_unrealized_pnl=round(total_unrealized_pnl, 2),
             total_unrealized_pnl_percent=round(total_unrealized_pnl_percent, 2),
             last_updated=portfolio.updated_at,
@@ -708,6 +764,8 @@ class PortfolioService:
                     current_value=(
                         float(asset.current_value) if asset.current_value else None
                     ),
+                    today_pnl=float(asset.todays_pnl),
+                    today_pnl_percent=float(asset.todays_pnl_percent),
                     unrealized_pnl=(
                         float(asset.unrealized_pnl) if asset.unrealized_pnl else None
                     ),

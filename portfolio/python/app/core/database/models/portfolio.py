@@ -98,6 +98,8 @@ class PortfolioAsset(Base):
     realized_pnl_percent = Column(
         Numeric(10, 4), nullable=True
     )  # Realized P&L percentage
+    today_pnl = Column(Numeric(20, 4), nullable=True)
+    today_pnl_percent = Column(Numeric(10, 4), nullable=True)
     last_updated = Column(
         DateTime(timezone=True),
         server_default=func.now(),

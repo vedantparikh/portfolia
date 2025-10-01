@@ -293,17 +293,6 @@ const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
         </div>
       )}
 
-      {/* Performance Metrics */}
-      {analysisData?.performance && (
-        <div className="card p-6">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
-            <TrendingUp className="w-5 h-5 mr-2 text-primary-400" />
-            Performance Metrics
-          </h3>
-          {/* ... same as before ... */}
-        </div>
-      )}
-
       {/* Advanced Analysis */}
       {showAdvancedAnalysis && analysisData?.advanced && (
         <div className="card p-6">

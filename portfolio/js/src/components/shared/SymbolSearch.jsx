@@ -128,7 +128,7 @@ const SymbolSearch = ({
 
                 {/* Suggestions Dropdown */}
                 {showSuggestions && showSuggestionsDropdown && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg z-[60] max-h-48 overflow-y-auto">
                         {searching && (
                             <div className="px-4 py-3 text-gray-400 text-sm">
                                 <LoadingSpinner size="sm" color="primary" text="Searching..." />

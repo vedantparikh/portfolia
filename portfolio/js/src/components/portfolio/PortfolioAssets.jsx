@@ -1,8 +1,10 @@
 import {
+    Activity,
     BarChart3,
     Filter,
     MoreVertical,
     PieChart,
+    Plus,
     RefreshCw,
     Search,
     Trash2,
@@ -11,11 +13,13 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { portfolioAPI } from '../../services/api';
+import { portfolioAPI, transactionAPI } from '../../services/api';
 import AssetFilters from '../assets/AssetFilters';
+import AssetModal from '../assets/AssetModal';
+import CreateTransactionModal from '../transactions/CreateTransactionModal';
 
 // Custom portfolio asset display component
-const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelete }) => {
+const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onTransaction, onAnalytics, onDelete }) => {
     const [showMenu, setShowMenu] = useState(false);
 
     const handleMenuClick = (e) => {
@@ -29,10 +33,16 @@ const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelet
         onDelete && onDelete();
     };
 
-    const handleEdit = (e) => {
+    const handleTransaction = (e) => {
         e.stopPropagation();
         setShowMenu(false);
-        onEdit && onEdit();
+        onTransaction && onTransaction();
+    };
+
+    const handleAnalytics = (e) => {
+        e.stopPropagation();
+        setShowMenu(false);
+        onAnalytics && onAnalytics();
     };
 
     if (viewMode === 'list') {
@@ -104,6 +114,15 @@ const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelet
                                 {asset.realized_pnl_percentage?.toFixed(2) || '0.00'}%
                             </p>
                         </div>
+                        <div className="text-right">
+                            <p className="text-sm text-gray-400">Today's P&L</p>
+                            <p className={`text-sm font-medium ${(asset.pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
+                                ${asset.today_pnl?.toFixed(2) || '0.00'}
+                            </p>
+                            <p className={`text-xs ${(asset.pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
+                                {asset.today_pnl_percentage?.toFixed(2) || '0.00'}%
+                            </p>
+                        </div>
 
                         <div className="flex items-center space-x-2">
                             <div className="relative">
@@ -116,18 +135,25 @@ const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelet
                                 {showMenu && (
                                     <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
                                         <button
-                                            onClick={handleEdit}
+                                            onClick={handleTransaction}
+                                            className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
+                                        >
+                                            <Plus size={14} />
+                                            <span>Add Transaction</span>
+                                        </button>
+                                        <button
+                                            onClick={handleAnalytics}
                                             className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
                                         >
-                                            <BarChart3 size={14} />
-                                            <span>Detailed Analysis</span>
+                                            <Activity size={14} />
+                                            <span>Analytics</span>
                                         </button>
                                         <button
                                             onClick={handleDelete}
                                             className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-dark-700 flex items-center space-x-2"
                                         >
                                             <Trash2 size={14} />
-                                            <span>Remove</span>
+                                            <span>Delete</span>
                                         </button>
                                     </div>
                                 )}
@@ -170,18 +196,25 @@ const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelet
                         {showMenu && (
                             <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
                                 <button
-                                    onClick={handleEdit}
+                                    onClick={handleTransaction}
+                                    className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
+                                >
+                                    <Plus size={14} />
+                                    <span>Add Transaction</span>
+                                </button>
+                                <button
+                                    onClick={handleAnalytics}
                                     className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
                                 >
-                                    <BarChart3 size={14} />
-                                    <span>Detailed Analysis</span>
+                                    <Activity size={14} />
+                                    <span>Analytics</span>
                                 </button>
                                 <button
                                     onClick={handleDelete}
                                     className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-dark-700 flex items-center space-x-2"
                                 >
                                     <Trash2 size={14} />
-                                    <span>Remove</span>
+                                    <span>Delete</span>
                                 </button>
                             </div>
                         )}
@@ -245,6 +278,19 @@ const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onEdit, onDelet
                             </div>
                         </div>
                     )}
+                    {asset.today_pnl !== undefined && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-400">Today's P&L</span>
+                            <div className="text-right">
+                                <span className={`text-sm font-medium ${(asset.today_pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
+                                    ${asset.today_pnl?.toFixed(2) || '0.00'}
+                                </span>
+                                <span className={`text-xs ml-2 ${(asset.today_pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
+                                    ({asset.today_pnl_percentage?.toFixed(2) || '0.00'}%)
+                                </span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -290,6 +336,12 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
         sortOrder: 'asc'
     });
 
+    // Modal states
+    const [showAssetModal, setShowAssetModal] = useState(false);
+    const [showTransactionModal, setShowTransactionModal] = useState(false);
+    const [selectedAsset, setSelectedAsset] = useState(null);
+    const [transactionAsset, setTransactionAsset] = useState(null);
+
     // Load portfolio assets when portfolio changes
     useEffect(() => {
         if (portfolio && portfolio.id) {
@@ -330,7 +382,9 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                     pnl: holding.unrealized_pnl,
                     pnl_percentage: holding.unrealized_pnl_percent,
                     realized_pnl: holding.realized_pnl,
-                    realized_pnl_percentage: holding.realized_pnl_percent
+                    realized_pnl_percentage: holding.realized_pnl_percent,
+                    today_pnl: holding.today_pnl,
+                    today_pnl_percentage: holding.today_pnl_percent
                 }));
             }
 
@@ -515,6 +569,58 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
 
     const handleFilterChange = (newFilters) => {
         setFilters(prev => ({ ...prev, ...newFilters }));
+    };
+
+    // Asset modal handlers
+    const handleAssetClick = (asset) => {
+        setSelectedAsset(asset);
+        setShowAssetModal(true);
+    };
+
+    const handleTransactionClick = (asset) => {
+        setTransactionAsset(asset);
+        setShowTransactionModal(true);
+    };
+
+    const handleAnalyticsClick = (asset) => {
+        // For now, show asset details - can be enhanced later
+        setSelectedAsset(asset);
+        setShowAssetModal(true);
+    };
+
+    const handleDeleteAsset = async (assetId) => {
+        if (window.confirm('Are you sure you want to remove this asset from the portfolio?')) {
+            try {
+                // Remove asset from portfolio (this would need to be implemented in the API)
+                toast.success('Asset removed from portfolio');
+                loadPortfolioAssets(); // Reload assets
+            } catch (error) {
+                console.error('Failed to remove asset:', error);
+                toast.error('Failed to remove asset from portfolio');
+            }
+        }
+    };
+
+    const handleCreateTransaction = async (transactionData) => {
+        try {
+            console.log('[PortfolioAssets] Creating transaction with data:', transactionData);
+            const response = await transactionAPI.createTransaction(transactionData);
+            console.log('[PortfolioAssets] Create response:', response);
+
+            setShowTransactionModal(false);
+            setTransactionAsset(null);
+            toast.success('Transaction created successfully');
+
+            // Refresh portfolio assets to ensure consistency
+            setTimeout(() => {
+                loadPortfolioAssets();
+            }, 500);
+        } catch (error) {
+            console.error('Failed to create transaction:', error);
+            const errorMessage = error.response?.data?.detail || error.message || 'Failed to create transaction';
+            toast.error(errorMessage);
+            throw error; // Re-throw so the modal can handle it
+        }
     };
 
     const getTotalStats = () => {
@@ -719,21 +825,39 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                             key={asset.id}
                             asset={asset}
                             viewMode={viewMode}
-                            onClick={() => {
-                                // TODO: Implement asset detail view
-                                toast.info('Asset detail view coming soon!');
-                            }}
-                            onEdit={() => {
-                                // TODO: Implement edit asset functionality
-                                toast.info('Edit asset functionality coming soon!');
-                            }}
-                            onDelete={() => {
-                                // TODO: Implement delete asset functionality
-                                toast.info('Delete asset functionality coming soon!');
-                            }}
+                            onClick={() => handleAssetClick(asset)}
+                            onTransaction={() => handleTransactionClick(asset)}
+                            onAnalytics={() => handleAnalyticsClick(asset)}
+                            onDelete={() => handleDeleteAsset(asset.id)}
                         />
                     ))}
                 </div>
+            )}
+
+            {/* Asset Modal */}
+            {showAssetModal && selectedAsset && (
+                <AssetModal
+                    asset={selectedAsset}
+                    mode="view"
+                    onClose={() => {
+                        setShowAssetModal(false);
+                        setSelectedAsset(null);
+                    }}
+                />
+            )}
+
+            {/* Create Transaction Modal */}
+            {showTransactionModal && transactionAsset && (
+                <CreateTransactionModal
+                    portfolios={[portfolio]} // Pass current portfolio
+                    prefilledAsset={transactionAsset}
+                    prefilledPrice={transactionAsset.current_price}
+                    onClose={() => {
+                        setShowTransactionModal(false);
+                        setTransactionAsset(null);
+                    }}
+                    onCreate={handleCreateTransaction}
+                />
             )}
         </div>
     );

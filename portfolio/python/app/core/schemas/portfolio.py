@@ -237,6 +237,8 @@ class PortfolioSummary(BaseModel):
     total_assets: int
     total_cost_basis: float
     total_current_value: float
+    today_pnl: float
+    today_pnl_percent: float
     total_unrealized_pnl: float
     total_unrealized_pnl_percent: float
     last_updated: Optional[datetime]
@@ -259,6 +261,8 @@ class PortfolioHolding(BaseModel):
     unrealized_pnl_percent: Optional[float]
     realized_pnl: Optional[float]
     realized_pnl_percent: Optional[float]
+    today_pnl: Optional[float]
+    today_pnl_percent: Optional[float]
     last_updated: datetime
 
 

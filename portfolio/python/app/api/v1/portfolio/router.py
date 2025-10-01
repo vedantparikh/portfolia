@@ -292,7 +292,7 @@ async def get_portfolio_summary(
 ):
     """Get portfolio summary with total value and performance metrics."""
     portfolio_service = PortfolioService(db)
-    summary = portfolio_service.get_portfolio_summary(portfolio_id, current_user.id)
+    summary = await portfolio_service.get_portfolio_summary(portfolio_id, current_user.id)
 
     if not summary.portfolio_id:
         raise HTTPException(

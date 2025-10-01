@@ -125,7 +125,7 @@ const Transactions = () => {
             }
 
             filtered = filtered.filter(transaction => {
-                const transactionDate = new Date(transaction.transaction_date || transaction.created_at);
+                const transactionDate = new Date(transaction.transaction_date);
                 return transactionDate >= filterDate;
             });
         }
@@ -136,8 +136,8 @@ const Transactions = () => {
 
             switch (filters.sortBy) {
                 case 'created_at':
-                    aValue = new Date(a.transaction_date || a.created_at);
-                    bValue = new Date(b.transaction_date || b.created_at);
+                    aValue = new Date(a.transaction_date);
+                    bValue = new Date(b.transaction_date);
                     break;
                 case 'amount':
                     aValue = a.total_amount || 0;
@@ -152,8 +152,8 @@ const Transactions = () => {
                     bValue = (b.transaction_type || b.type || '').toLowerCase();
                     break;
                 default:
-                    aValue = new Date(a.transaction_date || a.created_at);
-                    bValue = new Date(b.transaction_date || b.created_at);
+                    aValue = new Date(a.transaction_date);
+                    bValue = new Date(b.transaction_date);
             }
 
             if (filters.sortOrder === 'asc') {

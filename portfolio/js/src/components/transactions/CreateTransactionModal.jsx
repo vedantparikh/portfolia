@@ -22,7 +22,7 @@ import { assetAPI, marketAPI } from '../../services/api';
 import assetCache from '../../services/assetCache';
 import { ClientSideAssetSearch, SymbolSearch } from '../shared';
 
-const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
+const CreateTransactionModal = ({ portfolios, onClose, onCreate, prefilledAsset = null, prefilledPrice = null }) => {
     const { isAuthenticated } = useAuth();  // Get the authentication status
     const [formData, setFormData] = useState({  // State for form data
         portfolio_id: '',
@@ -227,6 +227,28 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
         assetCache.preloadAssets();
     }, []);
 
+    // Prefill form data when prefilledAsset is provided
+    useEffect(() => {
+        if (prefilledAsset) {
+            console.log('[CreateTransactionModal] Prefilling asset data:', prefilledAsset);
+            setFormData(prev => ({
+                ...prev,
+                asset_id: prefilledAsset.id,
+                symbol: prefilledAsset.symbol
+            }));
+            setSelectedAsset(prefilledAsset);
+
+            // Set prefilled price if provided
+            if (prefilledPrice) {
+                console.log('[CreateTransactionModal] Setting prefilled price:', prefilledPrice);
+                setFormData(prev => ({
+                    ...prev,
+                    price: prefilledPrice.toString()
+                }));
+            }
+        }
+    }, [prefilledAsset, prefilledPrice]);
+
     // Function to fetch current price for a symbol
     const fetchCurrentPrice = async (symbol) => {
         try {
@@ -423,6 +445,14 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
 
             toast.success('Asset created successfully and selected for transaction');
 
+            // Refresh the asset cache to include the new asset
+            try {
+                await assetCache.refreshCache();
+                console.log('[CreateTransactionModal] Asset cache refreshed after creating new asset');
+            } catch (cacheError) {
+                console.warn('[CreateTransactionModal] Failed to refresh asset cache:', cacheError);
+            }
+
             // Try to fetch current price for the new asset
             if (createdAsset.symbol) {
                 await fetchCurrentPrice(createdAsset.symbol);
@@ -443,7 +473,7 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
             return;
         }
 
-        if (!formData.symbol.trim()) {
+        if (!formData.symbol || !formData.symbol.trim()) {
             toast.error('Symbol is required');
             return;
         }
@@ -452,7 +482,6 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
         if (!formData.asset_id && formData.symbol) {
             const cachedAsset = assetCache.findAssetBySymbol(formData.symbol);
             if (cachedAsset) {
-                console.log('[CreateTransactionModal] Found asset during validation:', cachedAsset);
                 setFormData(prev => ({
                     ...prev,
                     asset_id: cachedAsset.id
@@ -535,6 +564,9 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
                             <h2 className="text-xl font-bold text-gray-100">Create Transaction</h2>
                             <p className="text-sm text-gray-400">
                                 Add a new {getSelectedTransactionType().label.toLowerCase()} transaction
+                                {prefilledAsset && (
+                                    <span className="text-primary-400"> for {prefilledAsset.symbol}</span>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -645,8 +677,8 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
                             onSelect={handleSymbolSelect}
                             onPriceUpdate={handlePriceUpdate}
                             placeholder="Search assets..."
-                            disabled={loading}
-                            showSuggestions={true}
+                            disabled={loading || !!prefilledAsset}
+                            showSuggestions={!prefilledAsset}
                             preloadAssets={true}
                         />
 
@@ -1066,37 +1098,36 @@ const CreateTransactionModal = ({ portfolios, onClose, onCreate }) => {
                             className="input-field w-full resize-none"
                         />
                     </div>
-                </form>
 
-                {/* Footer */}
-                <div className="flex items-center justify-end space-x-3 p-6 border-t border-dark-700 flex-shrink-0">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="btn-secondary"
-                        disabled={loading}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        onClick={handleSubmit}
-                        disabled={loading || !formData.portfolio_id || !formData.symbol || !formData.quantity || !formData.price}
-                        className="btn-primary flex items-center space-x-2"
-                    >
-                        {loading ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span>Creating...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Plus size={16} />
-                                <span>Create Transaction</span>
-                            </>
-                        )}
-                    </button>
-                </div>
+                    {/* Form Actions */}
+                    <div className="flex items-center justify-end space-x-3 pt-6 border-t border-dark-700">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="btn-secondary"
+                            disabled={loading}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading || !formData.portfolio_id || !formData.symbol || !formData.quantity || !formData.price}
+                            className="btn-primary flex items-center space-x-2"
+                        >
+                            {loading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Creating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Plus size={16} />
+                                    <span>Create Transaction</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

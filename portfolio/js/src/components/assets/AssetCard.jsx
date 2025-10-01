@@ -1,9 +1,9 @@
 import {
+    Activity,
     BarChart3,
     MoreVertical,
-    Trash2,
-    Activity,
-    TrendingUp
+    Plus,
+    Trash2
 } from 'lucide-react';
 import React, { useState } from 'react';
 import {
@@ -16,7 +16,7 @@ import {
     getChangeIcon
 } from '../../utils/formatters.jsx';
 
-const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics }) => {
+const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, onTransaction }) => {
     const [showMenu, setShowMenu] = useState(false);
     const handleMenuClick = (e) => {
         e.stopPropagation();
@@ -33,6 +33,12 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics })
         e.stopPropagation();
         setShowMenu(false);
         onAnalytics && onAnalytics();
+    };
+
+    const handleTransaction = (e) => {
+        e.stopPropagation();
+        setShowMenu(false);
+        onTransaction && onTransaction();
     };
 
     if (viewMode === 'list') {
@@ -96,7 +102,13 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics })
                                 </button>
                                 {showMenu && (
                                     <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
-
+                                        <button
+                                            onClick={handleTransaction}
+                                            className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
+                                        >
+                                            <Plus size={14} />
+                                            <span>Add Transaction</span>
+                                        </button>
                                         <button
                                             onClick={handleAnalytics}
                                             className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
@@ -153,6 +165,13 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics })
                         </button>
                         {showMenu && (
                             <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
+                                <button
+                                    onClick={handleTransaction}
+                                    className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
+                                >
+                                    <Plus size={14} />
+                                    <span>Add Transaction</span>
+                                </button>
                                 <button
                                     onClick={handleAnalytics}
                                     className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
@@ -244,7 +263,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics })
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-500">BB Position</span>
                                 <span className={`text-xs font-medium ${asset.bollinger_bands > 0.8 ? 'text-danger-400' :
-                                        asset.bollinger_bands < 0.2 ? 'text-success-400' : 'text-gray-300'
+                                    asset.bollinger_bands < 0.2 ? 'text-success-400' : 'text-gray-300'
                                     }`}>
                                     {asset.bollinger_bands > 0.8 ? 'Upper Band' :
                                         asset.bollinger_bands < 0.2 ? 'Lower Band' : 'Middle'}

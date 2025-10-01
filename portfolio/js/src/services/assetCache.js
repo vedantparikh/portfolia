@@ -197,6 +197,15 @@ class AssetCacheService {
     }
 
     /**
+     * Force refresh the cache immediately
+     * @returns {Promise<Array>} Array of assets
+     */
+    async refreshCache() {
+        console.log('[AssetCache] Force refreshing cache...');
+        return await this.fetchAssets();
+    }
+
+    /**
      * Get cache statistics
      * @returns {Object} Cache stats
      */

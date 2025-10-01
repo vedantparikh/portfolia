@@ -113,6 +113,8 @@ class PortfolioDashboardService:
                     if portfolio_asset.current_value
                     else None
                 ),
+                today_pnl=float(portfolio_asset.current_value),
+                today_pnl_percent=float(portfolio_asset.current_value),
                 unrealized_pnl=(
                     float(portfolio_asset.unrealized_pnl)
                     if portfolio_asset.unrealized_pnl

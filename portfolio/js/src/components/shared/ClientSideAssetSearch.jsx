@@ -53,6 +53,16 @@ const ClientSideAssetSearch = ({
                 const filtered = assetCache.filterAssets(query, 8);
                 setFilteredAssets(filtered);
                 setShowSuggestionsDropdown(true);
+            } else if (query === '') {
+                // Show all assets alphabetically when input is empty
+                const allAssets = assetCache.assets || [];
+                const sortedAssets = allAssets.sort((a, b) => {
+                    const aSymbol = a.symbol?.toLowerCase() || '';
+                    const bSymbol = b.symbol?.toLowerCase() || '';
+                    return aSymbol.localeCompare(bSymbol);
+                });
+                setFilteredAssets(sortedAssets.slice(0, 20)); // Limit to 20 for performance
+                setShowSuggestionsDropdown(true);
             } else {
                 setFilteredAssets([]);
                 setShowSuggestionsDropdown(false);
@@ -143,6 +153,16 @@ const ClientSideAssetSearch = ({
     // Handle input focus
     const handleFocus = useCallback(() => {
         if (value && value.length >= 2) {
+            setShowSuggestionsDropdown(true);
+        } else if (value === '') {
+            // Show all assets when input is empty and focused
+            const allAssets = assetCache.assets || [];
+            const sortedAssets = allAssets.sort((a, b) => {
+                const aSymbol = a.symbol?.toLowerCase() || '';
+                const bSymbol = b.symbol?.toLowerCase() || '';
+                return aSymbol.localeCompare(bSymbol);
+            });
+            setFilteredAssets(sortedAssets.slice(0, 20)); // Limit to 20 for performance
             setShowSuggestionsDropdown(true);
         }
     }, [value]);
@@ -245,8 +265,17 @@ const ClientSideAssetSearch = ({
             {showSuggestionsDropdown && filteredAssets.length > 0 && (
                 <div
                     ref={dropdownRef}
-                    className="absolute z-50 w-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg max-h-80 overflow-y-auto"
+                    className="absolute z-[60] w-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg max-h-80 overflow-y-auto"
                 >
+                    {/* Show All Assets Message */}
+                    {value === '' && (
+                        <div className="px-4 py-2 text-center border-b border-dark-700">
+                            <p className="text-gray-400 text-xs">
+                                Showing all your assets alphabetically
+                            </p>
+                        </div>
+                    )}
+
                     {filteredAssets.map((asset, index) => (
                         <div key={asset.id} className="border-b border-dark-700 last:border-b-0">
                             <button
@@ -275,7 +304,7 @@ const ClientSideAssetSearch = ({
 
             {/* No Results */}
             {showSuggestionsDropdown && filteredAssets.length === 0 && !searching && value && value.length >= 2 && (
-                <div className="absolute z-50 w-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg">
+                <div className="absolute z-[60] w-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg">
                     <div className="px-4 py-6 text-center">
                         <Database size={32} className="mx-auto mb-3 text-gray-600" />
                         <p className="text-gray-400 text-sm mb-2">No assets found</p>

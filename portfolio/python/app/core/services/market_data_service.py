@@ -5,7 +5,7 @@ Handles fetching real-time market data from yfinance without database storage.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
@@ -222,6 +222,40 @@ class MarketDataService:
 
         except Exception as e:
             logger.error("Error getting current price for %s: %s", symbol, e)
+            return None
+
+    async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
+        """
+        Get the closing price of the last available trading day.
+
+        This method correctly handles weekends and holidays for stocks (by taking the
+        most recent available data, e.g., Friday's close on a Sunday) and also
+        works for cryptocurrencies which trade 24/7.
+        """
+        try:
+            ticker = yf.Ticker(symbol)
+            today = date.today()
+            # Fetch data for the last 7 days to ensure we capture the most recent
+            # trading day, even after a long weekend or holiday.
+            start_date = today - timedelta(days=7)
+
+            # The `end` parameter is exclusive, so setting it to `today` gets data
+            # up to, but not including, today.
+            hist = ticker.history(start=start_date, end=today)
+
+            if hist.empty:
+                logger.warning("No historical data found for %s for the last 7 days.", symbol)
+                return None
+
+            # The last row in the dataframe is the most recent closing price.
+            last_close = hist["Close"].iloc[-1]
+            last_close_date = hist.index[-1].date()
+
+            logger.info(f"Last available close for {symbol} was {last_close:.2f} on {last_close_date}")
+            return float(last_close)
+
+        except Exception as e:
+            logger.error("Error getting yesterday's closing price for %s: %s", symbol, e)
             return None
 
     async def get_multiple_current_prices(

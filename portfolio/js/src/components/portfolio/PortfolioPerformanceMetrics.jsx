@@ -3,6 +3,7 @@ import {
   Calculator,
   ChevronDown,
   ChevronUp,
+  Lightbulb,
   RefreshCw,
   TrendingDown,
   TrendingUp,
@@ -12,7 +13,13 @@ import PropTypes from "prop-types";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { marketAPI, portfolioCalculationsAPI } from "../../services/api";
-import { formatCurrency, formatPercentage, formatMetricValue, getMetricColor, getMetricIcon } from "../../utils/formatters.jsx";
+import {
+  formatCurrency,
+  formatPercentage,
+  formatMetricValue,
+  getMetricColor,
+  getMetricIcon,
+} from "../../utils/formatters.jsx";
 import SymbolSearch from "../shared/SymbolSearch";
 
 const PortfolioPerformanceMetrics = ({ portfolio }) => {
@@ -201,7 +208,6 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
     setShowMultiPeriod(!showMultiPeriod);
   };
 
-
   if (!portfolio) {
     return (
       <div className="card p-6 text-center">
@@ -255,12 +261,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
         {/* Calculation Status for Main Performance */}
         {calculationStatus && !showBenchmarkComparison && (
           <div
-            className={`p-4 rounded-lg mb-4 ${calculationStatus === "calculating"
+            className={`p-4 rounded-lg mb-4 ${
+              calculationStatus === "calculating"
                 ? "bg-warning-600/20 border border-warning-600/30"
                 : calculationStatus === "completed"
-                  ? "bg-success-600/20 border border-success-600/30"
-                  : "bg-danger-600/20 border border-danger-600/30"
-              }`}
+                ? "bg-success-600/20 border border-success-600/30"
+                : "bg-danger-600/20 border border-danger-600/30"
+            }`}
           >
             <div className="flex items-center space-x-3">
               {calculationStatus === "calculating" && (
@@ -274,12 +281,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
               )}
               <div>
                 <p
-                  className={`text-sm font-medium ${calculationStatus === "calculating"
+                  className={`text-sm font-medium ${
+                    calculationStatus === "calculating"
                       ? "text-warning-400"
                       : calculationStatus === "completed"
-                        ? "text-success-400"
-                        : "text-danger-400"
-                    }`}
+                      ? "text-success-400"
+                      : "text-danger-400"
+                  }`}
                 >
                   {calculationStatus === "calculating" &&
                     "Calculating Performance Metrics"}
@@ -368,6 +376,62 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
           </div>
         </div>
       )}
+      {/* Investment Timing Insight Card */}
+      {performanceData?.metrics?.twr != null &&
+        performanceData?.metrics?.mwr != null && (
+          <div className="card p-6">
+            <div className="flex items-center space-x-2 mb-3">
+              <Lightbulb size={20} className="text-primary-400" />
+              <h4 className="text-lg font-semibold text-gray-100">
+                Investment Timing Insight
+              </h4>
+            </div>
+            {/* Dynamic Insight Message */}
+            {performanceData.metrics.mwr > performanceData.metrics.twr ? (
+              <div className="mb-3">
+                <p className="font-semibold text-success-400">
+                  Your investment timing has been beneficial.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Money-Weighted Return (MWR) is higher than your
+                  Time-Weighted Return (TWR), which suggests you have
+                  successfully added capital at opportune times (e.g., buying
+                  during market dips).
+                </p>
+              </div>
+            ) : performanceData.metrics.twr > performanceData.metrics.mwr ? (
+              <div className="mb-3">
+                <p className="font-semibold text-warning-400">
+                  Your investment timing may have been suboptimal.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Time-Weighted Return (TWR) is higher than your
+                  Money-Weighted Return (MWR). This might indicate that you
+                  invested more just before a market downturn or withdrew funds
+                  before a rally.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <p className="font-semibold text-gray-300">
+                  Your timing has had a neutral impact.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Money-Weighted and Time-Weighted returns are equal,
+                  indicating that the timing of your cash flows did not
+                  significantly influence your performance relative to the
+                  underlying investments.
+                </p>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-500 border-t border-dark-700 pt-2">
+              <strong>Rule of Thumb:</strong> Comparing TWR (pure investment
+              performance) and MWR (performance including cash flow timing)
+              reveals the impact of your market timing decisions.
+            </div>
+          </div>
+        )}
 
       {/* Additional Metrics */}
       {performanceData && (
@@ -395,10 +459,11 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
           </div>
 
           <div
-            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 ${expandedMetrics
+            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 ${
+              expandedMetrics
                 ? "max-h-96 opacity-100"
                 : "max-h-0 opacity-0 overflow-hidden"
-              }`}
+            }`}
           >
             {/* Volatility */}
             <div className="space-y-1">
@@ -473,8 +538,9 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
               <>
                 <ChevronDown
                   size={16}
-                  className={`transition-transform ${showMultiPeriod ? "rotate-180" : ""
-                    }`}
+                  className={`transition-transform ${
+                    showMultiPeriod ? "rotate-180" : ""
+                  }`}
                 />
                 <span>{showMultiPeriod ? "Hide Details" : "Show Details"}</span>
               </>
@@ -488,12 +554,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {/* Multi-Period Calculation Status */}
             {multiPeriodCalculationStatus && (
               <div
-                className={`p-4 rounded-lg ${multiPeriodCalculationStatus === "calculating"
+                className={`p-4 rounded-lg ${
+                  multiPeriodCalculationStatus === "calculating"
                     ? "bg-warning-600/20 border border-warning-600/30"
                     : multiPeriodCalculationStatus === "completed"
-                      ? "bg-success-600/20 border border-success-600/30"
-                      : "bg-danger-600/20 border border-danger-600/30"
-                  }`}
+                    ? "bg-success-600/20 border border-success-600/30"
+                    : "bg-danger-600/20 border border-danger-600/30"
+                }`}
               >
                 <div className="flex items-center space-x-3">
                   {multiPeriodCalculationStatus === "calculating" && (
@@ -507,12 +574,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                   )}
                   <div>
                     <p
-                      className={`text-sm font-medium ${multiPeriodCalculationStatus === "calculating"
+                      className={`text-sm font-medium ${
+                        multiPeriodCalculationStatus === "calculating"
                           ? "text-warning-400"
                           : multiPeriodCalculationStatus === "completed"
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                          ? "text-success-400"
+                          : "text-danger-400"
+                      }`}
                     >
                       {multiPeriodCalculationStatus === "calculating" &&
                         "Calculating Multi-Period Metrics"}
@@ -814,12 +882,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {/* Calculation Status */}
             {calculationStatus && (
               <div
-                className={`p-4 rounded-lg ${calculationStatus === "calculating"
+                className={`p-4 rounded-lg ${
+                  calculationStatus === "calculating"
                     ? "bg-warning-600/20 border border-warning-600/30"
                     : calculationStatus === "completed"
-                      ? "bg-success-600/20 border border-success-600/30"
-                      : "bg-danger-600/20 border border-danger-600/30"
-                  }`}
+                    ? "bg-success-600/20 border border-success-600/30"
+                    : "bg-danger-600/20 border border-danger-600/30"
+                }`}
               >
                 <div className="flex items-center space-x-3">
                   {calculationStatus === "calculating" && (
@@ -833,12 +902,13 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                   )}
                   <div>
                     <p
-                      className={`text-sm font-medium ${calculationStatus === "calculating"
+                      className={`text-sm font-medium ${
+                        calculationStatus === "calculating"
                           ? "text-warning-400"
                           : calculationStatus === "completed"
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                          ? "text-success-400"
+                          : "text-danger-400"
+                      }`}
                     >
                       {calculationStatus === "calculating" &&
                         "Calculation in Progress"}
@@ -1056,12 +1126,17 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                     </div>
                     <div className="text-center mt-4">
                       <p
-                        className={`text-lg font-semibold ${benchmarkData.comparison?.outperforming
+                        className={`text-lg font-semibold ${
+                          benchmarkData.comparison?.outperforming == null
+                            ? "text-gray-400"
+                            : benchmarkData.comparison?.outperforming
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
-                        {benchmarkData.comparison?.outperforming
+                        {benchmarkData.comparison?.outperforming == null
+                          ? "Can not Compare"
+                          : benchmarkData.comparison?.outperforming
                           ? "Portfolio is Outperforming"
                           : "Portfolio is Underperforming"}
                       </p>

@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.auth.dependencies import (
+    get_client_ip,
     get_current_user,
     get_optional_current_user,
-    get_client_ip,
 )
 from app.core.auth.utils import is_rate_limited
 from app.core.database.connection import get_db

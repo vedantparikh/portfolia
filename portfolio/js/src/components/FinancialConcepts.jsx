@@ -756,29 +756,6 @@ const FinancialConcepts = () => {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-12 text-center">
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-gray-100 mb-2">
-              Need More Help?
-            </h3>
-            <p className="text-gray-400 mb-4">
-              This guide covers the core financial concepts used in portfolio
-              management. For more advanced topics or specific calculations,
-              consult with a financial advisor.
-            </p>
-            <div className="flex justify-center space-x-4">
-              <button className="btn-outline flex items-center">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Learn More
-              </button>
-              <button className="btn-primary flex items-center">
-                <Calculator className="w-4 h-4 mr-2" />
-                Try Calculator
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

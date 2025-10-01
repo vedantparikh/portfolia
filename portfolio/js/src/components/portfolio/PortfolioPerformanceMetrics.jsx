@@ -3,6 +3,7 @@ import {
   Calculator,
   ChevronDown,
   ChevronUp,
+  Lightbulb,
   RefreshCw,
   TrendingDown,
   TrendingUp,
@@ -375,6 +376,62 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
           </div>
         </div>
       )}
+      {/* Investment Timing Insight Card */}
+      {performanceData?.metrics?.twr != null &&
+        performanceData?.metrics?.mwr != null && (
+          <div className="card p-6">
+            <div className="flex items-center space-x-2 mb-3">
+              <Lightbulb size={20} className="text-primary-400" />
+              <h4 className="text-lg font-semibold text-gray-100">
+                Investment Timing Insight
+              </h4>
+            </div>
+            {/* Dynamic Insight Message */}
+            {performanceData.metrics.mwr > performanceData.metrics.twr ? (
+              <div className="mb-3">
+                <p className="font-semibold text-success-400">
+                  Your investment timing has been beneficial.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Money-Weighted Return (MWR) is higher than your
+                  Time-Weighted Return (TWR), which suggests you have
+                  successfully added capital at opportune times (e.g., buying
+                  during market dips).
+                </p>
+              </div>
+            ) : performanceData.metrics.twr > performanceData.metrics.mwr ? (
+              <div className="mb-3">
+                <p className="font-semibold text-warning-400">
+                  Your investment timing may have been suboptimal.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Time-Weighted Return (TWR) is higher than your
+                  Money-Weighted Return (MWR). This might indicate that you
+                  invested more just before a market downturn or withdrew funds
+                  before a rally.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <p className="font-semibold text-gray-300">
+                  Your timing has had a neutral impact.
+                </p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Your Money-Weighted and Time-Weighted returns are equal,
+                  indicating that the timing of your cash flows did not
+                  significantly influence your performance relative to the
+                  underlying investments.
+                </p>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-500 border-t border-dark-700 pt-2">
+              <strong>Rule of Thumb:</strong> Comparing TWR (pure investment
+              performance) and MWR (performance including cash flow timing)
+              reveals the impact of your market timing decisions.
+            </div>
+          </div>
+        )}
 
       {/* Additional Metrics */}
       {performanceData && (

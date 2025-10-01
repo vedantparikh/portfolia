@@ -383,15 +383,9 @@ class PortfolioCalculationService:
                 "mwr_difference": self._safe_subtract(
                     portfolio_metrics.get("mwr"), benchmark_metrics.get("mwr")
                 ),
-                "outperforming_cagr": self._is_outperforming(
-                    portfolio_metrics.get("cagr"), benchmark_metrics.get("cagr")
-                ),
-                "outperforming_xirr": self._is_outperforming(
+                "outperforming": self._is_outperforming(
                     portfolio_metrics.get("xirr"), benchmark_metrics.get("xirr")
-                ),
-                "outperforming_twr": self._is_outperforming(
-                    portfolio_metrics.get("twr"), benchmark_metrics.get("twr")
-                ),
+                )
             },
             "calculation_date": datetime.now(timezone.utc).isoformat(),
         }

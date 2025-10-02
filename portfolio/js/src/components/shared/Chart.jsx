@@ -11,6 +11,8 @@ import {
   Minimize2,
   RefreshCw,
   TrendingUp,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,6 +44,7 @@ const Chart = ({
   showBenchmark = false,
 }) => {
   const chartContainerRef = useRef(null);
+  const chartRef = useRef(null); // Ref to store the chart instance
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [returnsData, setReturnsData] = useState({});
   const [showReturnsPanel, setShowReturnsPanel] = useState(false);
@@ -299,6 +302,8 @@ const Chart = ({
       },
     });
 
+    chartRef.current = chart; // Store chart instance in the ref
+
     if (!chart) {
       console.error("Failed to create chart");
       return;
@@ -423,30 +428,30 @@ const Chart = ({
           : null;
 
         tooltipContent = `
-              <div class="text-gray-100 font-semibold mb-2">Portfolio Performance - ${date}</div>
-              <div class="space-y-1 text-xs">
-                  <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-400">Portfolio Value:</span><span class="text-primary-400">$${
-                    portfolioValue?.toFixed(2) || "N/A"
-                  }</span></div>
-                  ${
-                    benchmarkValue !== null && benchmarkValue !== undefined
-                      ? `
-                      <div class="flex justify-between"><span class="text-gray-400">Benchmark:</span><span class="text-gray-300">$${benchmarkValue.toFixed(
-                        2
-                      )}</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Outperformance:</span><span class="${
-                        portfolioValue >= benchmarkValue
-                          ? "text-success-400"
-                          : "text-danger-400"
-                      }">$${(portfolioValue - benchmarkValue).toFixed(
+                <div class="text-gray-100 font-semibold mb-2">Portfolio Performance - ${date}</div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Portfolio Value:</span><span class="text-primary-400">$${
+                      portfolioValue?.toFixed(2) || "N/A"
+                    }</span></div>
+                    ${
+                      benchmarkValue !== null && benchmarkValue !== undefined
+                        ? `
+                        <div class="flex justify-between"><span class="text-gray-400">Benchmark:</span><span class="text-gray-300">$${benchmarkValue.toFixed(
                           2
                         )}</span></div>
-                  `
-                      : ""
-                  }
-              </div>
-          `;
+                        <div class="flex justify-between"><span class="text-gray-400">Outperformance:</span><span class="${
+                          portfolioValue >= benchmarkValue
+                            ? "text-success-400"
+                            : "text-danger-400"
+                        }">$${(portfolioValue - benchmarkValue).toFixed(
+                            2
+                          )}</span></div>
+                    `
+                        : ""
+                    }
+                </div>
+            `;
       } else {
         const originalData = candlestickData.find(
           (item) => item.time === data.time
@@ -455,51 +460,51 @@ const Chart = ({
 
         if (chartType === "candlestick") {
           tooltipContent = `
-                  <div class="text-gray-100 font-semibold mb-2">${
-                    symbol || "Asset"
-                  } - ${date}</div>
-                  <div class="space-y-1 text-xs">
-                      <div class="flex justify-between"><span class="text-gray-400">Open:</span><span class="text-gray-200">$${
-                        data.open?.toFixed(2) || "N/A"
-                      }</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">High:</span><span class="text-success-400">$${
-                        data.high?.toFixed(2) || "N/A"
-                      }</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Low:</span><span class="text-danger-400">$${
-                        data.low?.toFixed(2) || "N/A"
-                      }</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Close:</span><span class="text-gray-200">$${
-                        data.close?.toFixed(2) || "N/A"
-                      }</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
-                        volume
-                      )}</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
-                        data.close >= data.open
-                          ? "text-success-400"
-                          : "text-danger-400"
-                      }">${
+                    <div class="text-gray-100 font-semibold mb-2">${
+                      symbol || "Asset"
+                    } - ${date}</div>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between"><span class="text-gray-400">Open:</span><span class="text-gray-200">$${
+                          data.open?.toFixed(2) || "N/A"
+                        }</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">High:</span><span class="text-success-400">$${
+                          data.high?.toFixed(2) || "N/A"
+                        }</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Low:</span><span class="text-danger-400">$${
+                          data.low?.toFixed(2) || "N/A"
+                        }</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Close:</span><span class="text-gray-200">$${
+                          data.close?.toFixed(2) || "N/A"
+                        }</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
+                          volume
+                        )}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
+                          data.close >= data.open
+                            ? "text-success-400"
+                            : "text-danger-400"
+                        }">${
             data.close && data.open
               ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
               : "N/A"
           }</span></div>
-                  </div>
-              `;
+                    </div>
+                `;
         } else {
           tooltipContent = `
-                  <div class="text-gray-100 font-semibold mb-2">${
-                    symbol || "Asset"
-                  } - ${date}</div>
-                  <div class="space-y-1 text-xs">
-                      <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Price:</span><span class="text-primary-400">$${
-                        data.value?.toFixed(2) || "N/A"
-                      }</span></div>
-                      <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
-                        volume
-                      )}</span></div>
-                  </div>
-              `;
+                    <div class="text-gray-100 font-semibold mb-2">${
+                      symbol || "Asset"
+                    } - ${date}</div>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Price:</span><span class="text-primary-400">$${
+                          data.value?.toFixed(2) || "N/A"
+                        }</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">Volume:</span><span class="text-gray-200">${formatVolume(
+                          volume
+                        )}</span></div>
+                    </div>
+                `;
         }
       }
       tooltip.innerHTML = tooltipContent;
@@ -538,6 +543,7 @@ const Chart = ({
         tooltip.parentNode.removeChild(tooltip);
       }
       chart.remove();
+      chartRef.current = null; // Cleanup the ref
     };
   }, [
     candlestickData,
@@ -579,12 +585,64 @@ const Chart = ({
     }
   };
 
+  const handleVerticalZoom = useCallback(
+    (direction) => {
+      const chart = chartRef.current;
+      if (!chart) return;
+
+      const priceScale = chart.priceScale();
+      const visibleRange = priceScale.getVisibleRange();
+      if (!visibleRange) return;
+
+      const currentSpan = visibleRange.to - visibleRange.from;
+      const center = visibleRange.from + currentSpan / 2;
+      const zoomFactor = 0.2; // Zoom by 20%
+
+      let newSpan;
+      if (direction === "in") {
+        newSpan = currentSpan * (1 - zoomFactor);
+      } else {
+        // 'out'
+        newSpan = currentSpan * (1 + zoomFactor);
+      }
+
+      const newFrom = center - newSpan / 2;
+      const newTo = center + newSpan / 2;
+
+      // For portfolio value, we never want the scale to go below zero.
+      const finalFrom = isPortfolioChart ? Math.max(0, newFrom) : newFrom;
+
+      priceScale.setVisibleRange({
+        from: finalFrom,
+        to: newTo,
+      });
+    },
+    [isPortfolioChart]
+  );
+
+  const handleResetZoom = useCallback(() => {
+    const chart = chartRef.current;
+    if (!chart || !portfolioLineData || portfolioLineData.length === 0) return;
+
+    // Find the max value in the current dataset to set the top of the range
+    const maxValue = Math.max(...portfolioLineData.map((d) => d.value));
+
+    // Set a range from 0 to the max value, with 5% padding at the top
+    chart.priceScale().setVisibleRange({
+      from: 0,
+      to: maxValue * 1.05,
+    });
+  }, [portfolioLineData]);
+
   const periods = [
     { value: "30d", label: "30 Days" },
     { value: "3mo", label: "3 Months" },
     { value: "6mo", label: "6 Months" },
     { value: "ytd", label: "YTD" },
     { value: "1y", label: "1 Year" },
+    { value: "2y", label: "2 Years" },
+    { value: "3y", label: "3 Years" },
+    { value: "4y", label: "4 Years" },
     { value: "5y", label: "5 Years" },
     { value: "max", label: "All" },
   ];
@@ -642,6 +700,33 @@ const Chart = ({
                 <span>Indicators</span>
               </button>
             )}
+
+            {isPortfolioChart && (
+              <div className="flex items-center bg-dark-800 rounded-md">
+                <button
+                  onClick={() => handleVerticalZoom("out")}
+                  className="p-2 text-gray-400 hover:text-gray-100 hover:bg-dark-700 rounded-l-md transition-colors"
+                  title="Zoom Out (Vertical)"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button
+                  onClick={handleResetZoom}
+                  className="p-2 text-gray-400 hover:text-gray-100 hover:bg-dark-700 border-x border-dark-600 transition-colors"
+                  title="Reset Zoom to Zero"
+                >
+                  <Maximize2 size={12} className="rotate-45" />
+                </button>
+                <button
+                  onClick={() => handleVerticalZoom("in")}
+                  className="p-2 text-gray-400 hover:text-gray-100 hover:bg-dark-700 rounded-r-md transition-colors"
+                  title="Zoom In (Vertical)"
+                >
+                  <ZoomIn size={16} />
+                </button>
+              </div>
+            )}
+
             {enableFullscreen && (
               <button
                 onClick={handleFullscreenToggle}

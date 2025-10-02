@@ -1716,13 +1716,11 @@ class PortfolioAnalyticsService:
         This method is transaction-aware and reconstructs portfolio holdings for each day.
         """
         try:
-            # --- FIX START ---
             # Normalize start and end dates to midnight. This is the key fix.
             # It ensures the entire function operates on a consistent, date-level basis,
             # preventing multiple snapshots for the same calendar day.
             start_date = datetime.combine(start_date.date(), datetime.min.time())
             end_date = datetime.combine(end_date.date(), datetime.min.time())
-            # --- FIX END ---
 
             logger.info(
                 f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}")
@@ -1802,7 +1800,7 @@ class PortfolioAnalyticsService:
                             avg_cost = current_holdings[asset_id]['cost_basis'] / current_holdings[asset_id]['quantity']
                             cost_basis_reduction = tx.quantity * avg_cost
                             current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
-                        current_holdings[asset_id]['quantity'] -= tx.quantity
+                            current_holdings[asset_id]['quantity'] -= tx.quantity
 
             # 6. MAIN LOOP to generate a snapshot for each day.
             snapshots = []
@@ -1826,7 +1824,7 @@ class PortfolioAnalyticsService:
                                     'quantity']
                                 cost_basis_reduction = tx.quantity * avg_cost
                                 current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
-                            current_holdings[asset_id]['quantity'] -= tx.quantity
+                                current_holdings[asset_id]['quantity'] -= tx.quantity
 
                 # B. Calculate total value and cost basis for the current day.
                 total_value = Decimal(0)
@@ -1841,7 +1839,6 @@ class PortfolioAnalyticsService:
 
                     total_cost_basis += holding['cost_basis']
 
-                    asset_value = Decimal(0)
                     price_data = asset_price_data.get(asset_id)
                     if price_data is not None:
                         # Find the most recent price on or before the current snapshot date

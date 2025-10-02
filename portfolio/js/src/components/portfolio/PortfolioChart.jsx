@@ -22,23 +22,23 @@ import Chart from "../shared/Chart";
  * @returns {number} The day number of the year (e.g., 1 for Jan 1st, 365 for Dec 31st).
  */
 const getYtdDays = () => {
-    const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 1); // Month is 0-indexed
-    const diffInMilliseconds = today - startOfYear;
-    const oneDayInMilliseconds = 1000 * 60 * 60 * 24;
-    
-    // Add 1 because we want to include the current day
-    const dayOfYear = Math.floor(diffInMilliseconds / oneDayInMilliseconds) + 1;
-    
-    return dayOfYear;
-  };
+  const today = new Date();
+  const startOfYear = new Date(today.getFullYear(), 0, 1); // Month is 0-indexed
+  const diffInMilliseconds = today - startOfYear;
+  const oneDayInMilliseconds = 1000 * 60 * 60 * 24;
+
+  // Add 1 because we want to include the current day
+  const dayOfYear = Math.floor(diffInMilliseconds / oneDayInMilliseconds) + 1;
+
+  return dayOfYear;
+};
 
 // We add the 'days' property for the API call logic.
 const chartPeriods = [
   { value: "30d", label: "30 Days", days: 30 },
   { value: "3mo", label: "3 Months", days: 90 },
   { value: "6mo", label: "6 Months", days: 180 },
-  { value: "ytd", label: "YTD", days: getYtdDays() }, 
+  { value: "ytd", label: "YTD", days: getYtdDays() },
   { value: "1y", label: "1 Year", days: 365 },
   { value: "2y", label: "2 Years", days: 730 },
   { value: "3y", label: "3 Years", days: 1095 },
@@ -51,7 +51,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const [chartData, setChartData] = useState(null);
   const [allocationData, setAllocationData] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   const [timeRange, setTimeRange] = useState("30d");
   const [chartType, setChartType] = useState("line");
 
@@ -162,7 +162,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         item.snapshot_date?.split("T")[0] ||
         new Date().toISOString().split("T")[0],
       value: parseFloat(item.total_value) || 0,
-      benchmark: parseFloat(item.benchmark_return) || 0,
+      benchmark: parseFloat(item.total_cost_basis) || 0,
     }));
 
     const firstValue = performanceData[0]?.value || 0;
@@ -315,6 +315,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
             showControls={false}
             showPeriodSelector={false}
             showBenchmark={true}
+            yAxisMin={0}
             theme="dark"
             className="w-full"
           />
@@ -333,6 +334,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
             showControls={false}
             showPeriodSelector={false}
             showBenchmark={true}
+            yAxisMin={0}
             theme="dark"
             className="w-full"
           />

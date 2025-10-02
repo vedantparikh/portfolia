@@ -14,7 +14,6 @@ import {
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../services/api";
-import { formatPercentage } from "../../utils/formatters.jsx";
 
 const Chart = ({
   data = [],

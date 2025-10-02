@@ -405,6 +405,7 @@ const EnhancedChart = ({
 
     let priceSeries;
 
+    // *** FIX: Reverted all series creation to the original chart.addSeries pattern ***
     if (chartType === "candlestick") {
       priceSeries = chart.addSeries(CandlestickSeries, {
         upColor: "#22c55e",
@@ -535,7 +536,9 @@ const EnhancedChart = ({
               volume
             )}</span></div>
             <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
-              data.close >= data.open ? "text-success-400" : "text-danger-400"
+              data.close >= data.open
+                ? "text-success-400"
+                : "text-danger-400"
             }">${
           data.close && data.open
             ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
@@ -847,10 +850,7 @@ const EnhancedChart = ({
             <div className="text-center">
               <p className="text-sm text-gray-400">Max Drawdown</p>
               <p className="text-lg font-bold text-danger-400">
-                -
-                {formatPercentage(metricsData.maxDrawdown || 0, {
-                  showSign: false,
-                })}
+                -{formatPercentage(metricsData.maxDrawdown || 0)}
               </p>
             </div>
             <div className="text-center">

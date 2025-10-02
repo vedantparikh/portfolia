@@ -1,6 +1,5 @@
 import {
     Activity,
-    BarChart3,
     Download,
     PieChart,
     RefreshCw,
@@ -35,7 +34,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
 
     const chartTypes = [
         { value: 'line', label: 'Line Chart', icon: TrendingUp },
-        { value: 'bar', label: 'Bar Chart', icon: BarChart3 },
         { value: 'pie', label: 'Allocation', icon: PieChart }
     ];
 
@@ -277,38 +275,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
         );
     };
 
-    const renderBarChart = () => {
-        if (!chartData?.performance_data || chartData.performance_data.length === 0) {
-            return (
-                <div className="flex items-center justify-center h-80">
-                    <div className="text-center">
-                        <BarChart3 size={48} className="text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400">No performance data available</p>
-                    </div>
-                </div>
-            );
-        }
-
-        const data = chartData.performance_data.slice(-30); // Last 30 data points
-        const maxValue = Math.max(...data.map(d => d.value || 0)) || 1; // Avoid division by zero
-
-        return (
-            <div className="h-80 flex items-end space-x-1 px-4">
-                {data.map((d, i) => {
-                    const height = (d.value / maxValue) * 100;
-                    return (
-                        <div
-                            key={i}
-                            className="bg-primary-400 rounded-t flex-1 hover:bg-primary-300 transition-colors"
-                            style={{ height: `${height}%` }}
-                            title={`${d.date}: ${formatCurrency(d.value)}`}
-                        />
-                    );
-                })}
-            </div>
-        );
-    };
-
     const renderPieChart = () => {
         // Use real allocation data
         const allocations = allocationData;
@@ -421,8 +387,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
         switch (chartType) {
             case 'line':
                 return renderLineChart();
-            case 'bar':
-                return renderBarChart();
             case 'pie':
                 return renderPieChart();
             default:
@@ -506,8 +470,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
                         // This block now correctly handles the null state for chartData
                         <div className="flex items-center justify-center h-80">
                             <div className="text-center">
-                                <BarChart3 size={48} className="text-gray-500 mx-auto mb-4" />
-                                {/* --- THIS IS THE FIX --- */}
+                                <TrendingUp size={48} className="text-gray-500 mx-auto mb-4" />
                                 <p className="text-gray-400">No chart data available</p>
                                 <button
                                     onClick={loadChartData}
@@ -535,20 +498,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
                             </div>
                             <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
                                 <TrendingUp size={24} className="text-primary-400" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="card p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-400">Benchmark Return</p>
-                                <p className={`text-2xl font-bold ${getChangeColor(chartData.benchmark_return || 0)}`}>
-                                    {formatPercentage(chartData.benchmark_return || 0)}
-                                </p>
-                            </div>
-                            <div className="w-12 h-12 bg-gray-600/20 rounded-lg flex items-center justify-center">
-                                <BarChart3 size={24} className="text-gray-400" />
                             </div>
                         </div>
                     </div>

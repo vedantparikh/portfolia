@@ -1722,7 +1722,8 @@ class PortfolioAnalyticsService:
             end_date = datetime.combine(end_date.date(), datetime.min.time())
 
             logger.info(
-                f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}")
+                f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}"
+            )
 
             # 1. DELETE EXISTING SNAPSHOTS in the date range to avoid duplicates.
             (
@@ -1747,7 +1748,9 @@ class PortfolioAnalyticsService:
             )
 
             if not transactions:
-                logger.warning(f"No transactions found for portfolio {portfolio_id}. Cannot generate history.")
+                logger.warning(
+                    f"No transactions found for portfolio {portfolio_id}. Cannot generate history."
+                )
                 self.db.commit()
                 return []
 
@@ -1757,9 +1760,16 @@ class PortfolioAnalyticsService:
                 .scalar()
             )
 
-            # If for some reason the query fails, fall back to the first transaction in our list.
             if not first_transaction_date:
                 first_transaction_date = transactions[0].transaction_date
+
+            # Determine the effective start date for snapshot generation.
+            # This prevents generating snapshots for dates before the first transaction.
+            effective_start_date = max(
+                start_date,
+                datetime.combine(first_transaction_date.date(), datetime.min.time()),
+            )
+            logger.info(f"Effective calculation start date set to: {effective_start_date.date()}")
 
             # We need price data from before the first transaction to value it on its own day.
             price_fetch_start_date = first_transaction_date - timedelta(days=1)
@@ -1774,7 +1784,6 @@ class PortfolioAnalyticsService:
                 asset = asset_map.get(asset_id)
                 if asset and asset.symbol:
                     try:
-                        # FIX: Use the calculated price_fetch_start_date instead of the request's start_date.
                         price_data = await market_data_service.fetch_ticker_data(
                             symbol=asset.symbol,
                             start_date=price_fetch_start_date.strftime("%Y-%m-%d"),
@@ -1784,7 +1793,9 @@ class PortfolioAnalyticsService:
                         if price_data is not None and not price_data.empty:
                             asset_price_data[asset_id] = price_data
                     except Exception as e:
-                        logger.warning(f"Failed to fetch price data for {asset.symbol}: {e}")
+                        logger.warning(
+                            f"Failed to fetch price data for {asset.symbol}: {e}"
+                        )
 
             # 4. PRE-PROCESS TRANSACTIONS by grouping them by date.
             transactions_by_date = {}
@@ -1794,27 +1805,39 @@ class PortfolioAnalyticsService:
                     transactions_by_date[tx_date] = []
                 transactions_by_date[tx_date].append(tx)
 
-            # 5. CALCULATE INITIAL HOLDINGS state before the start_date.
+            # 5. CALCULATE INITIAL HOLDINGS state before the effective_start_date.
             current_holdings = {}
+            # FIX: Use the effective_start_date to establish the correct initial state.
             for tx in transactions:
-                if tx.transaction_date.date() < start_date.date():
+                if tx.transaction_date.date() < effective_start_date.date():
                     asset_id = tx.asset_id
                     if asset_id not in current_holdings:
-                        current_holdings[asset_id] = {'quantity': Decimal(0), 'cost_basis': Decimal(0)}
+                        current_holdings[asset_id] = {
+                            "quantity": Decimal(0),
+                            "cost_basis": Decimal(0),
+                        }
 
                     if tx.transaction_type == TransactionType.BUY:
-                        current_holdings[asset_id]['quantity'] += tx.quantity
-                        current_holdings[asset_id]['cost_basis'] += tx.quantity * tx.price
+                        current_holdings[asset_id]["quantity"] += tx.quantity
+                        current_holdings[asset_id][
+                            "cost_basis"
+                        ] += tx.quantity * tx.price
                     elif tx.transaction_type == TransactionType.SELL:
-                        if current_holdings[asset_id]['quantity'] > 0:
-                            avg_cost = current_holdings[asset_id]['cost_basis'] / current_holdings[asset_id]['quantity']
+                        if current_holdings[asset_id]["quantity"] > 0:
+                            avg_cost = (
+                                    current_holdings[asset_id]["cost_basis"]
+                                    / current_holdings[asset_id]["quantity"]
+                            )
                             cost_basis_reduction = tx.quantity * avg_cost
-                            current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
-                            current_holdings[asset_id]['quantity'] -= tx.quantity
+                            current_holdings[asset_id][
+                                "cost_basis"
+                            ] -= cost_basis_reduction
+                            current_holdings[asset_id]["quantity"] -= tx.quantity
 
             # 6. MAIN LOOP to generate a snapshot for each day.
             snapshots = []
-            current_date = start_date
+            # FIX: Start the loop from the effective_start_date.
+            current_date = effective_start_date
             while current_date <= end_date:
                 date_key = current_date.date()
 
@@ -1823,45 +1846,54 @@ class PortfolioAnalyticsService:
                     for tx in transactions_by_date[date_key]:
                         asset_id = tx.asset_id
                         if asset_id not in current_holdings:
-                            current_holdings[asset_id] = {'quantity': Decimal(0), 'cost_basis': Decimal(0)}
+                            current_holdings[asset_id] = {
+                                "quantity": Decimal(0),
+                                "cost_basis": Decimal(0),
+                            }
 
                         if tx.transaction_type == TransactionType.BUY:
-                            current_holdings[asset_id]['quantity'] += tx.quantity
-                            current_holdings[asset_id]['cost_basis'] += tx.quantity * tx.price
+                            current_holdings[asset_id]["quantity"] += tx.quantity
+                            current_holdings[asset_id][
+                                "cost_basis"
+                            ] += tx.quantity * tx.price
                         elif tx.transaction_type == TransactionType.SELL:
-                            if current_holdings[asset_id]['quantity'] > 0:
-                                avg_cost = current_holdings[asset_id]['cost_basis'] / current_holdings[asset_id][
-                                    'quantity']
+                            if current_holdings[asset_id]["quantity"] > 0:
+                                avg_cost = (
+                                        current_holdings[asset_id]["cost_basis"]
+                                        / current_holdings[asset_id]["quantity"]
+                                )
                                 cost_basis_reduction = tx.quantity * avg_cost
-                                current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
-                                current_holdings[asset_id]['quantity'] -= tx.quantity
+                                current_holdings[asset_id][
+                                    "cost_basis"
+                                ] -= cost_basis_reduction
+                                current_holdings[asset_id]["quantity"] -= tx.quantity
 
                 # B. Calculate total value and cost basis for the current day.
                 total_value = Decimal(0)
                 total_cost_basis = Decimal(0)
 
                 for asset_id, holding in list(current_holdings.items()):
-                    quantity = holding['quantity']
+                    quantity = holding["quantity"]
 
                     if quantity <= 0:
                         del current_holdings[asset_id]
                         continue
 
-                    total_cost_basis += holding['cost_basis']
+                    total_cost_basis += holding["cost_basis"]
 
                     price_data = asset_price_data.get(asset_id)
                     if price_data is not None:
                         # Find the most recent price on or before the current snapshot date
-                        prev_rows = price_data[price_data['Date'].dt.date <= date_key]
+                        prev_rows = price_data[price_data["Date"].dt.date <= date_key]
                         if not prev_rows.empty:
-                            close_price = Decimal(str(prev_rows.iloc[-1]['Close']))
+                            close_price = Decimal(str(prev_rows.iloc[-1]["Close"]))
                             asset_value = close_price * quantity
                         else:
                             # Fallback if no price data is found before this date
-                            asset_value = holding['cost_basis']
+                            asset_value = holding["cost_basis"]
                     else:
                         # Fallback if price data for the asset couldn't be fetched
-                        asset_value = holding['cost_basis']
+                        asset_value = holding["cost_basis"]
 
                     total_value += asset_value
 
@@ -1892,11 +1924,12 @@ class PortfolioAnalyticsService:
             for snapshot in snapshots:
                 self.db.refresh(snapshot)
 
-            logger.info(f"Generated {len(snapshots)} new historical snapshots for portfolio {portfolio_id}")
+            logger.info(
+                f"Generated {len(snapshots)} new historical snapshots for portfolio {portfolio_id}"
+            )
             return snapshots
 
         except Exception as e:
             logger.error(f"Failed to generate historical performance snapshots: {e}")
             self.db.rollback()
             raise
-

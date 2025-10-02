@@ -254,7 +254,7 @@ async def add_transaction(
 ):
     """Add a transaction to a portfolio (user must own the portfolio)."""
     portfolio_service = PortfolioService(db)
-    transaction = portfolio_service.add_transaction(
+    transaction = await portfolio_service.add_transaction(
         portfolio_id, transaction_data, current_user.id
     )
 

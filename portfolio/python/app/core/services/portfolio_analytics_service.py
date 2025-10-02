@@ -1716,8 +1716,16 @@ class PortfolioAnalyticsService:
         This method is transaction-aware and reconstructs portfolio holdings for each day.
         """
         try:
+            # --- FIX START ---
+            # Normalize start and end dates to midnight. This is the key fix.
+            # It ensures the entire function operates on a consistent, date-level basis,
+            # preventing multiple snapshots for the same calendar day.
+            start_date = datetime.combine(start_date.date(), datetime.min.time())
+            end_date = datetime.combine(end_date.date(), datetime.min.time())
+            # --- FIX END ---
+
             logger.info(
-                f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date} to {end_date}")
+                f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}")
 
             # 1. DELETE EXISTING SNAPSHOTS in the date range to avoid duplicates.
             (
@@ -1756,9 +1764,11 @@ class PortfolioAnalyticsService:
                 asset = asset_map.get(asset_id)
                 if asset and asset.symbol:
                     try:
+                        # Fetch data from one day before start_date to handle initial state correctly
+                        fetch_start_date = start_date - timedelta(days=1)
                         price_data = await market_data_service.fetch_ticker_data(
                             symbol=asset.symbol,
-                            start_date=start_date.strftime("%Y-%m-%d"),
+                            start_date=fetch_start_date.strftime("%Y-%m-%d"),
                             end_date=end_date.strftime("%Y-%m-%d"),
                             interval="1d",
                         )
@@ -1788,6 +1798,7 @@ class PortfolioAnalyticsService:
                         current_holdings[asset_id]['cost_basis'] += tx.quantity * tx.price
                     elif tx.transaction_type == TransactionType.SELL:
                         if current_holdings[asset_id]['quantity'] > 0:
+                            # Prevent division by zero if quantity is exactly zero before subtraction
                             avg_cost = current_holdings[asset_id]['cost_basis'] / current_holdings[asset_id]['quantity']
                             cost_basis_reduction = tx.quantity * avg_cost
                             current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
@@ -1833,13 +1844,16 @@ class PortfolioAnalyticsService:
                     asset_value = Decimal(0)
                     price_data = asset_price_data.get(asset_id)
                     if price_data is not None:
+                        # Find the most recent price on or before the current snapshot date
                         prev_rows = price_data[price_data['Date'].dt.date <= date_key]
                         if not prev_rows.empty:
                             close_price = Decimal(str(prev_rows.iloc[-1]['Close']))
                             asset_value = close_price * quantity
                         else:
+                            # Fallback if no price data is found before this date (e.g., weekends/holidays)
                             asset_value = holding['cost_basis']
                     else:
+                        # Fallback if price data for the asset couldn't be fetched
                         asset_value = holding['cost_basis']
 
                     total_value += asset_value
@@ -1854,7 +1868,7 @@ class PortfolioAnalyticsService:
 
                 snapshot = PortfolioPerformanceHistory(
                     portfolio_id=portfolio_id,
-                    snapshot_date=current_date,
+                    snapshot_date=current_date,  # current_date is now always at midnight
                     total_value=total_value,
                     total_cost_basis=total_cost_basis,
                     total_unrealized_pnl=total_unrealized_pnl,

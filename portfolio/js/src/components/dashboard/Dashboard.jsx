@@ -16,7 +16,6 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 import {
-  analyticsAPI,
   marketAPI,
   portfolioAPI,
   transactionAPI,
@@ -29,7 +28,6 @@ import {
   formatQuantity,
   formatVolume,
 } from "../../utils/formatters";
-import { AnalyticsDashboard } from "../analytics";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { Sidebar } from "../shared";
 import MarketInsights from "./MarketInsights";
@@ -74,7 +72,6 @@ const Dashboard = () => {
         transactionsResponse,
         assetsResponse,
         watchlistsResponse,
-        analyticsResponse,
       ] = await Promise.allSettled([
         portfolioAPI.getPortfolios(),
         transactionAPI.getTransactions({
@@ -88,7 +85,6 @@ const Dashboard = () => {
           include_detail: true,
         }),
         watchlistAPI.getWatchlists(true),
-        analyticsAPI.getUserAnalyticsDashboard(),
       ]);
 
       const portfolios =
@@ -105,10 +101,6 @@ const Dashboard = () => {
         watchlistsResponse.status === "fulfilled"
           ? watchlistsResponse.value || []
           : [];
-      const analyticsData =
-        analyticsResponse.status === "fulfilled"
-          ? analyticsResponse.value
-          : null;
 
       // Calculate portfolio summaries
       const portfolioSummaries = await Promise.allSettled(
@@ -130,7 +122,6 @@ const Dashboard = () => {
         recentTransactions,
         topAssets,
         watchlists,
-        analyticsData,
         marketStats: calculateMarketStats(topAssets),
         loading: false,
       });
@@ -799,11 +790,6 @@ const Dashboard = () => {
                       </p>
                     </a>
                   </div>
-                </div>
-
-                {/* Analytics Dashboard */}
-                <div className="mb-8">
-                  <AnalyticsDashboard />
                 </div>
 
                 {/* Advanced Dashboard Sections */}

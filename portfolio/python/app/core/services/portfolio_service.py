@@ -36,7 +36,7 @@ class PortfolioService:
 
     # Portfolio CRUD Operations
     def create_portfolio(
-        self, portfolio_data: PortfolioCreate, user_id: int
+            self, portfolio_data: PortfolioCreate, user_id: int
     ) -> Portfolio:
         """Create a new portfolio."""
         portfolio = Portfolio(
@@ -53,7 +53,7 @@ class PortfolioService:
         return portfolio
 
     def get_user_portfolios(
-        self, user_id: int, include_inactive: bool = False
+            self, user_id: int, include_inactive: bool = False
     ) -> List[Portfolio]:
         """Get all portfolios for a user."""
         query = self.db.query(Portfolio).filter(Portfolio.user_id == user_id)
@@ -62,7 +62,7 @@ class PortfolioService:
         return query.all()
 
     def get_portfolio(
-        self, portfolio_id: int, user_id: Optional[int] = None
+            self, portfolio_id: int, user_id: Optional[int] = None
     ) -> Optional[Portfolio]:
         """Get a specific portfolio by ID, optionally checking ownership."""
         query = self.db.query(Portfolio).filter(Portfolio.id == portfolio_id)
@@ -71,7 +71,7 @@ class PortfolioService:
         return query.first()
 
     def update_portfolio(
-        self, portfolio_id: int, portfolio_data: PortfolioUpdate, user_id: int
+            self, portfolio_id: int, portfolio_data: PortfolioUpdate, user_id: int
     ) -> Optional[Portfolio]:
         """Update a portfolio."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -104,7 +104,7 @@ class PortfolioService:
 
     # Portfolio Asset Management
     async def add_asset_to_portfolio(
-        self, portfolio_id: int, asset_data: PortfolioAssetCreate, user_id: int
+            self, portfolio_id: int, asset_data: PortfolioAssetCreate, user_id: int
     ) -> Optional[PortfolioAsset]:
         """Add an asset to a portfolio."""
         # Verify portfolio ownership
@@ -128,7 +128,7 @@ class PortfolioService:
             # Update existing asset with new quantity and cost basis
             new_quantity = existing_asset.quantity + asset_data.quantity
             new_cost_basis_total = existing_asset.cost_basis_total + (
-                asset_data.cost_basis * asset_data.quantity
+                    asset_data.cost_basis * asset_data.quantity
             )
             new_cost_basis = new_cost_basis_total / new_quantity
 
@@ -161,7 +161,7 @@ class PortfolioService:
         return portfolio_asset
 
     async def _update_asset_pnl(
-        self, portfolio_asset: PortfolioAsset
+            self, portfolio_asset: PortfolioAsset
     ) -> PortfolioAsset:
         """Update unrealized P&L for a portfolio asset using real-time data."""
         try:
@@ -210,8 +210,8 @@ class PortfolioService:
 
                     if previous_day_value > 0:
                         todays_pnl_percent = (
-                            todays_pnl_value / previous_day_value
-                        ) * 100
+                                                     todays_pnl_value / previous_day_value
+                                             ) * 100
                         portfolio_asset.todays_pnl_percent = Decimal(
                             str(todays_pnl_percent)
                         )
@@ -244,7 +244,7 @@ class PortfolioService:
         return portfolio_asset
 
     def _calculate_realized_pnl(
-        self, portfolio_id: int, asset_id: int
+            self, portfolio_id: int, asset_id: int
     ) -> tuple[Decimal, Decimal]:
         """Calculate realized P&L for a specific asset based on sell transactions."""
         # Get all sell transactions for this asset in this portfolio
@@ -343,11 +343,11 @@ class PortfolioService:
         return total_realized_pnl, realized_pnl_percent
 
     async def update_portfolio_asset(
-        self,
-        portfolio_id: int,
-        asset_id: int,
-        asset_data: PortfolioAssetUpdate,
-        user_id: int,
+            self,
+            portfolio_id: int,
+            asset_id: int,
+            asset_data: PortfolioAssetUpdate,
+            user_id: int,
     ) -> Optional[PortfolioAsset]:
         """Update an asset in a portfolio."""
         portfolio_asset = (
@@ -375,7 +375,7 @@ class PortfolioService:
         if asset_data.cost_basis is not None:
             portfolio_asset.cost_basis = asset_data.cost_basis
             portfolio_asset.cost_basis_total = (
-                asset_data.cost_basis * portfolio_asset.quantity
+                    asset_data.cost_basis * portfolio_asset.quantity
             )
         if asset_data.current_value is not None:
             portfolio_asset.current_value = asset_data.current_value
@@ -398,7 +398,7 @@ class PortfolioService:
         return portfolio_asset
 
     def remove_asset_from_portfolio(
-        self, portfolio_id: int, asset_id: int, user_id: int
+            self, portfolio_id: int, asset_id: int, user_id: int
     ) -> bool:
         """Remove an asset from a portfolio."""
         portfolio_asset = (
@@ -425,7 +425,7 @@ class PortfolioService:
         return True
 
     def get_portfolio_assets(
-        self, portfolio_id: int, user_id: int
+            self, portfolio_id: int, user_id: int
     ) -> List[PortfolioAsset]:
         """Get all assets in a portfolio."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -439,7 +439,7 @@ class PortfolioService:
         )
 
     async def get_portfolio_assets_with_details(
-        self, portfolio_id: int, user_id: int
+            self, portfolio_id: int, user_id: int
     ) -> List[PortfolioAssetWithDetails]:
         """Get portfolio assets with additional asset information."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -484,8 +484,8 @@ class PortfolioService:
         return result
 
     # Transaction Management
-    def add_transaction(
-        self, portfolio_id: int, transaction_data: TransactionCreate, user_id: int
+    async def add_transaction(
+            self, portfolio_id: int, transaction_data: TransactionCreate, user_id: int
     ) -> Optional[Transaction]:
         """Add a transaction to a portfolio."""
         # Verify portfolio ownership
@@ -511,14 +511,14 @@ class PortfolioService:
         self.db.refresh(transaction)
 
         # Update portfolio asset based on transaction
-        self._update_portfolio_asset_from_transaction(
+        await self._update_portfolio_asset_from_transaction(
             portfolio_id, transaction_data.asset_id, transaction
         )
 
         return transaction
 
     async def _update_portfolio_asset_from_transaction(
-        self, portfolio_id: int, asset_id: int, transaction: Transaction
+            self, portfolio_id: int, asset_id: int, transaction: Transaction
     ):
         """Update portfolio asset based on transaction."""
         portfolio_asset = (
@@ -537,7 +537,7 @@ class PortfolioService:
                 # Update existing asset
                 new_quantity = portfolio_asset.quantity + transaction.quantity
                 new_cost_basis_total = (
-                    portfolio_asset.cost_basis_total + transaction.total_amount
+                        portfolio_asset.cost_basis_total + transaction.total_amount
                 )
                 new_cost_basis = new_cost_basis_total / new_quantity
 
@@ -567,7 +567,7 @@ class PortfolioService:
                     remaining_ratio = new_quantity / portfolio_asset.quantity
                     portfolio_asset.quantity = new_quantity
                     portfolio_asset.cost_basis_total = (
-                        portfolio_asset.cost_basis_total * remaining_ratio
+                            portfolio_asset.cost_basis_total * remaining_ratio
                     )
 
         # Update P&L after transaction
@@ -579,7 +579,7 @@ class PortfolioService:
         self.db.commit()
 
     def get_portfolio_transactions(
-        self, portfolio_id: int, user_id: int, limit: int = 100, offset: int = 0
+            self, portfolio_id: int, user_id: int, limit: int = 100, offset: int = 0
     ) -> List[Transaction]:
         """Get transactions for a portfolio."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -596,7 +596,7 @@ class PortfolioService:
         )
 
     def get_transaction(
-        self, transaction_id: int, user_id: int
+            self, transaction_id: int, user_id: int
     ) -> Optional[Transaction]:
         """Get a specific transaction."""
         transaction = (
@@ -610,7 +610,7 @@ class PortfolioService:
         return transaction
 
     def update_transaction(
-        self, transaction_id: int, transaction_data: TransactionUpdate, user_id: int
+            self, transaction_id: int, transaction_data: TransactionUpdate, user_id: int
     ) -> Optional[Transaction]:
         """Update a transaction."""
         transaction = self.get_transaction(transaction_id, user_id)
@@ -644,7 +644,7 @@ class PortfolioService:
 
     # Portfolio Analytics and Performance
     async def get_portfolio_summary(
-        self, portfolio_id: int, user_id: int
+            self, portfolio_id: int, user_id: int
     ) -> PortfolioSummary:
         """Get comprehensive portfolio summary."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -726,7 +726,7 @@ class PortfolioService:
         )
 
     def get_portfolio_performance(
-        self, portfolio_id: int, user_id: int, days: int = 30
+            self, portfolio_id: int, user_id: int, days: int = 30
     ) -> Dict[str, Any]:
         """Get portfolio performance metrics."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
@@ -737,12 +737,9 @@ class PortfolioService:
         return get_portfolio_performance_summary(self.db, portfolio_id, days)
 
     async def get_portfolio_holdings(
-        self, portfolio_id: int, user_id: int
+            self, portfolio_id: int, user_id: int
     ) -> List[PortfolioHolding]:
         """Get detailed portfolio holdings with current values."""
-        portfolio = self.get_portfolio(portfolio_id, user_id)
-        if not portfolio:
-            return []
 
         assets = self.get_portfolio_assets(portfolio_id, user_id)
         holdings = []
@@ -752,8 +749,6 @@ class PortfolioService:
             asset_info = self.db.query(Asset).filter(Asset.id == asset.asset_id).first()
             if asset_info:
                 asset = await self._update_asset_pnl(asset)
-                self.db.commit()
-
                 holding = PortfolioHolding(
                     asset_id=asset.asset_id,
                     symbol=asset_info.symbol,
@@ -785,11 +780,11 @@ class PortfolioService:
                     last_updated=asset.last_updated,
                 )
                 holdings.append(holding)
-
+        self.db.commit()
         return holdings
 
     def search_portfolios(
-        self, user_id: int, search_term: str = None, currency: str = None
+            self, user_id: int, search_term: str = None, currency: str = None
     ) -> List[Portfolio]:
         """Search portfolios with filters."""
         query = self.db.query(Portfolio).filter(
@@ -846,8 +841,8 @@ class PortfolioService:
             await self._update_asset_pnl(asset)
 
             if (
-                asset.current_value != old_current_value
-                or asset.unrealized_pnl != old_unrealized_pnl
+                    asset.current_value != old_current_value
+                    or asset.unrealized_pnl != old_unrealized_pnl
             ):
                 updated = True
 
@@ -858,7 +853,7 @@ class PortfolioService:
         return False
 
     def get_public_portfolios(
-        self, limit: int = 50, offset: int = 0
+            self, limit: int = 50, offset: int = 0
     ) -> List[Portfolio]:
         """Get public portfolios for discovery."""
         return (

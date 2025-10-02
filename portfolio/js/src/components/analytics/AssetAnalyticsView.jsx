@@ -5,7 +5,6 @@ import {
   RefreshCw,
   Settings,
   Target,
-  TrendingUp,
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useState } from "react";

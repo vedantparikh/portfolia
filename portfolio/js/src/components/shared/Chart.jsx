@@ -72,7 +72,26 @@ const Chart = ({
           enabled: true,
         })),
       });
-      setIndicatorData(response?.indicator_series || {});
+
+      // Transform the data structure to match chart expectations
+      const transformedData = {};
+      if (
+        response?.indicator_series &&
+        Array.isArray(response.indicator_series)
+      ) {
+        response.indicator_series.forEach((series) => {
+          if (series.data && Array.isArray(series.data)) {
+            const chartData = series.data
+              .map((item) => ({
+                time: new Date(item.date).getTime() / 1000,
+                value: item.value,
+              }))
+              .sort((a, b) => a.time - b.time);
+            transformedData[series.indicator_name] = chartData;
+          }
+        });
+      }
+      setIndicatorData(transformedData);
     } catch (error) {
       console.error("Failed to load indicator data:", error);
     } finally {
@@ -249,6 +268,10 @@ const Chart = ({
       rightPriceScale: {
         borderColor: theme === "dark" ? "#475569" : "#cccccc",
         textColor: theme === "dark" ? "#cbd5e1" : "#191919",
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
       },
       timeScale: {
         borderColor: theme === "dark" ? "#475569" : "#cccccc",
@@ -320,26 +343,45 @@ const Chart = ({
 
     if (
       showIndicators &&
-      Array.isArray(indicatorData) &&
-      indicatorData.length > 0
+      indicatorData &&
+      Object.keys(indicatorData).length > 0
     ) {
-      indicatorData.forEach((indicatorSeries) => {
-        if (indicatorSeries.data && indicatorSeries.data.length > 0) {
-          const seriesData = indicatorSeries.data.map((point) => ({
-            time: new Date(point.date).getTime() / 1000,
-            value: point.value,
-          }));
-          const series = chart.addSeries(LineSeries, {
-            color:
-              indicatorSeries.color ||
-              getIndicatorColor(indicatorSeries.indicator_name),
-            lineWidth: indicatorSeries.line_width || 2,
-            priceLineVisible: false,
-            lastValueVisible: false,
-          });
-          series.setData(seriesData);
+      Object.entries(indicatorData).forEach(
+        ([indicatorName, indicatorValues]) => {
+          if (indicatorValues && indicatorValues.length > 0) {
+            const isSecondaryAxis = isSecondaryAxisIndicator(indicatorName);
+
+            const series = chart.addSeries(LineSeries, {
+              color: getIndicatorColor(indicatorName),
+              lineWidth: 2,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              priceScaleId: isSecondaryAxis ? "right" : "left",
+            });
+            series.setData(indicatorValues);
+
+            // Add RSI-specific price lines
+            if (indicatorName.toLowerCase().includes("rsi")) {
+              series.createPriceLine({
+                price: 70,
+                color: "#ef4444",
+                lineWidth: 1,
+                lineStyle: 2,
+                axisLabelVisible: true,
+                title: "Overbought (70)",
+              });
+              series.createPriceLine({
+                price: 30,
+                color: "#22c55e",
+                lineWidth: 1,
+                lineStyle: 2,
+                axisLabelVisible: true,
+                title: "Oversold (30)",
+              });
+            }
+          }
         }
-      });
+      );
     }
 
     chart.timeScale().fitContent();
@@ -382,8 +424,8 @@ const Chart = ({
                 comparisonValue !== null && comparisonValue !== undefined
                   ? `
                   <div class="flex justify-between"><span class="text-gray-400">${comparisonLineName}:</span><span class="text-gray-300">$${comparisonValue.toFixed(
-                    2
-                  )}</span></div>
+                      2
+                    )}</span></div>
                   <div class="flex justify-between"><span class="text-gray-400">Unrealized P/L:</span><span class="${
                     portfolioValue >= comparisonValue
                       ? "text-success-400"
@@ -440,6 +482,38 @@ const Chart = ({
           `;
         }
       }
+
+      // Add indicator information to tooltip if indicators are shown
+      if (showIndicators && Object.keys(indicatorData).length > 0) {
+        tooltipContent += '<div class="border-t border-gray-600 mt-2 pt-2">';
+        tooltipContent +=
+          '<div class="text-gray-300 font-medium mb-1">Indicators:</div>';
+
+        Object.entries(indicatorData).forEach(
+          ([indicatorName, indicatorValues]) => {
+            if (indicatorValues && indicatorValues.length > 0) {
+              const indicatorValue = indicatorValues.find(
+                (item) => item.time === data.time
+              );
+              if (indicatorValue) {
+                const color = getIndicatorColor(indicatorName);
+                const displayName = indicatorName
+                  .replace("_indicator", "")
+                  .toUpperCase();
+                tooltipContent += `
+                  <div class="flex justify-between items-center">
+                    <span class="text-gray-400">${displayName}:</span>
+                    <span class="font-medium" style="color: ${color}">${
+                  indicatorValue.value?.toFixed(2) || "N/A"
+                }</span>
+                  </div>`;
+              }
+            }
+          }
+        );
+        tooltipContent += "</div>";
+      }
+
       tooltip.innerHTML = tooltipContent;
 
       const container = chartContainerRef.current;
@@ -493,11 +567,33 @@ const Chart = ({
 
   const getIndicatorColor = (indicatorName) => {
     const colors = {
-      SMA: "#ff6b6b", EMA: "#4ecdc4", RSI: "#45b7d1", MACD: "#96ceb4",
-      BB: "#feca57", STOCH: "#ff9ff3", ADX: "#54a0ff", CCI: "#5f27cd",
-      WILLR: "#00d2d3", ATR: "#ff9f43",
+      SMA: "#ff6b6b",
+      EMA: "#4ecdc4",
+      RSI: "#45b7d1",
+      MACD: "#96ceb4",
+      BB: "#feca57",
+      STOCH: "#ff9ff3",
+      ADX: "#54a0ff",
+      CCI: "#5f27cd",
+      WILLR: "#00d2d3",
+      ATR: "#ff9f43",
     };
     return colors[indicatorName] || "#8884d8";
+  };
+
+  const isSecondaryAxisIndicator = (indicatorName) => {
+    const secondaryAxisIndicators = [
+      "rsi",
+      "stoch",
+      "cci",
+      "roc",
+      "williams",
+      "momentum",
+    ];
+    const lowerName = indicatorName.toLowerCase();
+    return secondaryAxisIndicators.some((indicator) =>
+      lowerName.includes(indicator)
+    );
   };
 
   const handleFullscreenToggle = () => {
@@ -509,11 +605,16 @@ const Chart = ({
   };
 
   const periods = [
-    { value: "30d", label: "30 Days" }, { value: "3mo", label: "3 Months" },
-    { value: "6mo", label: "6 Months" }, { value: "ytd", label: "YTD" },
-    { value: "1y", label: "1 Year" }, { value: "2y", label: "2 Years" },
-    { value: "3y", label: "3 Years" }, { value: "4y", label: "4 Years" },
-    { value: "5y", label: "5 Years" }, { value: "max", label: "All" },
+    { value: "30d", label: "30 Days" },
+    { value: "3mo", label: "3 Months" },
+    { value: "6mo", label: "6 Months" },
+    { value: "ytd", label: "YTD" },
+    { value: "1y", label: "1 Year" },
+    { value: "2y", label: "2 Years" },
+    { value: "3y", label: "3 Years" },
+    { value: "4y", label: "4 Years" },
+    { value: "5y", label: "5 Years" },
+    { value: "max", label: "All" },
   ];
 
   if (loading) {
@@ -595,7 +696,7 @@ const Chart = ({
           </div>
         </div>
       )}
-      
+
       {/* Returns and Indicators panels remain unchanged */}
 
       <div

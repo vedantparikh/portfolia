@@ -186,7 +186,7 @@ class PortfolioAnalyticsService:
         start_date = end_date - timedelta(days=365)  # 1 year lookback
 
         # Get daily returns for the portfolio
-        daily_returns = await self._get_portfolio_daily_returns(
+        daily_returns = await self._get_historical_portfolio_values(
             portfolio_id, start_date, end_date
         )
 
@@ -231,96 +231,42 @@ class PortfolioAnalyticsService:
 
         return metrics
 
-    async def _get_portfolio_daily_returns(
+    async def _get_historical_portfolio_values(
             self, portfolio_id: int, start_date: datetime, end_date: datetime
     ) -> pd.Series:
-        """Get daily portfolio returns using yfinance historical data."""
-        # Get portfolio assets
-        portfolio_assets = (
-            self.db.query(PortfolioAsset)
-            .filter(PortfolioAsset.portfolio_id == portfolio_id)
+        """
+        Retrieves the transaction-aware historical total values for a portfolio
+        from the database.
+        """
+        logger.info(
+            f"Fetching historical values for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}"
+        )
+
+        # Query the database for the pre-calculated, correct historical snapshots
+        history_records = (
+            self.db.query(
+                PortfolioPerformanceHistory.snapshot_date,
+                PortfolioPerformanceHistory.total_value,
+            )
+            .filter(
+                PortfolioPerformanceHistory.portfolio_id == portfolio_id,
+                PortfolioPerformanceHistory.snapshot_date >= start_date,
+                PortfolioPerformanceHistory.snapshot_date <= end_date,
+            )
+            .order_by(PortfolioPerformanceHistory.snapshot_date)
             .all()
         )
 
-        if not portfolio_assets:
-            return pd.Series()
+        if not history_records:
+            logger.warning(
+                f"No historical performance records found for portfolio {portfolio_id} in the given date range.")
+            return pd.Series(dtype=float)
 
-        # Fetch historical data for each asset and calculate portfolio values
-        portfolio_values = {}
-        total_weights = 0
+        # Convert the records to a pandas Series, which is the required format for calculations
+        dates = [record.snapshot_date for record in history_records]
+        values = [float(record.total_value) for record in history_records]
 
-        for asset in portfolio_assets:
-            if asset.asset and asset.asset.symbol:
-                try:
-                    # Get historical price data
-                    end_date_str = end_date.strftime("%Y-%m-%d")
-                    start_date_str = start_date.strftime("%Y-%m-%d")
-
-                    price_data = await market_data_service.fetch_ticker_data(
-                        symbol=asset.asset.symbol,
-                        start_date=start_date_str,
-                        end_date=end_date_str,
-                        interval="1d",
-                    )
-
-                    if price_data is not None and len(price_data) > 0:
-                        # Calculate asset value over time
-                        asset_quantities = float(asset.quantity)
-
-                        for _, row in price_data.iterrows():
-                            date = row["Date"]
-                            if isinstance(date, str):
-                                date = datetime.strptime(date[:10], "%Y-%m-%d").date()
-                            elif hasattr(date, 'date'):
-                                date = date.date()
-
-                            asset_value = float(row["Close"]) * asset_quantities
-
-                            if date not in portfolio_values:
-                                portfolio_values[date] = 0
-                            portfolio_values[date] += asset_value
-
-                        total_weights += float(asset.cost_basis_total)
-                    else:
-                        # Fallback to cost basis if no historical data
-                        logger.warning(f"No historical data for {asset.asset.symbol}, using cost basis")
-                        date_range = pd.date_range(start_date, end_date, freq="D")
-                        for date in date_range:
-                            date_key = date.date()
-                            if date_key not in portfolio_values:
-                                portfolio_values[date_key] = 0
-                            portfolio_values[date_key] += float(asset.cost_basis_total)
-
-                except Exception as e:
-                    logger.warning(f"Failed to get historical data for {asset.asset.symbol}: {e}")
-                    # Fallback to cost basis
-                    date_range = pd.date_range(start_date, end_date, freq="D")
-                    for date in date_range:
-                        date_key = date.date()
-                        if date_key not in portfolio_values:
-                            portfolio_values[date_key] = 0
-                        portfolio_values[date_key] += float(asset.cost_basis_total)
-            else:
-                # No symbol, use cost basis
-                date_range = pd.date_range(start_date, end_date, freq="D")
-                for date in date_range:
-                    date_key = date.date()
-                    if date_key not in portfolio_values:
-                        portfolio_values[date_key] = 0
-                    portfolio_values[date_key] += float(asset.cost_basis_total)
-
-        # Convert to pandas Series
-        if portfolio_values:
-            sorted_dates = sorted(portfolio_values.keys())
-            values = [portfolio_values[date] for date in sorted_dates]
-            date_index = pd.to_datetime(sorted_dates)
-            return pd.Series(values, index=date_index)
-        else:
-            # Fallback: create a simple series with current portfolio value
-            total_current_value = sum(float(asset.cost_basis_total) for asset in portfolio_assets)
-            date_range = pd.date_range(start_date, end_date, freq="D")
-            values = [total_current_value] * len(date_range)
-            return pd.Series(values, index=date_range)
+        return pd.Series(values, index=pd.to_datetime(dates))
 
     # Asset Performance Metrics
     async def get_or_calculate_asset_metrics(
@@ -845,68 +791,6 @@ class PortfolioAnalyticsService:
             beta=None,
             correlation_to_market=None,
         )
-
-    def _calculate_technical_indicators(
-            self, price_data: pd.DataFrame
-    ) -> Dict[str, Any]:
-        """Calculate technical indicators for an asset."""
-        metrics = {}
-
-        # Moving averages
-        metrics["sma_20"] = Decimal(
-            str(price_data["close"].rolling(20).mean().iloc[-1])
-        )
-        metrics["sma_50"] = Decimal(
-            str(price_data["close"].rolling(50).mean().iloc[-1])
-        )
-        metrics["sma_200"] = Decimal(
-            str(price_data["close"].rolling(200).mean().iloc[-1])
-        )
-
-        # Exponential moving averages
-        metrics["ema_12"] = Decimal(
-            str(price_data["close"].ewm(span=12).mean().iloc[-1])
-        )
-        metrics["ema_26"] = Decimal(
-            str(price_data["close"].ewm(span=26).mean().iloc[-1])
-        )
-
-        # RSI
-        delta = price_data["close"].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        metrics["rsi"] = Decimal(str(rsi.iloc[-1]))
-
-        # MACD
-        ema_12 = price_data["close"].ewm(span=12).mean()
-        ema_26 = price_data["close"].ewm(span=26).mean()
-        macd = ema_12 - ema_26
-        macd_signal = macd.ewm(span=9).mean()
-        macd_histogram = macd - macd_signal
-
-        metrics["macd"] = Decimal(str(macd.iloc[-1]))
-        metrics["macd_signal"] = Decimal(str(macd_signal.iloc[-1]))
-        metrics["macd_histogram"] = Decimal(str(macd_histogram.iloc[-1]))
-
-        # Bollinger Bands
-        sma_20 = price_data["close"].rolling(20).mean()
-        std_20 = price_data["close"].rolling(20).std()
-        metrics["bollinger_upper"] = Decimal(str((sma_20 + (std_20 * 2)).iloc[-1]))
-        metrics["bollinger_middle"] = Decimal(str(sma_20.iloc[-1]))
-        metrics["bollinger_lower"] = Decimal(str((sma_20 - (std_20 * 2)).iloc[-1]))
-
-        # ATR
-        high_low = price_data["high"] - price_data["low"]
-        high_close = np.abs(price_data["high"] - price_data["close"].shift())
-        low_close = np.abs(price_data["low"] - price_data["close"].shift())
-        ranges = pd.concat([high_low, high_close, low_close], axis=1)
-        true_range = ranges.max(axis=1)
-        atr = true_range.rolling(14).mean()
-        metrics["atr"] = Decimal(str(atr.iloc[-1]))
-
-        return metrics
 
     def _calculate_risk_metrics(self, price_data: pd.DataFrame) -> Dict[str, Any]:
         """Calculate risk metrics for an asset."""

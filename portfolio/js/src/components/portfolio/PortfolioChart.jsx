@@ -17,23 +17,15 @@ import {
 } from "../../utils/formatters.jsx";
 import Chart from "../shared/Chart";
 
-/**
- * Calculates the number of days from the start of the current year to today.
- * @returns {number} The day number of the year (e.g., 1 for Jan 1st, 365 for Dec 31st).
- */
 const getYtdDays = () => {
   const today = new Date();
-  const startOfYear = new Date(today.getFullYear(), 0, 1); // Month is 0-indexed
+  const startOfYear = new Date(today.getFullYear(), 0, 1);
   const diffInMilliseconds = today - startOfYear;
   const oneDayInMilliseconds = 1000 * 60 * 60 * 24;
-
-  // Add 1 because we want to include the current day
   const dayOfYear = Math.floor(diffInMilliseconds / oneDayInMilliseconds) + 1;
-
   return dayOfYear;
 };
 
-// We add the 'days' property for the API call logic.
 const chartPeriods = [
   { value: "30d", label: "30 Days", days: 30 },
   { value: "3mo", label: "3 Months", days: 90 },
@@ -51,7 +43,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const [chartData, setChartData] = useState(null);
   const [allocationData, setAllocationData] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const [timeRange, setTimeRange] = useState("30d");
   const [chartType, setChartType] = useState("line");
 
@@ -66,31 +57,17 @@ const PortfolioChart = ({ portfolio, stats }) => {
     try {
       setLoading(true);
       setChartData(null);
-      console.log(
-        "[PortfolioChart] Loading chart data for portfolio:",
-        portfolio.id,
-        "timeRange:",
-        timeRange
-      );
-
-      // Use the updated chartPeriods array to find the duration in days
       const currentTimeRange = chartPeriods.find(
         (tr) => tr.value === timeRange
       );
-      const days = currentTimeRange?.days || 30; // Default to 30
+      const days = currentTimeRange?.days || 30;
 
       try {
         const historyResponse =
           await analyticsAPI.getPortfolioPerformanceHistory(portfolio.id, days);
-        console.log(
-          "[PortfolioChart] Performance history response:",
-          historyResponse
-        );
-
         if (historyResponse?.history && historyResponse.history.length > 0) {
           const processedData = processHistoryData(historyResponse.history);
           setChartData(processedData);
-          return;
         }
       } catch (historyError) {
         console.warn(
@@ -98,10 +75,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
           historyError
         );
       }
-
-      console.log(
-        "[PortfolioChart] No performance history data found or API failed."
-      );
     } catch (error) {
       console.error("[PortfolioChart] Failed to load chart data:", error);
     } finally {
@@ -111,43 +84,27 @@ const PortfolioChart = ({ portfolio, stats }) => {
 
   const loadAllocationData = useCallback(async () => {
     if (!portfolio?.id) return;
-
     try {
       setAllocationData(null);
-      console.log(
-        "[PortfolioChart] Loading allocation data for portfolio:",
+      const holdingsResponse = await portfolioAPI.getPortfolioHoldings(
         portfolio.id
       );
-      try {
-        const holdingsResponse = await portfolioAPI.getPortfolioHoldings(
-          portfolio.id
+      if (holdingsResponse && holdingsResponse.length > 0) {
+        const totalValue = holdingsResponse.reduce(
+          (sum, holding) => sum + (parseFloat(holding.current_value) || 0),
+          0
         );
-        console.log("[PortfolioChart] Holdings response:", holdingsResponse);
-
-        if (holdingsResponse && holdingsResponse.length > 0) {
-          const totalValue = holdingsResponse.reduce(
-            (sum, holding) => sum + (parseFloat(holding.current_value) || 0),
-            0
-          );
-          const allocations = holdingsResponse.map((holding) => ({
-            asset_id: holding.asset_id,
-            asset_symbol: holding.symbol,
-            asset_name: holding.name,
-            current_percentage:
-              totalValue > 0
-                ? ((parseFloat(holding.current_value) || 0) / totalValue) * 100
-                : 0,
-            current_value: parseFloat(holding.current_value) || 0,
-          }));
-
-          setAllocationData(allocations);
-          return;
-        }
-      } catch (holdingsError) {
-        console.warn(
-          "[PortfolioChart] Failed to load holdings:",
-          holdingsError
-        );
+        const allocations = holdingsResponse.map((holding) => ({
+          asset_id: holding.asset_id,
+          asset_symbol: holding.symbol,
+          asset_name: holding.name,
+          current_percentage:
+            totalValue > 0
+              ? ((parseFloat(holding.current_value) || 0) / totalValue) * 100
+              : 0,
+          current_value: parseFloat(holding.current_value) || 0,
+        }));
+        setAllocationData(allocations);
       }
     } catch (error) {
       console.error("[PortfolioChart] Failed to load allocation data:", error);
@@ -158,11 +115,9 @@ const PortfolioChart = ({ portfolio, stats }) => {
     if (!historyData || historyData.length === 0) return null;
 
     const performanceData = historyData.map((item) => ({
-      date:
-        item.snapshot_date?.split("T")[0] ||
-        new Date().toISOString().split("T")[0],
+      date: item.snapshot_date || new Date().toISOString(),
       value: parseFloat(item.total_value) || 0,
-      benchmark: parseFloat(item.total_cost_basis) || 0,
+      cost_basis: parseFloat(item.total_cost_basis) || 0,
     }));
 
     const firstValue = performanceData[0]?.value || 0;
@@ -173,8 +128,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
     return {
       performance_data: performanceData,
       total_return: totalReturn,
-      benchmark_return:
-        performanceData[performanceData.length - 1]?.benchmark || 0,
       volatility:
         parseFloat(historyData[historyData.length - 1]?.volatility) || 0,
       sharpe_ratio:
@@ -183,6 +136,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         parseFloat(historyData[historyData.length - 1]?.max_drawdown) || 0,
     };
   };
+
   useEffect(() => {
     if (portfolio?.id) {
       loadChartData();
@@ -301,44 +255,27 @@ const PortfolioChart = ({ portfolio, stats }) => {
   };
 
   const renderChart = () => {
+    const commonChartProps = {
+      isPortfolioChart: true,
+      portfolioData: chartData?.performance_data || [],
+      period: timeRange,
+      onPeriodChange: setTimeRange,
+      height: 320,
+      showControls: false,
+      showPeriodSelector: false,
+      showComparisonLine: true,
+      comparisonLineName: "Cost Basis",
+      theme: "dark",
+      className: "w-full",
+    };
+
     switch (chartType) {
       case "line":
-        return (
-          <Chart
-            isPortfolioChart={true}
-            portfolioData={chartData?.performance_data || []}
-            period={timeRange} // Pass the current timeRange as period
-            onPeriodChange={setTimeRange} // Pass the setter function
-            height={320}
-            showVolume={false}
-            // We are creating our own controls, so these are false
-            showControls={false}
-            showPeriodSelector={false}
-            showBenchmark={true}
-            yAxisMin={0}
-            theme="dark"
-            className="w-full"
-          />
-        );
+        return <Chart {...commonChartProps} />;
       case "pie":
         return renderPieChart();
       default:
-        return (
-          <Chart
-            isPortfolioChart={true}
-            portfolioData={chartData?.performance_data || []}
-            period={timeRange}
-            onPeriodChange={setTimeRange}
-            height={320}
-            showVolume={false}
-            showControls={false}
-            showPeriodSelector={false}
-            showBenchmark={true}
-            yAxisMin={0}
-            theme="dark"
-            className="w-full"
-          />
-        );
+        return <Chart {...commonChartProps} />;
     }
   };
 
@@ -368,7 +305,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
           </div>
         </div>
 
-        {/* Time Range Selector */}
         <div className="flex items-center space-x-2 mb-6">
           {chartPeriods.map((periodOption) => (
             <button
@@ -385,7 +321,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
           ))}
         </div>
 
-        {/* Chart Type Selector */}
         <div className="flex items-center space-x-2 mb-6">
           <span className="text-sm text-gray-400">Chart Type:</span>
           {chartTypes.map((type) => {
@@ -407,7 +342,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
           })}
         </div>
 
-        {/* Chart */}
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (
             <div className="flex items-center justify-center h-80">
@@ -452,7 +386,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
               </div>
             </div>
           </div>
-
           <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -468,7 +401,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
               </div>
             </div>
           </div>
-
           <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>

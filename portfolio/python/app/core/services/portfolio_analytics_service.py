@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database.models import (
@@ -1716,9 +1717,7 @@ class PortfolioAnalyticsService:
         This method is transaction-aware and reconstructs portfolio holdings for each day.
         """
         try:
-            # Normalize start and end dates to midnight. This is the key fix.
-            # It ensures the entire function operates on a consistent, date-level basis,
-            # preventing multiple snapshots for the same calendar day.
+            # Normalize start and end dates to midnight.
             start_date = datetime.combine(start_date.date(), datetime.min.time())
             end_date = datetime.combine(end_date.date(), datetime.min.time())
 
@@ -1752,6 +1751,19 @@ class PortfolioAnalyticsService:
                 self.db.commit()
                 return []
 
+            first_transaction_date = (
+                self.db.query(func.min(Transaction.transaction_date))
+                .filter(Transaction.portfolio_id == portfolio_id)
+                .scalar()
+            )
+
+            # If for some reason the query fails, fall back to the first transaction in our list.
+            if not first_transaction_date:
+                first_transaction_date = transactions[0].transaction_date
+
+            # We need price data from before the first transaction to value it on its own day.
+            price_fetch_start_date = first_transaction_date - timedelta(days=1)
+
             # 3. FETCH ALL REQUIRED HISTORICAL PRICE DATA in a single batch.
             asset_ids = list({tx.asset_id for tx in transactions})
             assets = self.db.query(Asset).filter(Asset.id.in_(asset_ids)).all()
@@ -1762,11 +1774,10 @@ class PortfolioAnalyticsService:
                 asset = asset_map.get(asset_id)
                 if asset and asset.symbol:
                     try:
-                        # Fetch data from one day before start_date to handle initial state correctly
-                        fetch_start_date = start_date - timedelta(days=1)
+                        # FIX: Use the calculated price_fetch_start_date instead of the request's start_date.
                         price_data = await market_data_service.fetch_ticker_data(
                             symbol=asset.symbol,
-                            start_date=fetch_start_date.strftime("%Y-%m-%d"),
+                            start_date=price_fetch_start_date.strftime("%Y-%m-%d"),
                             end_date=end_date.strftime("%Y-%m-%d"),
                             interval="1d",
                         )
@@ -1796,7 +1807,6 @@ class PortfolioAnalyticsService:
                         current_holdings[asset_id]['cost_basis'] += tx.quantity * tx.price
                     elif tx.transaction_type == TransactionType.SELL:
                         if current_holdings[asset_id]['quantity'] > 0:
-                            # Prevent division by zero if quantity is exactly zero before subtraction
                             avg_cost = current_holdings[asset_id]['cost_basis'] / current_holdings[asset_id]['quantity']
                             cost_basis_reduction = tx.quantity * avg_cost
                             current_holdings[asset_id]['cost_basis'] -= cost_basis_reduction
@@ -1847,7 +1857,7 @@ class PortfolioAnalyticsService:
                             close_price = Decimal(str(prev_rows.iloc[-1]['Close']))
                             asset_value = close_price * quantity
                         else:
-                            # Fallback if no price data is found before this date (e.g., weekends/holidays)
+                            # Fallback if no price data is found before this date
                             asset_value = holding['cost_basis']
                     else:
                         # Fallback if price data for the asset couldn't be fetched
@@ -1865,7 +1875,7 @@ class PortfolioAnalyticsService:
 
                 snapshot = PortfolioPerformanceHistory(
                     portfolio_id=portfolio_id,
-                    snapshot_date=current_date,  # current_date is now always at midnight
+                    snapshot_date=current_date,
                     total_value=total_value,
                     total_cost_basis=total_cost_basis,
                     total_unrealized_pnl=total_unrealized_pnl,
@@ -1889,3 +1899,4 @@ class PortfolioAnalyticsService:
             logger.error(f"Failed to generate historical performance snapshots: {e}")
             self.db.rollback()
             raise
+

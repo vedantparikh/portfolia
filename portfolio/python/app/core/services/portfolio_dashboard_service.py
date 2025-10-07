@@ -9,7 +9,13 @@ from typing import Any, Dict, List
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from core.database.models import Asset, AssetPrice, Portfolio, PortfolioAsset, Transaction
+from core.database.models import (
+    Asset,
+    AssetPrice,
+    Portfolio,
+    PortfolioAsset,
+    Transaction,
+)
 from core.database.models.portfolio_analytics import (
     PortfolioPerformanceHistory,
     PortfolioRiskMetrics,

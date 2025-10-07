@@ -1497,6 +1497,53 @@ export const portfolioCalculationsAPI = {
 };
 
 /* 
+  ACCOUNT STATEMENTS API METHODS - PDF statement parsing and bulk transaction creation
+  These methods handle all account statement-related API calls
+*/
+export const accountStatementsAPI = {
+  /* 
+      GET SUPPORTED PROVIDERS - Get list of supported account statement providers
+      Returns: Server response with array of provider objects
+    */
+  getSupportedProviders: async () => {
+    const response = await api.get("/account-statements/providers");
+    return response.data;
+  },
+
+  /* 
+      PARSE STATEMENT - Upload PDF and extract transaction data
+      Parameters: providerId (string), file (File object), filename (string)
+      Returns: Server response with parsed transaction data
+    */
+  parseStatement: async (providerId, file, filename) => {
+    const formData = new FormData();
+    formData.append('provider_id', providerId);
+    formData.append('file', file);
+    formData.append('filename', filename);
+
+    const response = await api.post("/account-statements/parse", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /* 
+      BULK CREATE TRANSACTIONS - Create multiple transactions from parsed data
+      Parameters: portfolioId (number), transactions (array of transaction objects)
+      Returns: Server response with created transactions
+    */
+  bulkCreateTransactions: async (portfolioId, transactions) => {
+    const response = await api.post("/transactions/bulk-create", {
+      portfolio_id: portfolioId,
+      transactions: transactions
+    });
+    return response.data;
+  }
+};
+
+/* 
   WATCHLIST API METHODS - Stock watchlist management
   These methods handle all watchlist-related API calls
 */

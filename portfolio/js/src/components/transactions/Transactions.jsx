@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     BarChart3,
     DollarSign,
+    FileText,
     Filter,
     Plus,
     RefreshCw,
@@ -12,11 +13,13 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { portfolioAPI, transactionAPI } from '../../services/api';
+import { accountStatementsAPI, portfolioAPI, transactionAPI } from '../../services/api';
 import assetCache from '../../services/assetCache';
 import { Sidebar } from '../shared';
 import CreateTransactionModal from './CreateTransactionModal';
 import EditTransactionModal from './EditTransactionModal';
+import PDFUploadModal from './PDFUploadModal';
+import ParsedDataTable from './ParsedDataTable';
 import TransactionCard from './TransactionCard';
 import TransactionFilters from './TransactionFilters';
 
@@ -31,6 +34,9 @@ const Transactions = () => {
     const [editingTransaction, setEditingTransaction] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [showPDFUpload, setShowPDFUpload] = useState(false);
+    const [showParsedData, setShowParsedData] = useState(false);
+    const [parsedData, setParsedData] = useState(null);
     const [filters, setFilters] = useState({
         portfolio: 'all',
         type: 'all',
@@ -239,9 +245,45 @@ const Transactions = () => {
             case 'refresh':
                 handleRefresh();
                 break;
+            case 'upload-pdf':
+                setShowPDFUpload(true);
+                break;
             default:
                 break;
         }
+    };
+
+    const handleParsedData = (data) => {
+        setParsedData(data);
+        setShowPDFUpload(false);
+        setShowParsedData(true);
+    };
+
+    const handleBulkSave = async (portfolioId, transactionData) => {
+        try {
+            const response = await accountStatementsAPI.bulkCreateTransactions(portfolioId, transactionData);
+
+            // Add new transactions to the existing list
+            setTransactions(prev => [...response.created_transactions, ...prev]);
+            setShowParsedData(false);
+            setParsedData(null);
+
+            toast.success(`Successfully imported ${response.summary.total_created} transactions`);
+
+            // Refresh data to ensure consistency
+            setTimeout(() => {
+                loadData();
+            }, 500);
+        } catch (error) {
+            console.error('Failed to bulk create transactions:', error);
+            toast.error('Failed to import transactions');
+            throw error;
+        }
+    };
+
+    const handleCancelParsedData = () => {
+        setShowParsedData(false);
+        setParsedData(null);
     };
 
     const getTransactionStats = () => {
@@ -336,6 +378,13 @@ const Transactions = () => {
                                 >
                                     <Filter size={16} />
                                     <span>Filters</span>
+                                </button>
+                                <button
+                                    onClick={() => setShowPDFUpload(true)}
+                                    className="btn-outline flex items-center space-x-2"
+                                >
+                                    <FileText size={16} />
+                                    <span>Upload PDF</span>
                                 </button>
                                 <button
                                     onClick={() => setShowCreateModal(true)}
@@ -502,6 +551,25 @@ const Transactions = () => {
                             transaction={editingTransaction}
                             portfolios={portfolios}
                             onUpdate={handleUpdateTransaction}
+                        />
+                    )}
+
+                    {/* PDF Upload Modal */}
+                    {showPDFUpload && (
+                        <PDFUploadModal
+                            isOpen={showPDFUpload}
+                            onClose={() => setShowPDFUpload(false)}
+                            onParsedData={handleParsedData}
+                        />
+                    )}
+
+                    {/* Parsed Data Table Modal */}
+                    {showParsedData && parsedData && (
+                        <ParsedDataTable
+                            parsedData={parsedData}
+                            onSave={handleBulkSave}
+                            onCancel={handleCancelParsedData}
+                            portfolios={portfolios}
                         />
                     )}
                 </div>

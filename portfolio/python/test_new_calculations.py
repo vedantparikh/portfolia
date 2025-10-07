@@ -4,10 +4,8 @@ Test script for the new CAGR and XIRR calculations.
 This script demonstrates the key concepts and formulas implemented.
 """
 
-from datetime import datetime
-from datetime import timezone
-from typing import List
-from typing import NamedTuple
+from datetime import datetime, timezone
+from typing import List, NamedTuple
 
 import pyxirr
 

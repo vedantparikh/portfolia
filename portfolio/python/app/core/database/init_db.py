@@ -5,9 +5,9 @@ This script creates all database tables and initializes the database.
 """
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
-import logging
 
 from core.database.connection import get_db_health
 

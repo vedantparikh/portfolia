@@ -9,9 +9,8 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.auth.dependencies import get_current_active_user
-from app.core.database.models import User
-from app.core.schemas.market_data import (
+from core.auth.dependencies import get_current_active_user
+from core.schemas.market_data import (
     BulkPricesResponse,
     CurrentPriceResponse,
     MarketStatusResponse,
@@ -21,7 +20,8 @@ from app.core.schemas.market_data import (
     TickerDataResponse,
     TickerInfoResponse,
 )
-from app.core.services.market_data_service import market_data_service
+from core.services.market_data_service import market_data_service
+from core.database.models import User
 
 logger = logging.getLogger(__name__)
 

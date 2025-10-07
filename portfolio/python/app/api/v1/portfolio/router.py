@@ -7,13 +7,13 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import (
+from core.auth.dependencies import (
     get_current_active_user,
     get_current_verified_user,
 )
-from app.core.database.connection import get_db
-from app.core.database.models import User
-from app.core.schemas.portfolio import (
+from core.database.connection import get_db
+from core.database.models import User
+from core.schemas.portfolio import (
     AssetCreate,
     Portfolio,
     PortfolioAsset,
@@ -29,12 +29,12 @@ from app.core.schemas.portfolio import (
     Transaction,
     TransactionCreate,
 )
-from app.core.schemas.portfolio_performance import (
+from core.schemas.portfolio_performance import (
     PortfolioDiscoverResponse,
     PortfolioRefreshResponse,
     PortfolioSearchResponse,
 )
-from app.core.services.portfolio_service import PortfolioService
+from core.services.portfolio_service import PortfolioService
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 

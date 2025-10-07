@@ -8,15 +8,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import (
+from core.auth.dependencies import (
     get_client_ip,
     get_current_user,
     get_optional_current_user,
 )
-from app.core.auth.utils import is_rate_limited
-from app.core.database.connection import get_db
-from app.core.database.models.user import User
-from app.core.schemas.statistical_indicators import (
+from core.auth.utils import is_rate_limited
+from core.database.connection import get_db
+from core.database.models.user import User
+from core.schemas.statistical_indicators import (
     AnalysisConfiguration,
     AnalysisConfigurationCreate,
     AnalysisConfigurationListResponse,
@@ -27,10 +27,10 @@ from app.core.schemas.statistical_indicators import (
     IndicatorRegistryResponse,
     IndicatorValidationError,
 )
-from app.core.services.analysis_configuration_service import (
+from core.services.analysis_configuration_service import (
     AnalysisConfigurationService,
 )
-from app.core.services.enhanced_statistical_service import EnhancedStatisticalService
+from core.services.enhanced_statistical_service import EnhancedStatisticalService
 
 router = APIRouter(prefix="/statistical-indicators", tags=["statistical-indicators"])
 

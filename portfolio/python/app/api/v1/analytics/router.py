@@ -1017,7 +1017,7 @@ async def update_all_analytics(
         )
 
         # Get all user assets
-        from app.core.database.models import Asset
+        from core.database.models import Asset
         user_assets = (
             db.query(Asset)
             .filter(Asset.user_id == current_user.id, Asset.is_active == True)
@@ -1152,7 +1152,7 @@ async def get_user_analytics_dashboard(
         if force_refresh:
             try:
                 # Get all user assets and refresh their data
-                from app.core.database.models import Asset
+                from core.database.models import Asset
                 user_assets = (
                     db.query(Asset)
                     .filter(Asset.user_id == current_user.id, Asset.is_active == True)
@@ -1206,7 +1206,7 @@ async def get_user_assets_analytics(
         # Force refresh user assets before getting analytics
         if force_refresh:
             try:
-                from app.core.database.models import Asset
+                from core.database.models import Asset
                 user_assets = (
                     db.query(Asset)
                     .filter(Asset.user_id == current_user.id, Asset.is_active == True)

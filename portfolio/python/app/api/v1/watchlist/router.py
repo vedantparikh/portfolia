@@ -4,17 +4,17 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import get_current_user
-from app.core.database.connection import get_db
-from app.core.database.models import User
-from app.core.logging_config import get_logger, log_api_request, log_api_response
-from app.core.schemas.portfolio_performance import (
+from core.auth.dependencies import get_current_user
+from core.database.connection import get_db
+from core.database.models import User
+from core.logging_config import get_logger, log_api_request, log_api_response
+from core.schemas.portfolio_performance import (
     WatchlistBulkAddResponse,
     WatchlistDeleteResponse,
     WatchlistItemDeleteResponse,
     WatchlistReorderResponse,
 )
-from app.core.schemas.watchlist import (
+from core.schemas.watchlist import (
     WatchlistBulkAddRequest,
     WatchlistCreate,
     WatchlistItemCreate,
@@ -26,7 +26,7 @@ from app.core.schemas.watchlist import (
     WatchlistUpdate,
     WatchlistWithItemsResponse,
 )
-from app.core.services.watchlist_service import WatchlistService
+from core.services.watchlist_service import WatchlistService
 
 logger = get_logger(__name__)
 

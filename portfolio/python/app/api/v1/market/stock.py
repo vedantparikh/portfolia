@@ -9,25 +9,25 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from yahooquery import search
 
-from app.core.auth.dependencies import (
+from core.auth.dependencies import (
     get_client_ip,
     get_current_user,
     get_optional_current_user,
 )
-from app.core.auth.utils import is_rate_limited
-from app.core.logging_config import (
+from core.auth.utils import is_rate_limited
+from core.logging_config import (
     get_logger,
     log_api_request,
     log_api_response,
     log_error_with_context,
 )
-from app.core.schemas.market import MajorIndex, MarketData
-from app.core.schemas.market_data import (
+from core.schemas.market import MajorIndex, MarketData
+from core.schemas.market_data import (
     SymbolSearchResult,
     YFinanceDataResponse,
     YFinancePriceData,
 )
-from app.core.services.market_data_service import market_data_service
+from core.services.market_data_service import market_data_service
 
 logger = get_logger(__name__)
 

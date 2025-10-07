@@ -9,10 +9,10 @@ from typing import Dict, List, Optional
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
-from app.core.database.models.analysis_configuration import (
+from core.database.models.analysis_configuration import (
     AnalysisConfiguration as AnalysisConfigurationModel,
 )
-from app.core.schemas.statistical_indicators import (
+from core.schemas.statistical_indicators import (
     COMMON_ANALYSIS_TEMPLATES,
     AnalysisConfiguration,
     AnalysisConfigurationCreate,

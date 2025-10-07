@@ -8,11 +8,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import get_current_active_user
-from app.core.database.connection import get_db
-from app.core.database.models import User
-from app.core.database.models.asset import AssetType
-from app.core.schemas.market_data import (
+from core.auth.dependencies import get_current_active_user
+from core.database.connection import get_db
+from core.database.models import User
+from core.database.models.asset import AssetType
+from core.schemas.market_data import (
     AssetDetailsResponse,
     AssetSearchResponse,
     AssetTypeBreakdownResponse,
@@ -21,7 +21,7 @@ from app.core.schemas.market_data import (
     SearchSuggestionsResponse,
     SectorBreakdownResponse,
 )
-from app.core.services.asset_search_service import AssetSearchService
+from core.services.asset_search_service import AssetSearchService
 
 router = APIRouter(prefix="/assets/search", tags=["asset-search"])
 

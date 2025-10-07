@@ -6,15 +6,15 @@ Comprehensive API endpoints for portfolio dashboard functionality.
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import get_current_active_user
-from app.core.database.connection import get_db
-from app.core.database.models import User
-from app.core.schemas.dashboard import (
+from core.auth.dependencies import get_current_active_user
+from core.database.connection import get_db
+from core.database.models import User
+from core.schemas.dashboard import (
     AssetChartData,
     PerformanceChartData,
     PortfolioDashboard,
 )
-from app.core.services.portfolio_dashboard_service import PortfolioDashboardService
+from core.services.portfolio_dashboard_service import PortfolioDashboardService
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

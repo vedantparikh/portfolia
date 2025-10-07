@@ -3,6 +3,7 @@ Portfolio Analytics Service
 Comprehensive service for portfolio analysis, risk management, and performance tracking.
 """
 
+import datetime as dt
 import logging
 import math
 from datetime import datetime, timedelta, timezone
@@ -1651,7 +1652,21 @@ class PortfolioAnalyticsService:
     ) -> List[PortfolioPerformanceHistory]:
         """
         Generate historical performance snapshots for a portfolio using yfinance data.
-        This method is transaction-aware and reconstructs portfolio holdings for each day.
+
+        This method:
+        1. Calculates portfolio values for EVERY day in the requested range
+        2. Uses historical close prices to calculate daily unrealized P&L
+        3. Always starts from the first transaction date if requested start date is earlier
+        4. Is transaction-aware and reconstructs portfolio holdings for each day
+        5. Creates a snapshot for each day showing total value, cost basis, and unrealized P&L
+
+        Args:
+            portfolio_id: ID of the portfolio to generate snapshots for
+            start_date: Requested start date (will be adjusted to first transaction date if earlier)
+            end_date: End date for snapshot generation
+
+        Returns:
+            List of PortfolioPerformanceHistory objects, one for each day
         """
         try:
             # Normalize start and end dates to midnight.
@@ -1659,7 +1674,11 @@ class PortfolioAnalyticsService:
             end_date = datetime.combine(end_date.date(), datetime.min.time())
 
             logger.info(
-                f"Generating transaction-aware historical snapshots for portfolio {portfolio_id} from {start_date.date()} to {end_date.date()}"
+                "Generating transaction-aware historical snapshots for portfolio %s "
+                "from %s to %s",
+                portfolio_id,
+                start_date.date(),
+                end_date.date(),
             )
 
             # 1. DELETE EXISTING SNAPSHOTS in the date range to avoid duplicates.
@@ -1700,14 +1719,30 @@ class PortfolioAnalyticsService:
             if not first_transaction_date:
                 first_transaction_date = transactions[0].transaction_date
 
-            # Determine the effective start date for snapshot generation.
-            # This prevents generating snapshots for dates before the first transaction.
-            effective_start_date = max(
-                start_date,
-                datetime.combine(first_transaction_date.date(), datetime.min.time()),
+            # Always start from the first transaction date if the requested start date is before it
+            # This ensures we never generate snapshots for dates before any transactions exist
+            # and that we always start from the first transaction date when requested period is longer than transaction history
+            first_transaction_datetime = datetime.combine(
+                first_transaction_date.date(), datetime.min.time()
             )
+
+            if start_date < first_transaction_datetime:
+                effective_start_date = first_transaction_datetime
+                logger.info(
+                    "Requested start date (%s) is before first transaction date (%s). "
+                    "Starting from first transaction date instead.",
+                    start_date.date(),
+                    first_transaction_date.date(),
+                )
+            else:
+                effective_start_date = start_date
+
             logger.info(
-                f"Effective calculation start date set to: {effective_start_date.date()}"
+                "First transaction date: %s, Requested start date: %s, "
+                "Effective calculation start date set to: %s",
+                first_transaction_date.date(),
+                start_date.date(),
+                effective_start_date.date(),
             )
 
             # We need price data from before the first transaction to value it on its own day.
@@ -1733,11 +1768,11 @@ class PortfolioAnalyticsService:
                             asset_price_data[asset_id] = price_data
                     except Exception as e:
                         logger.warning(
-                            f"Failed to fetch price data for {asset.symbol}: {e}"
+                            "Failed to fetch price data for %s: %s", asset.symbol, e
                         )
 
             # 4. PRE-PROCESS TRANSACTIONS by grouping them by date.
-            transactions_by_date = {}
+            transactions_by_date: Dict[dt.date, List[Transaction]] = {}
             for tx in transactions:
                 tx_date = tx.transaction_date.date()
                 if tx_date not in transactions_by_date:
@@ -1822,17 +1857,55 @@ class PortfolioAnalyticsService:
 
                     price_data = asset_price_data.get(asset_id)
                     if price_data is not None:
-                        # Find the most recent price on or before the current snapshot date
-                        prev_rows = price_data[price_data["Date"].dt.date <= date_key]
-                        if not prev_rows.empty:
-                            close_price = Decimal(str(prev_rows.iloc[-1]["Close"]))
-                            asset_value = close_price * quantity
-                        else:
-                            # Fallback if no price data is found before this date
+                        try:
+                            # Ensure Date column is in datetime format for comparison
+                            if not pd.api.types.is_datetime64_any_dtype(
+                                price_data["Date"]
+                            ):
+                                price_data["Date"] = pd.to_datetime(price_data["Date"])
+
+                            # Find the most recent price on or before the current snapshot date
+                            prev_rows = price_data[
+                                price_data["Date"].dt.date <= date_key
+                            ]
+                            if not prev_rows.empty:
+                                # Since data is sorted descending, get the first row (most recent)
+                                close_price = Decimal(str(prev_rows.iloc[0]["Close"]))
+                                asset_value = close_price * quantity
+                                logger.debug(
+                                    "Asset %s on %s: quantity=%s, close_price=%s, value=%s",
+                                    asset_id,
+                                    date_key,
+                                    quantity,
+                                    close_price,
+                                    asset_value,
+                                )
+                            else:
+                                # Fallback if no price data is found before this date
+                                asset_value = holding["cost_basis"]
+                                logger.debug(
+                                    "Asset %s on %s: No price data found, using cost basis %s",
+                                    asset_id,
+                                    date_key,
+                                    asset_value,
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                "Error processing price data for asset %s on %s: %s",
+                                asset_id,
+                                date_key,
+                                e,
+                            )
                             asset_value = holding["cost_basis"]
                     else:
                         # Fallback if price data for the asset couldn't be fetched
                         asset_value = holding["cost_basis"]
+                        logger.debug(
+                            "Asset %s on %s: No price data available, using cost basis %s",
+                            asset_id,
+                            date_key,
+                            asset_value,
+                        )
 
                     total_value += asset_value
 
@@ -1864,11 +1937,13 @@ class PortfolioAnalyticsService:
                 self.db.refresh(snapshot)
 
             logger.info(
-                f"Generated {len(snapshots)} new historical snapshots for portfolio {portfolio_id}"
+                "Generated %s new historical snapshots for portfolio %s",
+                len(snapshots),
+                portfolio_id,
             )
             return snapshots
 
         except Exception as e:
-            logger.error(f"Failed to generate historical performance snapshots: {e}")
+            logger.error("Failed to generate historical performance snapshots: %s", e)
             self.db.rollback()
             raise

@@ -5,21 +5,21 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.database.models.watchlist import (
+from core.database.models.watchlist import (
     Watchlist,
     WatchlistAlert,
     WatchlistItem,
     WatchlistPerformance,
 )
-from app.core.logging_config import get_logger
-from app.core.schemas.watchlist import (
+from core.logging_config import get_logger
+from core.schemas.watchlist import (
     WatchlistAlertCreate,
     WatchlistCreate,
     WatchlistItemCreate,
     WatchlistItemUpdate,
     WatchlistUpdate,
 )
-from app.core.services.market_data_service import MarketDataService
+from core.services.market_data_service import MarketDataService
 
 logger = get_logger(__name__)
 

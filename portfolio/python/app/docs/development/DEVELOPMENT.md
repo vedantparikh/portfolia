@@ -187,7 +187,7 @@ pytest -m "unit and not slow"
 ```python
 import pytest
 from unittest.mock import Mock, patch
-from app.services.portfolio_service import PortfolioService
+from services.portfolio_service import PortfolioService
 
 class TestPortfolioService:
     def setup_method(self):
@@ -291,7 +291,7 @@ alembic current
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.core.database.connection import Base
+from core.database.models import Base
 
 class NewModel(Base):
     __tablename__ = "new_models"
@@ -322,7 +322,7 @@ class NewModel(Base):
 ```python
 from datetime import datetime, timedelta, timezone
 from jose import jwt
-from app.config import settings
+from config import settings
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -340,7 +340,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 ```python
 from jose import JWTError, jwt
-from app.config import settings
+from config import settings
 
 def verify_token(token: str):
     try:
@@ -380,7 +380,7 @@ class NewFeatureResponse(BaseModel):
 # services/new_feature_service.py
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.core.database.models import NewFeature
+from core.database.models import NewFeature
 from models.new_feature import NewFeatureCreate
 
 class NewFeatureService:
@@ -401,7 +401,7 @@ class NewFeatureService:
 # api/v1/new_feature.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.core.database.connection import get_db
+from core.database.connection import get_db
 from models.new_feature import NewFeatureCreate, NewFeatureResponse
 from services.new_feature_service import NewFeatureService
 
@@ -466,8 +466,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.main import app
-from app.core.database.connection import get_db
+from main import app
+from core.database.connection import get_db
 
 # Test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -504,7 +504,7 @@ def client(db):
 ```python
 # tests/factories.py
 import factory
-from app.core.database.models import User, Portfolio
+from core.database.models import User, Portfolio
 
 class UserFactory(factory.Factory):
     class Meta:
@@ -653,7 +653,7 @@ engine = create_engine(
 
 ```python
 import redis
-from app.config import settings
+from config import settings
 
 redis_client = redis.Redis(
     host=settings.redis_host,

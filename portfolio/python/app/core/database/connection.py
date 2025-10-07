@@ -4,12 +4,11 @@ from typing import Optional
 
 import redis
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
-from app.config import settings
-from app.core.database.redis_client import get_redis
+from config import settings
+from core.database.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +25,6 @@ engine = create_engine(
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create base class for models
-Base = declarative_base()
 
 # Redis client
 redis_client: Optional[redis.Redis] = get_redis()
@@ -60,7 +56,7 @@ async def create_tables():
     """Create all database tables."""
     try:
         # Import all models to ensure they are registered
-        from app.core.database.models import Base
+        from core.database.models.base import Base
 
         # Create all tables
         Base.metadata.create_all(bind=engine)

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.database.models import (
+from core.database.models import (
     Asset,
     Portfolio,
     PortfolioAsset,

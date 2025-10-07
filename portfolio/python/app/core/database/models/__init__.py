@@ -1,6 +1,3 @@
-# Database Models
-from app.core.database.connection import Base
-
 from .analysis_configuration import AnalysisConfiguration
 from .asset import Asset, MarketIndex
 from .portfolio import Portfolio, PortfolioAsset
@@ -19,8 +16,6 @@ from .user import User, UserProfile, UserSession
 from .watchlist import Watchlist, WatchlistAlert, WatchlistItem, WatchlistPerformance
 
 __all__ = [
-    # Base class
-    "Base",
     # Database Models
     "User",
     "UserProfile",

@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
-from app.core.database.connection import create_tables, init_db
-from app.core.database.init_db import init_database
-from app.core.logging_config import get_logger, setup_logging
-from app.health_check import router as health_router
+from config import settings
+from core.database.connection import create_tables, init_db
+from core.database.init_db import init_database
+from core.logging_config import get_logger, setup_logging
+from health_check import router as health_router
 
 # Setup comprehensive logging
 setup_logging(

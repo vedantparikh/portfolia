@@ -8,16 +8,16 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.auth.dependencies import (
+from core.auth.dependencies import (
     get_current_active_user,
     get_current_verified_user,
 )
-from app.core.database.connection import get_db
-from app.core.database.models import Portfolio, PortfolioAsset, TransactionType, User
-from app.core.database.models import Transaction as TransactionModel
-from app.core.schemas.portfolio import Transaction as TransactionSchema
-from app.core.schemas.portfolio import TransactionCreate, TransactionUpdate
-from app.core.schemas.portfolio_performance import TransactionSummaryResponse
+from core.database.connection import get_db
+from core.database.models import Portfolio, PortfolioAsset, TransactionType, User
+from core.database.models import Transaction as TransactionModel
+from core.schemas.portfolio import Transaction as TransactionSchema
+from core.schemas.portfolio import TransactionCreate, TransactionUpdate
+from core.schemas.portfolio_performance import TransactionSummaryResponse
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 

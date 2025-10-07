@@ -21,7 +21,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.core.database.connection import Base
+from core.database.models.base import Base
 
 
 class PerformanceMetricType(enum.Enum):

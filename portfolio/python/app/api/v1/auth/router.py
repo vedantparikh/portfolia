@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.core.auth.dependencies import (
+from config import settings
+from core.auth.dependencies import (
     get_client_ip,
     get_current_active_user,
     get_current_user,
@@ -18,7 +18,7 @@ from app.core.auth.dependencies import (
     get_user_agent,
     validate_refresh_token,
 )
-from app.core.auth.utils import (
+from core.auth.utils import (
     create_refresh_token,
     create_tokens,
     generate_reset_token,
@@ -35,18 +35,11 @@ from app.core.auth.utils import (
     validate_verification_token,
     verify_password,
 )
-from app.core.database.connection import get_db
-from app.core.database.models import User, UserProfile, UserSession
-from app.core.email_client import (
-    send_forgot_password_email,
-    send_verification_email,
-)
-from app.core.logging_config import (
-    get_logger,
-    log_api_request,
-    log_security_event,
-)
-from app.core.schemas.auth import (
+from core.database.connection import get_db
+from core.database.models import User, UserProfile, UserSession
+from core.email_client import send_forgot_password_email, send_verification_email
+from core.logging_config import get_logger, log_api_request, log_security_event
+from core.schemas.auth import (
     EmailVerification,
     PasswordChange,
     PasswordReset,

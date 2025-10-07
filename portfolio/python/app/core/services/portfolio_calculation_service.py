@@ -19,15 +19,14 @@ import pyxirr  # type: ignore
 from dateutil.relativedelta import relativedelta  # type: ignore
 from sqlalchemy.orm import Session
 
-from app.core.database.models import (
+from core.database.models import (
     Asset,
     Portfolio,
     PortfolioAsset,
     Transaction,
     TransactionType,
 )
-from app.core.services.market_data_service import MarketDataService
-from core.services.market_data_service import market_data_service
+from core.services.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
 

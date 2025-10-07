@@ -9,7 +9,7 @@ from typing import List
 import redis
 from environs import Env
 
-from app.core.utils.singletonmeta import SingletonMeta
+from core.utils.singletonmeta import SingletonMeta
 
 logger = logging.getLogger(__name__)
 

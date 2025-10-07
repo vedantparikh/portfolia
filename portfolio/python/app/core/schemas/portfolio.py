@@ -4,8 +4,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.core.database.models.asset import AssetType
-from app.core.database.models.transaction import TransactionStatus, TransactionType
+from core.database.models.asset import AssetType
+from core.database.models.transaction import TransactionStatus, TransactionType
 
 
 class PortfolioBase(BaseModel):

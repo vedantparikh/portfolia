@@ -15,9 +15,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import get_current_user
-from app.core.database.connection import get_db
-from app.core.schemas.portfolio_calculations import (
+from core.auth.dependencies import get_current_user
+from core.database.connection import get_db
+from core.schemas.portfolio_calculations import (
     AvailablePeriodsResponse,
     BenchmarkPerformanceCalculationRequest,
     BenchmarkPerformanceResponse,
@@ -27,7 +27,7 @@ from app.core.schemas.portfolio_calculations import (
     PortfolioPerformanceOverview,
     PortfolioPerformanceResponse,
 )
-from app.core.services.portfolio_calculation_service import (
+from core.services.portfolio_calculation_service import (
     PeriodType,
     PortfolioCalculationService,
 )

@@ -18,18 +18,16 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.database.models import User
-from app.core.database.models.watchlist import Watchlist, WatchlistAlert, WatchlistItem
-from app.core.schemas.watchlist import (
+from core.database.models import User
+from core.database.models.watchlist import Watchlist, WatchlistAlert, WatchlistItem
+from core.schemas.watchlist import (
     WatchlistAlertCreate,
     WatchlistCreate,
     WatchlistItemCreate,
     WatchlistItemUpdate,
     WatchlistUpdate,
 )
-
-# Import the service and models
-from app.core.services.watchlist_service import WatchlistService
+from core.services.watchlist_service import WatchlistService
 
 
 class TestWatchlistService:

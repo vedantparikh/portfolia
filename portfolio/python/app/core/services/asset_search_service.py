@@ -2,15 +2,16 @@
 Asset Search Service
 Advanced asset search and discovery service with filtering and ranking.
 """
+
 from datetime import timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session
 
-from app.core.database.models import Asset
-from app.core.database.models.asset import AssetType
-from app.core.database.models.portfolio_analytics import AssetPerformanceMetrics
+from core.database.models import Asset
+from core.database.models.asset import AssetType
+from core.database.models.portfolio_analytics import AssetPerformanceMetrics
 
 
 class AssetSearchService:
@@ -145,7 +146,9 @@ class AssetSearchService:
                 func.count().label("portfolio_count"),
             )
             .join(Asset.portfolio_holdings)
-            .group_by(Asset.id, Asset.symbol, Asset.name, Asset.asset_type, Asset.sector)
+            .group_by(
+                Asset.id, Asset.symbol, Asset.name, Asset.asset_type, Asset.sector
+            )
             .order_by(desc("portfolio_count"))
             .limit(limit)
             .all()
@@ -235,7 +238,9 @@ class AssetSearchService:
             for exchange in exchange_data
         ]
 
-    def get_search_suggestions(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_search_suggestions(
+        self, query: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Get search suggestions based on partial query."""
         if len(query) < 2:
             return []
@@ -264,7 +269,9 @@ class AssetSearchService:
             for suggestion in suggestions
         ]
 
-    def _enhance_assets_with_performance(self, assets: List[Asset]) -> List[Dict[str, Any]]:
+    def _enhance_assets_with_performance(
+        self, assets: List[Asset]
+    ) -> List[Dict[str, Any]]:
         """Enhance asset list with performance metrics."""
         if not assets:
             return []
@@ -311,7 +318,9 @@ class AssetSearchService:
 
         return enhanced_assets
 
-    def _format_performance_metrics(self, metrics: AssetPerformanceMetrics) -> Dict[str, Any]:
+    def _format_performance_metrics(
+        self, metrics: AssetPerformanceMetrics
+    ) -> Dict[str, Any]:
         """Format performance metrics for API response."""
         if not metrics:
             return {}
@@ -322,19 +331,31 @@ class AssetSearchService:
             "price_change_percent": float(metrics.price_change_percent or 0),
             "rsi": float(metrics.rsi) if metrics.rsi else None,
             "macd": float(metrics.macd) if metrics.macd else None,
-            "volatility_20d": float(metrics.volatility_20d) if metrics.volatility_20d else None,
-            "volatility_60d": float(metrics.volatility_60d) if metrics.volatility_60d else None,
+            "volatility_20d": (
+                float(metrics.volatility_20d) if metrics.volatility_20d else None
+            ),
+            "volatility_60d": (
+                float(metrics.volatility_60d) if metrics.volatility_60d else None
+            ),
             "beta": float(metrics.beta) if metrics.beta else None,
-            "sharpe_ratio": float(metrics.sharpe_ratio) if metrics.sharpe_ratio else None,
-            "total_return_1m": float(metrics.total_return_1m) if metrics.total_return_1m else None,
-            "total_return_3m": float(metrics.total_return_3m) if metrics.total_return_3m else None,
-            "total_return_1y": float(metrics.total_return_1y) if metrics.total_return_1y else None,
+            "sharpe_ratio": (
+                float(metrics.sharpe_ratio) if metrics.sharpe_ratio else None
+            ),
+            "total_return_1m": (
+                float(metrics.total_return_1m) if metrics.total_return_1m else None
+            ),
+            "total_return_3m": (
+                float(metrics.total_return_3m) if metrics.total_return_3m else None
+            ),
+            "total_return_1y": (
+                float(metrics.total_return_1y) if metrics.total_return_1y else None
+            ),
             "calculation_date": metrics.calculation_date,
         }
 
     def _get_price_summary(self, asset_id: int) -> Dict[str, Any]:
         """Get price summary for an asset."""
-        from app.core.database.models.asset import AssetPrice
+        from core.database.models.asset import AssetPrice
 
         # Get latest price
         latest_price = (
@@ -372,8 +393,14 @@ class AssetSearchService:
             "current_price": float(latest_price.close_price),
             "price_change": float(latest_price.price_change or 0),
             "price_change_percent": float(latest_price.price_change_percent or 0),
-            "min_price_30d": float(price_range.min_price) if price_range.min_price else None,
-            "max_price_30d": float(price_range.max_price) if price_range.max_price else None,
-            "avg_price_30d": float(price_range.avg_price) if price_range.avg_price else None,
+            "min_price_30d": (
+                float(price_range.min_price) if price_range.min_price else None
+            ),
+            "max_price_30d": (
+                float(price_range.max_price) if price_range.max_price else None
+            ),
+            "avg_price_30d": (
+                float(price_range.avg_price) if price_range.avg_price else None
+            ),
             "last_updated": latest_price.date,
         }

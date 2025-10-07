@@ -12,9 +12,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pytz import utc
 
-from app.config import settings
-from app.core.database.redis_client import get_redis
-from app.core.logging_config import get_logger
+from config import settings
+from core.database.redis_client import get_redis
+from core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

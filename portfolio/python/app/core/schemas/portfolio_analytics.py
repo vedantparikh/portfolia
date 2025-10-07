@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from app.core.database.models.portfolio_analytics import RiskLevel
+from core.database.models.portfolio_analytics import RiskLevel
 
 
 # Portfolio Performance History Schemas

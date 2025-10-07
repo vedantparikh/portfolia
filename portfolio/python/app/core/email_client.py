@@ -3,8 +3,8 @@ from email.message import EmailMessage
 
 from environs import Env
 
-from app.config import settings
-from app.core.logging_config import get_logger
+from config import settings
+from core.logging_config import get_logger
 
 env = Env()
 

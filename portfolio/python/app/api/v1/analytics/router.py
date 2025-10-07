@@ -10,10 +10,10 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.core.auth.dependencies import get_current_active_user
-from app.core.database.connection import get_db
-from app.core.database.models import Portfolio, Transaction, User
-from app.core.database.models.portfolio_analytics import (
+from core.auth.dependencies import get_current_active_user
+from core.database.connection import get_db
+from core.database.models import Portfolio, Transaction, User
+from core.database.models.portfolio_analytics import (
     AssetCorrelation,
     AssetPerformanceMetrics,
     PortfolioAllocation,
@@ -21,7 +21,7 @@ from app.core.database.models.portfolio_analytics import (
     PortfolioPerformanceHistory,
     RebalancingEvent,
 )
-from app.core.schemas.portfolio_analytics import (
+from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
     AssetCorrelationResponse,
     AssetMetricsHistoryResponse,
@@ -42,7 +42,7 @@ from app.core.schemas.portfolio_analytics import (
     UserAssetsResponse,
     UserDashboardResponse,
 )
-from app.core.services.portfolio_analytics_service import PortfolioAnalyticsService
+from core.services.portfolio_analytics_service import PortfolioAnalyticsService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics")

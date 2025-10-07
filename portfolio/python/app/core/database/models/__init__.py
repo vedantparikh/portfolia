@@ -1,5 +1,5 @@
 # Database Models
-from app.core.database.connection import Base
+from core.database.models.base import Base
 
 from .analysis_configuration import AnalysisConfiguration
 from .asset import Asset, MarketIndex

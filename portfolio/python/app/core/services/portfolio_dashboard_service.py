@@ -9,13 +9,13 @@ from typing import Any, Dict, List
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from app.core.database.models import Asset, Portfolio, PortfolioAsset, Transaction
-from app.core.database.models.portfolio_analytics import (
+from core.database.models import Asset, AssetPrice, Portfolio, PortfolioAsset, Transaction
+from core.database.models.portfolio_analytics import (
     PortfolioPerformanceHistory,
     PortfolioRiskMetrics,
 )
-from app.core.schemas.portfolio import PortfolioHolding
-from app.core.services.portfolio_service import PortfolioService
+from core.schemas.portfolio import PortfolioHolding
+from core.services.portfolio_service import PortfolioService
 
 
 class PortfolioDashboardService:
@@ -306,7 +306,6 @@ class PortfolioDashboardService:
         self, asset_id: int, days: int = 30
     ) -> Dict[str, Any]:
         """Get asset performance chart data."""
-        from app.core.database.models.asset import AssetPrice
 
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)

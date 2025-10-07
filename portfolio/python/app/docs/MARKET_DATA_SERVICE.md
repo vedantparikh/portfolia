@@ -226,7 +226,7 @@ SUPPORTED_INTERVALS = [
 
 ### 1. **Portfolio Valuation**
 ```python
-from app.core.services.market_data_service import market_data_service
+from core.services.market_data_service import market_data_service
 
 # Get current prices for portfolio assets
 symbols = ["AAPL", "GOOGL", "MSFT"]

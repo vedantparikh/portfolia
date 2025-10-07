@@ -10,11 +10,10 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from alembic import context
-from app.config import settings
-from app.core.database.connection import Base
+from config import settings
 
 # Import all models so they register with Base.metadata
-from app.core.database.models import *  # noqa
+from core.database.models import *  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

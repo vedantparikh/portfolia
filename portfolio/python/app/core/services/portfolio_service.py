@@ -4,15 +4,15 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from app.core.database.models import (
+from core.database.models import (
     Asset,
     Portfolio,
     PortfolioAsset,
     Transaction,
     TransactionType,
 )
-from app.core.database.utils import get_portfolio_performance_summary
-from app.core.schemas.portfolio import (
+from core.database.utils import get_portfolio_performance_summary
+from core.schemas.portfolio import (
     PortfolioAssetCreate,
     PortfolioAssetUpdate,
     PortfolioAssetWithDetails,
@@ -24,7 +24,7 @@ from app.core.schemas.portfolio import (
     TransactionCreate,
     TransactionUpdate,
 )
-from app.core.services.market_data_service import MarketDataService
+from core.services.market_data_service import MarketDataService
 
 
 class PortfolioService:

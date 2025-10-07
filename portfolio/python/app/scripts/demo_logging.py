@@ -12,7 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.core.logging_config import (
+from core.logging_config import (
     get_logger,
     log_api_request,
     log_api_response,

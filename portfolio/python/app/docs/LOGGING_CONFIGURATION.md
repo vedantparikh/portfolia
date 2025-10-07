@@ -48,7 +48,7 @@ LOG_JSON=false
 ### Python Configuration
 
 ```python
-from app.core.logging_config import setup_logging
+from core.logging_config import setup_logging
 
 # Basic setup
 setup_logging()
@@ -71,7 +71,7 @@ setup_logging(
 ### Getting a Logger
 
 ```python
-from app.core.logging_config import get_logger
+from core.logging_config import get_logger
 
 logger = get_logger(__name__)
 logger.info("Application started")
@@ -83,7 +83,7 @@ logger.error("Error occurred")
 ### Function Call Logging
 
 ```python
-from app.core.logging_config import log_function_call, log_function_result
+from core.logging_config import log_function_call, log_function_result
 import time
 
 def process_data(data, user_id):
@@ -105,7 +105,7 @@ def process_data(data, user_id):
 ### Database Operation Logging
 
 ```python
-from app.core.logging_config import log_database_operation
+from core.logging_config import log_database_operation
 
 # Log database operations
 log_database_operation(logger, "SELECT", "users", user_id, email=email)
@@ -117,7 +117,7 @@ log_database_operation(logger, "DELETE", "sessions", session_id)
 ### API Request/Response Logging
 
 ```python
-from app.core.logging_config import log_api_request, log_api_response
+from core.logging_config import log_api_request, log_api_response
 import time
 
 @app.get("/api/data")
@@ -141,7 +141,7 @@ async def get_data(request: Request, user_id: str = None):
 ### Security Event Logging
 
 ```python
-from app.core.logging_config import log_security_event
+from core.logging_config import log_security_event
 
 # Log security events
 log_security_event(logger, "LOGIN_ATTEMPT", user_id, client_ip, "Failed password")
@@ -152,7 +152,7 @@ log_security_event(logger, "SUSPICIOUS_ACTIVITY", user_id, client_ip, "Multiple 
 ### Performance Metrics
 
 ```python
-from app.core.logging_config import log_performance_metric
+from core.logging_config import log_performance_metric
 
 # Log performance metrics
 log_performance_metric(logger, "database_query_time", 0.125, "seconds", table="users")
@@ -163,7 +163,7 @@ log_performance_metric(logger, "memory_usage", 128.5, "MB", component="data_proc
 ### Error Logging with Context
 
 ```python
-from app.core.logging_config import log_error_with_context
+from core.logging_config import log_error_with_context
 
 try:
     # Some operation
@@ -185,14 +185,14 @@ except Exception as e:
 
 ### Detailed Format (Default)
 ```
-2024-01-15 10:30:45,123 - app.core.auth.router - INFO - register_user:45 - 👤 User registration initiated | Email: user@example.com | Username: testuser | IP: 192.168.1.100
+2024-01-15 10:30:45,123 - core.auth.router - INFO - register_user:45 - 👤 User registration initiated | Email: user@example.com | Username: testuser | IP: 192.168.1.100
 ```
 
 ### JSON Format
 ```json
 {
   "timestamp": "2024-01-15 10:30:45,123",
-  "logger": "app.core.auth.router",
+  "logger": "core.auth.router",
   "level": "INFO",
   "function": "register_user",
   "line": 45,
@@ -336,7 +336,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # New
-from app.core.logging_config import get_logger
+from core.logging_config import get_logger
 logger = get_logger(__name__)
 ```
 

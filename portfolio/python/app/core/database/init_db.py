@@ -7,14 +7,12 @@ This script creates all database tables and initializes the database.
 import asyncio
 import sys
 from pathlib import Path
+import logging
+
+from core.database.connection import get_db_health
 
 # Add the parent directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-import logging
-
-from app.core.database.connection import get_db_health
-from app.core.database.models import *  # Import all models to register them
 
 # Configure logging
 logging.basicConfig(
@@ -44,7 +42,7 @@ async def init_database():
 
         # Initialize database tables
         logger.info("Creating database tables...")
-        from app.core.database.connection import create_tables
+        from core.database.connection import create_tables
 
         if not await create_tables():
             logger.error("Failed to create database tables")

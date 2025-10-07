@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.database.connection import get_db, get_db_health
+from core.database.connection import get_db, get_db_health
 
 logger = logging.getLogger(__name__)
 

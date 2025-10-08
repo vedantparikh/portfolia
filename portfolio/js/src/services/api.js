@@ -1547,10 +1547,69 @@ export const accountStatementsAPI = {
       Returns: Server response with created transactions
     */
   bulkCreateTransactions: async (portfolioId, transactions) => {
-    const response = await api.post("/account-statements/transactions/bulk-create", {
-      portfolio_id: portfolioId,
-      transactions: transactions,
-    });
+    const response = await api.post(
+      "/account-statements/transactions/bulk-create",
+      {
+        portfolio_id: portfolioId,
+        transactions: transactions,
+      }
+    );
+    return response.data;
+  },
+};
+
+/* 
+  TRANSACTION PDF EXPORT API METHODS - PDF report generation and download
+  These methods handle all transaction PDF export-related API calls
+*/
+export const transactionPDFExportAPI = {
+  /* 
+      EXPORT PDF WITH METADATA - Generate PDF and return metadata without file
+      Parameters: filters (object), options (object), customFilename (string)
+      Returns: Server response with export metadata
+    */
+  exportPDF: async (filters = {}, options = {}, customFilename = null) => {
+    const requestBody = { filters, options };
+    if (customFilename) {
+      requestBody.custom_filename = customFilename;
+    }
+
+    const response = await api.post("/transactions/pdf/export", requestBody);
+    return response.data;
+  },
+
+  /* 
+      DOWNLOAD PDF DIRECTLY - Generate and download PDF file
+      Parameters: filters (object), options (object), customFilename (string)
+      Returns: Binary PDF file content
+    */
+  downloadPDF: async (filters = {}, options = {}, customFilename = null) => {
+    const requestBody = { filters, options };
+    if (customFilename) {
+      requestBody.custom_filename = customFilename;
+    }
+
+    const response = await api.post(
+      "/transactions/pdf/export/download",
+      requestBody,
+      {
+        responseType: "blob", // Important for binary file download
+      }
+    );
+    return response;
+  },
+
+  /* 
+      PREVIEW EXPORT - Preview what would be included in PDF without generating file
+      Parameters: filters (object), options (object)
+      Returns: Server response with preview data
+    */
+  previewExport: async (filters = {}, options = {}) => {
+    const requestBody = { filters, options };
+    const response = await api.post(
+      "/transactions/pdf/export/preview",
+      requestBody
+    );
     return response.data;
   },
 };

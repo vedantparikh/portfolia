@@ -13,6 +13,7 @@ from core.schemas.account_statements import (
     ParsedData,
     SupportedFormat,
 )
+from core.services.parsers.portfolia import PortfoliaParser
 from core.services.parsers.trade_republic import TradeRepublicParser
 from core.services.portfolio_service import PortfolioService
 
@@ -25,6 +26,7 @@ class AccountStatementService:
         self.portfolio_service = PortfolioService(db)
         self._parsers = {
             "trade_republic": TradeRepublicParser(),
+            "portfolia": PortfoliaParser(),
         }
         self.portfolio_service = PortfolioService(db)
 
@@ -36,11 +38,20 @@ class AccountStatementService:
                 name="Trade Republic",
                 description="German neobroker",
                 supported_formats=[SupportedFormat.PDF],
-                logo_url="/logos/trade_republic.png"
+                logo_url="/logos/trade_republic.png",
+            ),
+            AccountStatementProvider(
+                id="portfolia",
+                name="Portfolia",
+                description="Portfolia app-generated transaction reports",
+                supported_formats=[SupportedFormat.PDF],
+                logo_url="/logos/portfolia.png",
             ),
         ]
 
-    def parse_statement(self, provider_id: str, file_content: str, filename: str) -> ParsedData:
+    def parse_statement(
+        self, provider_id: str, file_content: str, filename: str
+    ) -> ParsedData:
         """Parse account statement PDF."""
         if provider_id not in self._parsers:
             raise ValueError(f"Unsupported provider: {provider_id}")
@@ -62,7 +73,7 @@ class AccountStatementService:
         self,
         portfolio_id: int,
         transactions_data: List[BulkTransactionItem],
-        user_id: int
+        user_id: int,
     ) -> Tuple[List[CreatedTransaction], BulkCreateSummary]:
         """Create multiple transactions from parsed data."""
         created_transactions = []
@@ -74,7 +85,12 @@ class AccountStatementService:
 
         for i, transaction_data in enumerate(transactions_data):
             try:
-                if transaction_data.transaction_type in ['deposit', 'withdrawal', 'interest', 'tax']:
+                if transaction_data.transaction_type in [
+                    "deposit",
+                    "withdrawal",
+                    "interest",
+                    "tax",
+                ]:
                     continue
 
                 transaction = Transaction(
@@ -84,7 +100,9 @@ class AccountStatementService:
                     quantity=transaction_data.quantity,
                     price=transaction_data.price,
                     total_amount=transaction_data.total_amount,
-                    transaction_date=datetime.strptime(transaction_data.transaction_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                    transaction_date=datetime.strptime(
+                        transaction_data.transaction_date, "%Y-%m-%d"
+                    ).replace(tzinfo=timezone.utc),
                     fees=transaction_data.fees,
                     notes=transaction_data.notes,
                 )
@@ -92,7 +110,9 @@ class AccountStatementService:
                 self.db.add(transaction)
                 self.db.flush()
 
-                await self.portfolio_service.update_portfolio_asset_from_transaction(portfolio_id, transaction.asset_id, transaction)
+                await self.portfolio_service.update_portfolio_asset_from_transaction(
+                    portfolio_id, transaction.asset_id, transaction
+                )
 
                 created_transaction = CreatedTransaction(
                     id=transaction.id,
@@ -105,7 +125,7 @@ class AccountStatementService:
                     total_amount=transaction.total_amount,
                     portfolio_id=portfolio_id,
                     notes=transaction.notes,
-                    created_at=transaction.created_at
+                    created_at=transaction.created_at,
                 )
                 created_transactions.append(created_transaction)
 
@@ -117,7 +137,7 @@ class AccountStatementService:
         summary = BulkCreateSummary(
             total_created=len(created_transactions),
             total_failed=len(errors),
-            errors=errors
+            errors=errors,
         )
 
         return created_transactions, summary

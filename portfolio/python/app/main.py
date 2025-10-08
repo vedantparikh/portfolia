@@ -231,6 +231,26 @@ except Exception as e:
 
     logger.error(f"Full traceback: {traceback.format_exc()}")
 
+# Include transactions PDF router
+try:
+    from api.v1.transactions.pdf_export_router import router as transactions_pdf_router
+
+    app.include_router(
+        transactions_pdf_router, prefix="/api/v1", tags=["transaction-pdf"]
+    )
+    logger.info("Transactions PDF router included successfully")
+except ImportError as e:
+    logger.warning(f"Could not import transactions PDF router: {e}")
+    logger.error(f"Transactions PDF router import error details: {e}")
+    import traceback
+
+    logger.error(f"Full traceback: {traceback.format_exc()}")
+except Exception as e:
+    logger.error(f"Unexpected error importing transactions PDF router: {e}")
+    import traceback
+
+    logger.error(f"Full traceback: {traceback.format_exc()}")
+
 # Include analytics router
 try:
     from api.v1.analytics.router import router as analytics_router

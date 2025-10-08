@@ -57,3 +57,5 @@ pyxirr==0.10.7
 
 # PDF Processing
 PyPDF2==3.0.1
+reportlab==4.0.4
+pypdf==3.17.1

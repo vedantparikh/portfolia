@@ -511,13 +511,13 @@ class PortfolioService:
         self.db.refresh(transaction)
 
         # Update portfolio asset based on transaction
-        await self._update_portfolio_asset_from_transaction(
+        await self.update_portfolio_asset_from_transaction(
             portfolio_id, transaction_data.asset_id, transaction
         )
 
         return transaction
 
-    async def _update_portfolio_asset_from_transaction(
+    async def update_portfolio_asset_from_transaction(
             self, portfolio_id: int, asset_id: int, transaction: Transaction
     ):
         """Update portfolio asset based on transaction."""

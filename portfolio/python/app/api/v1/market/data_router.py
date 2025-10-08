@@ -10,6 +10,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core.auth.dependencies import get_current_active_user
+from core.database.models import User
 from core.schemas.market_data import (
     BulkPricesResponse,
     CurrentPriceResponse,
@@ -21,7 +22,6 @@ from core.schemas.market_data import (
     TickerInfoResponse,
 )
 from core.services.market_data_service import market_data_service
-from core.database.models import User
 
 logger = logging.getLogger(__name__)
 

@@ -24,9 +24,11 @@ from core.schemas.portfolio import (
 )
 from core.schemas.portfolio import (
     AssetCreate,
-    AssetDetail as AssetDetailSchema,
     AssetPrice,
     AssetUpdate,
+)
+from core.schemas.portfolio import (
+    AssetDetail as AssetDetailSchema,
 )
 from core.services.market_data_service import market_data_service
 

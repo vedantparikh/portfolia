@@ -231,6 +231,26 @@ except Exception as e:
 
     logger.error(f"Full traceback: {traceback.format_exc()}")
 
+# Include transactions PDF router
+try:
+    from api.v1.transactions.pdf_export_router import router as transactions_pdf_router
+
+    app.include_router(
+        transactions_pdf_router, prefix="/api/v1", tags=["transaction-pdf"]
+    )
+    logger.info("Transactions PDF router included successfully")
+except ImportError as e:
+    logger.warning(f"Could not import transactions PDF router: {e}")
+    logger.error(f"Transactions PDF router import error details: {e}")
+    import traceback
+
+    logger.error(f"Full traceback: {traceback.format_exc()}")
+except Exception as e:
+    logger.error(f"Unexpected error importing transactions PDF router: {e}")
+    import traceback
+
+    logger.error(f"Full traceback: {traceback.format_exc()}")
+
 # Include analytics router
 try:
     from api.v1.analytics.router import router as analytics_router
@@ -291,6 +311,30 @@ except ImportError as e:
     logger.error(f"❌ Full traceback: {traceback.format_exc()}")
 except Exception as e:
     logger.error(f"❌ Unexpected error importing portfolio calculations router: {e}")
+    import traceback
+
+    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+
+# Include account statements router
+try:
+    logger.info("📄 Attempting to import account statements router...")
+    from api.v1.account_statements.router import router as account_statements_router
+
+    logger.info("✅ Account statements router imported successfully")
+    app.include_router(
+        account_statements_router,
+        prefix="/api/v1",
+        tags=["account-statements"],
+    )
+    logger.info("✅ Account statements router included at /api/v1/account-statements")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import account statements router: {e}")
+    logger.error(f"❌ Account statements router import error details: {e}")
+    import traceback
+
+    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+except Exception as e:
+    logger.error(f"❌ Unexpected error importing account statements router: {e}")
     import traceback
 
     logger.error(f"❌ Full traceback: {traceback.format_exc()}")

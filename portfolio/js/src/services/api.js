@@ -891,6 +891,19 @@ export const transactionAPI = {
     });
     return response.data;
   },
+
+  /* 
+      BULK CREATE TRANSACTIONS - Create multiple transactions at once
+      Parameters: portfolioId (string or number), transactions (array of transaction objects)
+      Returns: Server response with created transactions
+    */
+  bulkCreateTransactions: async (portfolioId, transactions) => {
+    const response = await api.post("/transactions/bulk-create", {
+      portfolio_id: portfolioId,
+      transactions: transactions,
+    });
+    return response.data;
+  },
 };
 
 /* 
@@ -1449,7 +1462,6 @@ export const portfolioCalculationsAPI = {
     return response.data;
   },
 
-
   /* 
       CALCULATE BENCHMARK PERFORMANCE - Calculate hypothetical performance if money was invested in benchmark
       Parameters: requestData (object with benchmark_symbol, investment_schedule, period, end_date)
@@ -1491,6 +1503,112 @@ export const portfolioCalculationsAPI = {
   getPortfolioPerformanceOverview: async (portfolioId) => {
     const response = await api.get(
       `/portfolios/calculations/portfolio/${portfolioId}/overview`
+    );
+    return response.data;
+  },
+};
+
+/* 
+  ACCOUNT STATEMENTS API METHODS - PDF statement parsing and bulk transaction creation
+  These methods handle all account statement-related API calls
+*/
+export const accountStatementsAPI = {
+  /* 
+      GET SUPPORTED PROVIDERS - Get list of supported account statement providers
+      Returns: Server response with array of provider objects
+    */
+  getSupportedProviders: async () => {
+    const response = await api.get("/account-statements/providers");
+    return response.data;
+  },
+
+  /* 
+      PARSE STATEMENT - Upload PDF and extract transaction data
+      Parameters: providerId (string), file (File object), filename (string)
+      Returns: Server response with parsed transaction data
+    */
+  parseStatement: async (providerId, file, filename) => {
+    const formData = new FormData();
+    formData.append("provider_id", providerId);
+    formData.append("file", file);
+    formData.append("filename", filename);
+
+    const response = await api.post("/account-statements/parse", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
+  /* 
+      BULK CREATE TRANSACTIONS - Create multiple transactions from parsed data
+      Parameters: portfolioId (number), transactions (array of transaction objects)
+      Returns: Server response with created transactions
+    */
+  bulkCreateTransactions: async (portfolioId, transactions) => {
+    const response = await api.post(
+      "/account-statements/transactions/bulk-create",
+      {
+        portfolio_id: portfolioId,
+        transactions: transactions,
+      }
+    );
+    return response.data;
+  },
+};
+
+/* 
+  TRANSACTION PDF EXPORT API METHODS - PDF report generation and download
+  These methods handle all transaction PDF export-related API calls
+*/
+export const transactionPDFExportAPI = {
+  /* 
+      EXPORT PDF WITH METADATA - Generate PDF and return metadata without file
+      Parameters: filters (object), options (object), customFilename (string)
+      Returns: Server response with export metadata
+    */
+  exportPDF: async (filters = {}, options = {}, customFilename = null) => {
+    const requestBody = { filters, options };
+    if (customFilename) {
+      requestBody.custom_filename = customFilename;
+    }
+
+    const response = await api.post("/transactions/pdf/export", requestBody);
+    return response.data;
+  },
+
+  /* 
+      DOWNLOAD PDF DIRECTLY - Generate and download PDF file
+      Parameters: filters (object), options (object), customFilename (string)
+      Returns: Binary PDF file content
+    */
+  downloadPDF: async (filters = {}, options = {}, customFilename = null) => {
+    const requestBody = { filters, options };
+    if (customFilename) {
+      requestBody.custom_filename = customFilename;
+    }
+
+    const response = await api.post(
+      "/transactions/pdf/export/download",
+      requestBody,
+      {
+        responseType: "blob", // Important for binary file download
+      }
+    );
+    return response;
+  },
+
+  /* 
+      PREVIEW EXPORT - Preview what would be included in PDF without generating file
+      Parameters: filters (object), options (object)
+      Returns: Server response with preview data
+    */
+  previewExport: async (filters = {}, options = {}) => {
+    const requestBody = { filters, options };
+    const response = await api.post(
+      "/transactions/pdf/export/preview",
+      requestBody
     );
     return response.data;
   },

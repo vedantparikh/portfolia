@@ -8,24 +8,20 @@ Tests various scenarios using Apple historical data including:
 """
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 import json
 import logging
 from typing import Any, Dict, List, Optional
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import pyxirr
-from sqlalchemy.orm import Session
-
-from app.core.database.connection import get_db_session
 
 # Import the service and related classes
 from app.core.services.portfolio_calculation_service import (
-    CashFlow,
     PeriodType,
     PortfolioCalculationService,
 )
@@ -138,7 +134,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Load Apple market data once for all tests"""
-        with open("apple_market_data.json", "r") as f:
+        with open("apple_market_data.json") as f:
             cls.apple_data = json.load(f)
 
         logger.info(
@@ -211,7 +207,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date,
                 transaction_type="BUY",
-                quantity=Decimal("100"),
+                quantity=Decimal(100),
                 price_per_share=Decimal("200.0"),
                 asset_symbol="AAPL",
             )
@@ -222,13 +218,13 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date + relativedelta(months=1),
                 transaction_type="BUY",
-                quantity=Decimal("50"),
+                quantity=Decimal(50),
                 price_per_share=Decimal("210.0"),
                 asset_symbol="AAPL",
             )
         )
 
-        total_quantity = Decimal("150")
+        total_quantity = Decimal(150)
         current_price = 254.43
 
         asset = MockAsset("AAPL", total_quantity, float(total_quantity) * current_price)
@@ -248,15 +244,15 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date,
                 transaction_type="BUY",
-                quantity=Decimal("100"),
+                quantity=Decimal(100),
                 price_per_share=Decimal("180.0"),
                 asset_symbol="AAPL",
             )
         )
 
         # Asset with no current market value (simulate missing data)
-        asset = MockAsset("AAPL", Decimal("100"), None)
-        portfolio_asset = MockPortfolioAsset(asset, Decimal("100"))
+        asset = MockAsset("AAPL", Decimal(100), None)
+        portfolio_asset = MockPortfolioAsset(asset, Decimal(100))
 
         return MockPortfolio(
             3, "Missing Data Portfolio", [portfolio_asset], transactions
@@ -275,7 +271,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date,
                 transaction_type="BUY",
-                quantity=Decimal("200"),
+                quantity=Decimal(200),
                 price_per_share=Decimal("150.0"),
                 asset_symbol="AAPL",
             )
@@ -286,7 +282,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date + relativedelta(months=6),
                 transaction_type="SELL",
-                quantity=Decimal("50"),
+                quantity=Decimal(50),
                 price_per_share=Decimal("180.0"),
                 asset_symbol="AAPL",
             )
@@ -297,13 +293,13 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date + relativedelta(months=9),
                 transaction_type="BUY",
-                quantity=Decimal("75"),
+                quantity=Decimal(75),
                 price_per_share=Decimal("200.0"),
                 asset_symbol="AAPL",
             )
         )
 
-        total_quantity = Decimal("225")  # 200 - 50 + 75
+        total_quantity = Decimal(225)  # 200 - 50 + 75
         current_price = 254.43
 
         asset = MockAsset("AAPL", total_quantity, float(total_quantity) * current_price)
@@ -512,7 +508,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=start_date,
                 transaction_type="BUY",
-                quantity=Decimal("100"),
+                quantity=Decimal(100),
                 price_per_share=Decimal("100.0"),  # $10,000 initial
                 asset_symbol="AAPL",
             )
@@ -550,14 +546,14 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=datetime(2023, 1, 1),
                 transaction_type="BUY",
-                quantity=Decimal("100"),
+                quantity=Decimal(100),
                 price_per_share=Decimal("100.0"),  # $10,000 investment
                 asset_symbol="AAPL",
             ),
             MockTransaction(
                 transaction_date=datetime(2023, 6, 1),
                 transaction_type="BUY",
-                quantity=Decimal("50"),
+                quantity=Decimal(50),
                 price_per_share=Decimal("100.0"),  # $5,000 additional investment
                 asset_symbol="AAPL",
             ),
@@ -599,7 +595,7 @@ class TestPortfolioCalculationService(unittest.TestCase):
             MockTransaction(
                 transaction_date=datetime(2023, 1, 1),
                 transaction_type="BUY",
-                quantity=Decimal("100"),
+                quantity=Decimal(100),
                 price_per_share=Decimal("100.0"),  # $10,000 investment
                 asset_symbol="AAPL",
             )
@@ -658,8 +654,8 @@ class TestPortfolioCalculationService(unittest.TestCase):
                 logger.info(f"✅ {test_name} PASSED")
 
             except Exception as e:
-                results[test_name] = f"FAILED: {str(e)}"
-                logger.error(f"❌ {test_name} FAILED: {str(e)}")
+                results[test_name] = f"FAILED: {e!s}"
+                logger.error(f"❌ {test_name} FAILED: {e!s}")
 
         return results
 
@@ -684,7 +680,7 @@ async def main():
     failed = 0
 
     for test_name, result in results.items():
-        status = "✅ PASSED" if result == "PASSED" else f"❌ FAILED"
+        status = "✅ PASSED" if result == "PASSED" else "❌ FAILED"
         print(f"{test_name}: {status}")
         if result == "PASSED":
             passed += 1

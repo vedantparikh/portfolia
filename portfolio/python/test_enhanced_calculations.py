@@ -3,10 +3,8 @@
 Test script for enhanced portfolio calculations with error handling and portfolio age logic.
 """
 
-from datetime import datetime
-from datetime import timezone
-from typing import Any
-from typing import Dict
+from datetime import datetime, timezone
+from typing import Any, Dict
 
 
 def simulate_portfolio_performance_response(

@@ -3,12 +3,10 @@ Focused Unit Tests for Portfolio Calculation Service
 Tests the core calculation logic using Apple historical data
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from dateutil.relativedelta import relativedelta
 import pandas as pd
@@ -23,7 +21,7 @@ class AppleDataProcessor:
     """Processes Apple historical data for testing"""
 
     def __init__(self, apple_data_file: str):
-        with open(apple_data_file, "r") as f:
+        with open(apple_data_file) as f:
             self.apple_data = json.load(f)
 
         self.df = self._create_dataframe()
@@ -228,8 +226,7 @@ class PortfolioScenario:
                 if years > 0 and years != 1:
                     annualized_return = ((1 + simple_return) ** (1 / years)) - 1
                     return annualized_return * 100
-                else:
-                    return simple_return * 100
+                return simple_return * 100
 
             # Calculate TWR with cash flows using sub-periods
             sub_periods = self._create_twr_sub_periods(
@@ -607,12 +604,10 @@ class PortfolioCalculationTester:
                     "✅ Benchmark comparison working correctly (minimal difference)"
                 )
                 return True
-            else:
-                logger.warning(f"⚠️  Large difference detected: {difference:.2f}%")
-                return False
-        else:
-            logger.error("❌ Could not compare - missing XIRR values")
+            logger.warning(f"⚠️  Large difference detected: {difference:.2f}%")
             return False
+        logger.error("❌ Could not compare - missing XIRR values")
+        return False
 
     def run_all_tests(self):
         """Run all tests and provide summary"""

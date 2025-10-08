@@ -128,7 +128,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
         price: parseFloat(t.price),
         fees: parseFloat(t.fees) || 0,
         transaction_date: t.transaction_date,
-        notes: t.notes,
+        notes: t.notes | "Manual Bulk Creation",
         total_amount: parseFloat(t.total_amount),
       }));
 

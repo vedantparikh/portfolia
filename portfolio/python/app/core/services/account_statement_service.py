@@ -235,6 +235,7 @@ class AccountStatementService:
         self._parsers = {
             "trade_republic": TradeRepublicParser(),
         }
+        self.portfolio_service = PortfolioService(db)
 
     def get_supported_providers(self) -> List[AccountStatementProvider]:
         """Get list of supported account statement providers."""
@@ -296,13 +297,13 @@ class AccountStatementService:
                     total_amount=transaction_data.total_amount,
                     transaction_date=datetime.strptime(transaction_data.transaction_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
                     fees=transaction_data.fees,
-                    notes= "Imported from account statement"
+                    notes=transaction_data.notes,
                 )
 
                 self.db.add(transaction)
                 self.db.flush()
 
-                await self._update_portfolio_asset_from_transaction(portfolio_id, transaction.asset_id, transaction)
+                await self.portfolio_service.update_portfolio_asset_from_transaction(portfolio_id, transaction.asset_id, transaction)
 
                 created_transaction = CreatedTransaction(
                     id=transaction.id,
@@ -314,6 +315,7 @@ class AccountStatementService:
                     fees=transaction.fees,
                     total_amount=transaction.total_amount,
                     portfolio_id=portfolio_id,
+                    notes=transaction.notes,
                     created_at=transaction.created_at
                 )
                 created_transactions.append(created_transaction)
@@ -330,53 +332,3 @@ class AccountStatementService:
         )
 
         return created_transactions, summary
-
-    async def _update_portfolio_asset_from_transaction(
-        self,
-        portfolio_id: int,
-        asset_id: int,
-        transaction: Transaction
-    ) -> None:
-        """Update portfolio asset based on transaction."""
-        from core.database.models import PortfolioAsset
-
-        portfolio_asset = (
-            self.db.query(PortfolioAsset)
-            .filter(
-                PortfolioAsset.portfolio_id == portfolio_id,
-                PortfolioAsset.asset_id == asset_id
-            )
-            .first()
-        )
-
-        if transaction.transaction_type not in [TransactionType.BUY, TransactionType.SELL]:
-            return
-
-        if transaction.transaction_type == TransactionType.BUY:
-            if portfolio_asset:
-                new_quantity = portfolio_asset.quantity + transaction.quantity
-                new_cost_basis_total = portfolio_asset.cost_basis_total + transaction.total_amount
-                new_cost_basis = new_cost_basis_total / new_quantity if new_quantity else 0
-
-                portfolio_asset.quantity = new_quantity
-                portfolio_asset.cost_basis = new_cost_basis
-                portfolio_asset.cost_basis_total = new_cost_basis_total
-            else:
-                portfolio_asset = PortfolioAsset(
-                    portfolio_id=portfolio_id,
-                    asset_id=asset_id,
-                    quantity=transaction.quantity,
-                    cost_basis=transaction.price,
-                    cost_basis_total=transaction.total_amount
-                )
-                self.db.add(portfolio_asset)
-
-        elif transaction.transaction_type == TransactionType.SELL:
-            if portfolio_asset:
-                new_quantity = portfolio_asset.quantity - transaction.quantity
-                if new_quantity <= 0:
-                    self.db.delete(portfolio_asset)
-                else:
-                    remaining_ratio = new_quantity / portfolio_asset.quantity
-                    portfolio_asset.quantity = new_quantity
-                    portfolio_asset.cost_basis_total = portfolio_asset.cost_basis_total * remaining_ratio

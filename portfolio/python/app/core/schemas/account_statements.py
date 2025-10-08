@@ -105,6 +105,7 @@ class CreatedTransaction(BaseModel):
     fees: Decimal = Field(..., description="Transaction fees")
     total_amount: Decimal = Field(..., description="Total transaction amount")
     portfolio_id: int = Field(..., description="Portfolio ID")
+    notes: Optional[str] = Field(None, description="Transaction notes")
     created_at: datetime = Field(..., description="Creation timestamp")
 
 

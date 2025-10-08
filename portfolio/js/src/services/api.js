@@ -891,6 +891,19 @@ export const transactionAPI = {
     });
     return response.data;
   },
+
+  /* 
+      BULK CREATE TRANSACTIONS - Create multiple transactions at once
+      Parameters: portfolioId (string or number), transactions (array of transaction objects)
+      Returns: Server response with created transactions
+    */
+  bulkCreateTransactions: async (portfolioId, transactions) => {
+    const response = await api.post("/transactions/bulk-create", {
+      portfolio_id: portfolioId,
+      transactions: transactions,
+    });
+    return response.data;
+  },
 };
 
 /* 
@@ -1449,7 +1462,6 @@ export const portfolioCalculationsAPI = {
     return response.data;
   },
 
-
   /* 
       CALCULATE BENCHMARK PERFORMANCE - Calculate hypothetical performance if money was invested in benchmark
       Parameters: requestData (object with benchmark_symbol, investment_schedule, period, end_date)
@@ -1517,13 +1529,13 @@ export const accountStatementsAPI = {
     */
   parseStatement: async (providerId, file, filename) => {
     const formData = new FormData();
-    formData.append('provider_id', providerId);
-    formData.append('file', file);
-    formData.append('filename', filename);
+    formData.append("provider_id", providerId);
+    formData.append("file", file);
+    formData.append("filename", filename);
 
     const response = await api.post("/account-statements/parse", formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     });
     return response.data;
@@ -1535,12 +1547,12 @@ export const accountStatementsAPI = {
       Returns: Server response with created transactions
     */
   bulkCreateTransactions: async (portfolioId, transactions) => {
-    const response = await api.post("/transactions/bulk-create", {
+    const response = await api.post("/account-statements/transactions/bulk-create", {
       portfolio_id: portfolioId,
-      transactions: transactions
+      transactions: transactions,
     });
     return response.data;
-  }
+  },
 };
 
 /* 

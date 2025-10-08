@@ -43,7 +43,7 @@ class ParsedTransaction(BaseModel):
     symbol: Optional[str] = Field(None, description="Asset symbol")
     total_amount: Decimal = Field(..., description="Total transaction amount")
     quantity: Decimal = Field(..., description="Transaction quantity")
-    purchase_price: Optional[Decimal] = Field(None, description="Price per share")
+    price: Optional[Decimal] = Field(None, description="Price per share")
     fees: Decimal = Field(default=Decimal("0"), description="Transaction fees")
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Parsing confidence score")
     needs_review: bool = Field(default=False, description="Whether transaction needs manual review")
@@ -78,11 +78,12 @@ class ParseRequest(BaseModel):
 
 class BulkTransactionItem(BaseModel):
     """Individual transaction for bulk creation."""
-    transaction_date: str = Field(..., description="Transaction date in YYYY-MM-DD format")
+    transaction_date: str = Field(..., description="Transaction datetime")
+    asset_id: int = Field(..., description="Asset ID")
     transaction_type: TransactionType = Field(..., description="Transaction type")
-    symbol: str = Field(..., description="Asset symbol")
     quantity: Decimal = Field(..., description="Transaction quantity")
     price: Decimal = Field(..., description="Price per share")
+    total_amount: Decimal = Field(..., description="Total transaction amount")
     fees: Decimal = Field(default=Decimal("0"), description="Transaction fees")
     notes: Optional[str] = Field(None, description="Transaction notes")
 
@@ -97,8 +98,8 @@ class CreatedTransaction(BaseModel):
     """Created transaction response."""
     id: int = Field(..., description="Transaction ID")
     transaction_date: str = Field(..., description="Transaction date")
+    asset_id: int = Field(..., description="Asset ID")
     transaction_type: TransactionType = Field(..., description="Transaction type")
-    symbol: str = Field(..., description="Asset symbol")
     quantity: Decimal = Field(..., description="Transaction quantity")
     price: Decimal = Field(..., description="Price per share")
     fees: Decimal = Field(..., description="Transaction fees")

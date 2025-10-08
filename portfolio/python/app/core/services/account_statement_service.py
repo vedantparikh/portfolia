@@ -9,8 +9,6 @@ from typing import List, Optional, Tuple
 import PyPDF2
 from sqlalchemy.orm import Session
 
-# These imports are assumed to be in your project structure.
-# If your project structure is different, you may need to adjust the paths.
 from core.database.models import Asset, Transaction, TransactionType
 from core.schemas.account_statements import (
     AccountStatementProvider,
@@ -51,9 +49,9 @@ class TradeRepublicParser(PDFParser):
             if k in date_str:
                 date_str = date_str.replace(k, v)
                 break
-        
+
         date_str = date_str.replace('.', '')
-        
+
         try:
             dt = datetime.strptime(date_str, '%d %m %Y')
             return dt.strftime('%Y-%m-%d')
@@ -118,7 +116,7 @@ class TradeRepublicParser(PDFParser):
         """Extract transactions from PDF text."""
         transactions: List[ParsedTransaction] = []
         warnings: List[str] = []
-        
+
         transaction_block_match = re.search(r"UMSATZÜBERSICHT(.*?)(?:BARMITTELÜBERSICHT|HINWEISE ZUM KONTOAUSZUG)", full_text, re.DOTALL)
         if not transaction_block_match:
             return [], ["Could not find the 'UMSATZÜBERSICHT' transaction block."]
@@ -134,7 +132,7 @@ class TradeRepublicParser(PDFParser):
                 processed_lines.append(line)
             elif processed_lines:
                 processed_lines[-1] += f" {line.strip()}"
-        
+
         # Switched to a robust, multi-step parsing logic that doesn't rely on consistent whitespace.
         known_types = r"^(Handel|Zinszahlung|Erträge|Steuern|Überweisung|Kartentransaktion)"
 
@@ -145,15 +143,15 @@ class TradeRepublicParser(PDFParser):
             date_match = re.match(r"^(?P<date>\d{2}\s\w+\.?\s\d{4})", line)
             if not date_match:
                 continue
-            
+
             date_str = date_match.group('date')
-            
+
             # Step 2: Find all numbers that look like money at the end of the line
             amounts_in_line = re.findall(r'[\d\.]*,\d{2}', line)
             if len(amounts_in_line) < 2:
                 warnings.append(f"Line {i+1} does not contain enough monetary values: '{line[:100]}...'")
                 continue
-            
+
             amount_str = amounts_in_line[-2]
 
             # Step 3: Isolate the middle part (type + description)
@@ -176,11 +174,11 @@ class TradeRepublicParser(PDFParser):
             # Proceed with creating the transaction object
             transaction_date = self._parse_german_date(date_str)
             total_amount = self._parse_german_number(amount_str)
-            
+
             parsed_transaction = {
                 "id": f"temp_{len(transactions) + 1}", "transaction_date": transaction_date,
                 "total_amount": total_amount, "quantity": Decimal('0'),
-                "purchase_price": Decimal('0'), "fees": Decimal('0'),
+                "price": Decimal('0'), "fees": Decimal('0'),
                 "name": desc, "symbol": None, "confidence_score": 0.8, "needs_review": False
             }
 
@@ -189,11 +187,11 @@ class TradeRepublicParser(PDFParser):
                 if trade_match:
                     trade_type, isin, name, quantity_str = trade_match.groups()
                     quantity = self._parse_german_number(quantity_str)
-                    
+
                     parsed_transaction.update({
                         "transaction_type": 'sell' if 'sell' in trade_type.lower() else 'buy',
                         "name": name.strip(), "symbol": isin, "quantity": quantity,
-                        "purchase_price": (total_amount / quantity) if quantity else Decimal('0'),
+                        "price": (total_amount / quantity) if quantity else Decimal('0'),
                         "confidence_score": 0.95
                     })
                 else:
@@ -211,9 +209,9 @@ class TradeRepublicParser(PDFParser):
                 parsed_transaction.update({"transaction_type": "withdrawal", "name": f"Card Transaction: {desc}"})
             elif type_str == 'Steuern':
                 parsed_transaction.update({"transaction_type": "tax", "name": "Tax Optimisation"})
-            
+
             transactions.append(ParsedTransaction(**parsed_transaction))
-            
+
         return transactions, warnings
 
     def _calculate_confidence(self, transactions: List[ParsedTransaction]) -> float:
@@ -230,14 +228,14 @@ class TradeRepublicParser(PDFParser):
 
 class AccountStatementService:
     """Service for account statement parsing and processing."""
-    
+
     def __init__(self, db: Session):
         self.db = db
         self.portfolio_service = PortfolioService(db)
         self._parsers = {
             "trade_republic": TradeRepublicParser(),
         }
-    
+
     def get_supported_providers(self) -> List[AccountStatementProvider]:
         """Get list of supported account statement providers."""
         return [
@@ -249,75 +247,68 @@ class AccountStatementService:
                 logo_url="/logos/trade_republic.png"
             ),
         ]
-    
+
     def parse_statement(self, provider_id: str, file_content: str, filename: str) -> ParsedData:
         """Parse account statement PDF."""
         if provider_id not in self._parsers:
             raise ValueError(f"Unsupported provider: {provider_id}")
-        
+
         try:
             pdf_content = base64.b64decode(file_content)
         except Exception as e:
             raise ValueError(f"Invalid base64 content: {str(e)}") from e
-        
+
         parser = self._parsers[provider_id]
         result = parser.parse(pdf_content)
-        
+
         if filename and result.metadata:
             result.metadata.warnings.insert(0, f"Parsed from file: {filename}")
-        
+
         return result
-    
+
     async def create_bulk_transactions(
-        self, 
-        portfolio_id: int, 
-        transactions_data: List[BulkTransactionItem], 
+        self,
+        portfolio_id: int,
+        transactions_data: List[BulkTransactionItem],
         user_id: int
     ) -> Tuple[List[CreatedTransaction], BulkCreateSummary]:
         """Create multiple transactions from parsed data."""
         created_transactions = []
         errors = []
-        
+
         portfolio = self.portfolio_service.get_portfolio(portfolio_id, user_id)
         if not portfolio:
             raise ValueError("Portfolio not found or access denied")
-        
+
         for i, transaction_data in enumerate(transactions_data):
             try:
-                asset = await self._find_or_create_asset(
-                    symbol=transaction_data.symbol,
-                    name=transaction_data.name,
-                    transaction_type=transaction_data.transaction_type
-                )
-                
-                if not asset:
-                    if transaction_data.transaction_type in ['deposit', 'withdrawal', 'interest', 'tax']:
-                        continue
-                    errors.append(f"Transaction {i+1}: Could not find or create asset for symbol {transaction_data.symbol}")
+
+
+                if transaction_data.transaction_type in ['deposit', 'withdrawal', 'interest', 'tax']:
                     continue
-                
+
                 transaction = Transaction(
                     portfolio_id=portfolio_id,
-                    asset_id=asset.id,
+                    asset_id=transaction_data.asset_id,
                     transaction_type=transaction_data.transaction_type,
                     quantity=transaction_data.quantity,
-                    price=transaction_data.purchase_price,
+                    price=transaction_data.price,
                     total_amount=transaction_data.total_amount,
                     transaction_date=datetime.strptime(transaction_data.transaction_date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
                     fees=transaction_data.fees,
                     notes= "Imported from account statement"
                 )
-                
+
                 self.db.add(transaction)
                 self.db.flush()
-                
-                await self._update_portfolio_asset_from_transaction(portfolio_id, asset.id, transaction)
-                
+
+                await self._update_portfolio_asset_from_transaction(portfolio_id, transaction.asset_id, transaction)
+
                 created_transaction = CreatedTransaction(
                     id=transaction.id,
                     transaction_date=transaction.transaction_date.strftime("%Y-%m-%d"),
+                    asset_id=transaction.asset_id,
                     transaction_type=transaction.transaction_type,
-                    symbol=asset.symbol,
                     quantity=transaction.quantity,
                     price=transaction.price,
                     fees=transaction.fees,
@@ -326,56 +317,29 @@ class AccountStatementService:
                     created_at=transaction.created_at
                 )
                 created_transactions.append(created_transaction)
-                
+
             except Exception as e:
                 errors.append(f"Transaction {i+1}: {str(e)}")
-        
+
         self.db.commit()
-        
+
         summary = BulkCreateSummary(
             total_created=len(created_transactions),
             total_failed=len(errors),
             errors=errors
         )
-        
+
         return created_transactions, summary
-    
-    async def _find_or_create_asset(
-        self, 
-        symbol: Optional[str], 
-        name: str, 
-        transaction_type: str
-    ) -> Optional[Asset]:
-        """Find existing asset or create new one."""
-        if not symbol or transaction_type in ['deposit', 'withdrawal', 'interest', 'tax', 'unknown']:
-            return None
-        
-        asset_type = "stock"
-        
-        asset = self.db.query(Asset).filter(Asset.symbol == symbol).first()
-        if asset:
-            return asset
-        
-        asset = Asset(
-            symbol=symbol,
-            name=name or f"Unknown Asset ({symbol})",
-            asset_type=asset_type,
-            is_active=True
-        )
-        
-        self.db.add(asset)
-        self.db.flush()
-        return asset
-    
+
     async def _update_portfolio_asset_from_transaction(
-        self, 
-        portfolio_id: int, 
-        asset_id: int, 
+        self,
+        portfolio_id: int,
+        asset_id: int,
         transaction: Transaction
     ) -> None:
         """Update portfolio asset based on transaction."""
         from core.database.models import PortfolioAsset
-        
+
         portfolio_asset = (
             self.db.query(PortfolioAsset)
             .filter(
@@ -384,16 +348,16 @@ class AccountStatementService:
             )
             .first()
         )
-        
+
         if transaction.transaction_type not in [TransactionType.BUY, TransactionType.SELL]:
             return
-            
+
         if transaction.transaction_type == TransactionType.BUY:
             if portfolio_asset:
                 new_quantity = portfolio_asset.quantity + transaction.quantity
                 new_cost_basis_total = portfolio_asset.cost_basis_total + transaction.total_amount
                 new_cost_basis = new_cost_basis_total / new_quantity if new_quantity else 0
-                
+
                 portfolio_asset.quantity = new_quantity
                 portfolio_asset.cost_basis = new_cost_basis
                 portfolio_asset.cost_basis_total = new_cost_basis_total
@@ -406,7 +370,7 @@ class AccountStatementService:
                     cost_basis_total=transaction.total_amount
                 )
                 self.db.add(portfolio_asset)
-        
+
         elif transaction.transaction_type == TransactionType.SELL:
             if portfolio_asset:
                 new_quantity = portfolio_asset.quantity - transaction.quantity

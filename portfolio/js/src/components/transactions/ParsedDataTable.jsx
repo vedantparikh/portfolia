@@ -75,8 +75,6 @@ const ParsedDataTable = ({
             quantity: 0,
             purchase_price: 0,
             fees: 0,
-            confidence_score: 1.0,
-            needs_review: true
         };
         setTransactions([...transactions, newTransaction]);
         setEditingRow(transactions.length);
@@ -152,17 +150,6 @@ const ParsedDataTable = ({
         return matchesSearch && matchesFilter;
     });
 
-    const getConfidenceColor = (score) => {
-        if (score >= 0.8) return 'text-success-400';
-        if (score >= 0.6) return 'text-warning-400';
-        return 'text-danger-400';
-    };
-
-    const getConfidenceIcon = (score) => {
-        if (score >= 0.8) return <CheckCircle className="w-4 h-4" />;
-        if (score >= 0.6) return <AlertTriangle className="w-4 h-4" />;
-        return <AlertTriangle className="w-4 h-4" />;
-    };
 
     if (!parsedData) return null;
 
@@ -246,12 +233,6 @@ const ParsedDataTable = ({
                     {/* Metadata */}
                     <div className="flex items-center space-x-6 text-sm text-gray-400">
                         <div className="flex items-center space-x-2">
-                            <span>Confidence:</span>
-                            <span className={`font-medium ${getConfidenceColor(parsedData.metadata?.parsing_confidence || 0)}`}>
-                                {Math.round((parsedData.metadata?.parsing_confidence || 0) * 100)}%
-                            </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
                             <span>Period:</span>
                             <span className="font-medium">
                                 {parsedData.statement_period?.start_date} - {parsedData.statement_period?.end_date}
@@ -305,9 +286,6 @@ const ParsedDataTable = ({
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                     Total
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                    Confidence
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                                     Actions
@@ -421,12 +399,6 @@ const ParsedDataTable = ({
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-300">
                                         ${transaction.total_amount?.toFixed(2) || '0.00'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <div className={`flex items-center space-x-1 ${getConfidenceColor(transaction.confidence_score)}`}>
-                                            {getConfidenceIcon(transaction.confidence_score)}
-                                            <span>{Math.round(transaction.confidence_score * 100)}%</span>
-                                        </div>
                                     </td>
                                     <td className="px-4 py-3 text-sm">
                                         <div className="flex items-center space-x-2">

@@ -45,14 +45,10 @@ class ParsedTransaction(BaseModel):
     quantity: Decimal = Field(..., description="Transaction quantity")
     price: Optional[Decimal] = Field(None, description="Price per share")
     fees: Decimal = Field(default=Decimal("0"), description="Transaction fees")
-    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Parsing confidence score")
-    needs_review: bool = Field(default=False, description="Whether transaction needs manual review")
-
 
 class ParsingMetadata(BaseModel):
     """Metadata about the parsing process."""
     total_transactions: int = Field(..., description="Total number of transactions parsed")
-    parsing_confidence: float = Field(..., ge=0.0, le=1.0, description="Overall parsing confidence")
     warnings: List[str] = Field(default_factory=list, description="Parsing warnings")
 
 

@@ -196,11 +196,10 @@ const Transactions = () => {
 
   const handleCreateTransaction = async (transactionData) => {
     try {
-      const response = await transactionAPI.createTransaction(transactionData);
-      setTransactions((prev) => [response, ...prev]);
+      await transactionAPI.createTransaction(transactionData);
       setShowCreateModal(false);
       toast.success("Transaction created successfully");
-      setTimeout(loadData, 500);
+      await loadData(); // Reload data to get the new transaction
     } catch (error) {
       console.error("Failed to create transaction:", error);
       const errorMessage =
@@ -284,18 +283,16 @@ const Transactions = () => {
     setParsedData(null);
   };
 
-  // A single, reusable function to handle both bulk creation scenarios
+  // ✅ CORRECTED FUNCTION
+  // This function now waits for the bulk creation and then triggers a full, safe data reload.
   const handleBulkCreate = async (portfolioId, transactionData, options) => {
-    const { onSuccess, context } = options; // context is 'create' or 'import'
+    const { onSuccess, context } = options;
 
     try {
       const response = await accountStatementsAPI.bulkCreateTransactions(
         portfolioId,
         transactionData
       );
-
-      // Add new transactions to the existing list
-      setTransactions((prev) => [...response.created_transactions, ...prev]);
 
       // Call the specific success handler passed in options (e.g., to close the modal)
       onSuccess();
@@ -304,12 +301,11 @@ const Transactions = () => {
       toast.success(
         `Successfully ${verb} ${
           response.summary?.total_created || transactionData.length
-        } transactions`
+        } transactions. Refreshing list...`
       );
 
-      setTimeout(() => {
-        loadData();
-      }, 500);
+      // Instead of adding partial data, we reload everything to ensure data integrity.
+      await loadData();
     } catch (error) {
       const verb = context === "import" ? "import" : "create";
       console.error(`Failed to bulk ${verb} transactions:`, error);

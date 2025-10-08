@@ -73,7 +73,7 @@ const ParsedDataTable = ({
             symbol: '',
             total_amount: 0,
             quantity: 0,
-            purchase_price: 0,
+            price: 0,
             fees: 0,
         };
         setTransactions([...transactions, newTransaction]);
@@ -88,9 +88,9 @@ const ParsedDataTable = ({
         };
 
         // Auto-calculate total_amount if quantity or price changes
-        if (field === 'quantity' || field === 'purchase_price' || field === 'fees') {
+        if (field === 'quantity' || field === 'price' || field === 'fees') {
             const quantity = parseFloat(newTransactions[index].quantity) || 0;
-            const price = parseFloat(newTransactions[index].purchase_price) || 0;
+            const price = parseFloat(newTransactions[index].price) || 0;
             const fees = parseFloat(newTransactions[index].fees) || 0;
             newTransactions[index].total_amount = (quantity * price) + fees;
         }
@@ -128,7 +128,7 @@ const ParsedDataTable = ({
                 transaction_type: txn.transaction_type,
                 symbol: txn.symbol,
                 quantity: parseFloat(txn.quantity) || 0,
-                price: parseFloat(txn.purchase_price) || 0,
+                price: parseFloat(txn.price) || 0,
                 fees: parseFloat(txn.fees) || 0,
                 notes: `Imported from ${parsedData.provider} statement`
             }));
@@ -376,12 +376,12 @@ const ParsedDataTable = ({
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                value={transaction.purchase_price}
-                                                onChange={(e) => handleFieldChange(index, 'purchase_price', e.target.value)}
+                                                value={transaction.price}
+                                                onChange={(e) => handleFieldChange(index, 'price', e.target.value)}
                                                 className="input-field py-1 px-2 text-sm w-full"
                                             />
                                         ) : (
-                                            `$${transaction.purchase_price?.toFixed(2) || '0.00'}`
+                                            `$${transaction.price || '0.00'}`
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-300">
@@ -394,11 +394,11 @@ const ParsedDataTable = ({
                                                 className="input-field py-1 px-2 text-sm w-full"
                                             />
                                         ) : (
-                                            `$${transaction.fees?.toFixed(2) || '0.00'}`
+                                            `$${transaction.fees || '0.00'}`
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-300">
-                                        ${transaction.total_amount?.toFixed(2) || '0.00'}
+                                        ${transaction.total_amount || '0.00'}
                                     </td>
                                     <td className="px-4 py-3 text-sm">
                                         <div className="flex items-center space-x-2">

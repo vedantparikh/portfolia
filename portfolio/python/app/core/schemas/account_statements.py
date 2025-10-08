@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from core.database.models.transaction import TransactionType
 
@@ -93,8 +93,11 @@ class BulkTransactionCreate(BaseModel):
 
 class CreatedTransaction(BaseModel):
     """Created transaction response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
     id: int = Field(..., description="Transaction ID")
-    transaction_date: str = Field(..., description="Transaction date")
+    transaction_date: datetime = Field(..., description="Transaction date")
     asset_id: int = Field(..., description="Asset ID")
     transaction_type: TransactionType = Field(..., description="Transaction type")
     quantity: Decimal = Field(..., description="Transaction quantity")
@@ -104,9 +107,6 @@ class CreatedTransaction(BaseModel):
     portfolio_id: int = Field(..., description="Portfolio ID")
     notes: Optional[str] = Field(None, description="Transaction notes")
     created_at: datetime = Field(..., description="Creation timestamp")
-
-    class Config:
-        orm_mode = True
 
 
 class BulkCreateSummary(BaseModel):

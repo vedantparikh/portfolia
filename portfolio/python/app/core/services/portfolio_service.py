@@ -491,10 +491,9 @@ class PortfolioService:
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if not portfolio:
             return None
-
+        transaction_data.total_amount = transaction_data.quantity * transaction_data.price
         transaction = Transaction(
-            **transaction_data.dict(),
-            total_amount=transaction_data.quantity * transaction_data.price
+            **transaction_data.dict()
         )
         self.db.add(transaction)
         self.db.commit()

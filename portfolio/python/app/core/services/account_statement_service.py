@@ -130,7 +130,7 @@ class AccountStatementService:
 
         # 5. Prepare the successful response data
         final_created_list = [
-            CreatedTransaction.from_orm(tx) for tx in created_transaction_models
+            CreatedTransaction.model_validate(tx) for tx in created_transaction_models
         ]
         summary = BulkCreateSummary(
             total_created=len(final_created_list),

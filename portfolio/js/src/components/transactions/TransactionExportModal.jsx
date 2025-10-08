@@ -569,19 +569,19 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
                     </div>
                     <div>
                       Total Buy Volume: $
-                      {previewData.summary_stats?.total_buy_volume?.toFixed(
+                      {parseFloat(previewData.summary_stats?.total_buy_volume)?.toFixed(
                         2
                       ) || "0.00"}
                     </div>
                     <div>
                       Total Sell Volume: $
-                      {previewData.summary_stats?.total_sell_volume?.toFixed(
+                      {parseFloat(previewData.summary_stats?.total_sell_volume)?.toFixed(
                         2
                       ) || "0.00"}
                     </div>
                     <div>
                       Net Flow: $
-                      {previewData.summary_stats?.net_flow?.toFixed(2) ||
+                      {parseFloat(previewData.summary_stats?.net_flow)?.toFixed(2) ||
                         "0.00"}
                     </div>
                   </div>

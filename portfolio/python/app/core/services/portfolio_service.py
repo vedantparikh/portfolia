@@ -34,23 +34,23 @@ class PortfolioService:
         self.db = db
         self.market_data_service = MarketDataService()
 
-    # Portfolio CRUD Operations
-    def create_portfolio(
-            self, portfolio_data: PortfolioCreate, user_id: int
-    ) -> Portfolio:
-        """Create a new portfolio."""
-        portfolio = Portfolio(
-            user_id=user_id,
-            name=portfolio_data.name,
-            description=portfolio_data.description,
-            currency=portfolio_data.currency,
-            is_active=portfolio_data.is_active,
-            is_public=portfolio_data.is_public,
-        )
-        self.db.add(portfolio)
-        self.db.commit()
-        self.db.refresh(portfolio)
-        return portfolio
+        # Portfolio CRUD
+        def create_portfolio(
+                self, portfolio_data: PortfolioCreate, user_id: int
+        ) -> Portfolio:
+            """Create a new portfolio."""
+            portfolio = Portfolio(
+                user_id=user_id,
+                name=portfolio_data.name,
+                description=portfolio_data.description,
+                currency=portfolio_data.currency,
+                is_active=portfolio_data.is_active,
+                is_public=portfolio_data.is_public,
+            )
+            self.db.add(portfolio)
+            self.db.commit()
+            self.db.refresh(portfolio)
+            return portfolio
 
     def get_user_portfolios(
             self, user_id: int, include_inactive: bool = False
@@ -487,104 +487,70 @@ class PortfolioService:
     async def add_transaction(
             self, portfolio_id: int, transaction_data: TransactionCreate, user_id: int
     ) -> Optional[Transaction]:
-        """Add a transaction to a portfolio."""
-        # Verify portfolio ownership
+        """Add a transaction and recalculate the corresponding asset's state."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if not portfolio:
             return None
 
-        # Create transaction
         transaction = Transaction(
-            portfolio_id=portfolio_id,
-            asset_id=transaction_data.asset_id,
-            transaction_type=transaction_data.transaction_type,
-            quantity=transaction_data.quantity,
-            price=transaction_data.price,
-            currency=transaction_data.currency,
-            transaction_date=transaction_data.transaction_date,
-            fees=transaction_data.fees or Decimal("0"),
-            total_amount=transaction_data.quantity * transaction_data.price,
+            **transaction_data.dict(),
+            total_amount=transaction_data.quantity * transaction_data.price
         )
-
         self.db.add(transaction)
         self.db.commit()
         self.db.refresh(transaction)
 
-        # Update portfolio asset based on transaction
-        await self.update_portfolio_asset_from_transaction(
-            portfolio_id, transaction_data.asset_id, transaction
-        )
-
+        await self.recalculate_asset_state(portfolio_id, transaction.asset_id)
         return transaction
 
-    async def update_portfolio_asset_from_transaction(
-            self, portfolio_id: int, asset_id: int, transaction: Transaction
-    ):
-        """Update portfolio asset based on transaction."""
-        portfolio_asset = (
-            self.db.query(PortfolioAsset)
-            .filter(
-                and_(
-                    PortfolioAsset.portfolio_id == portfolio_id,
-                    PortfolioAsset.asset_id == asset_id,
-                )
-            )
-            .first()
-        )
+    async def update_transaction(
+            self, transaction_id: int, transaction_data: TransactionUpdate, user_id: int
+    ) -> Optional[Transaction]:
+        """Update a transaction and recalculate the corresponding asset's state."""
+        transaction = self.get_transaction(transaction_id, user_id)
+        if not transaction:
+            return None
 
-        if transaction.transaction_type == TransactionType.BUY:
-            if portfolio_asset:
-                # Update existing asset
-                new_quantity = portfolio_asset.quantity + transaction.quantity
-                new_cost_basis_total = (
-                        portfolio_asset.cost_basis_total + transaction.total_amount
-                )
-                new_cost_basis = new_cost_basis_total / new_quantity
+        asset_id_to_recalculate = transaction.asset_id
+        portfolio_id_to_recalculate = transaction.portfolio_id
 
-                portfolio_asset.quantity = new_quantity
-                portfolio_asset.cost_basis = new_cost_basis
-                portfolio_asset.cost_basis_total = new_cost_basis_total
-            else:
-                # Create new portfolio asset
-                portfolio_asset = PortfolioAsset(
-                    portfolio_id=portfolio_id,
-                    asset_id=asset_id,
-                    quantity=transaction.quantity,
-                    cost_basis=transaction.price,
-                    cost_basis_total=transaction.total_amount,
-                )
-                self.db.add(portfolio_asset)
+        update_data = transaction_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(transaction, field, value)
 
-        elif transaction.transaction_type == TransactionType.SELL:
-            if portfolio_asset:
-                # Update existing asset
-                new_quantity = portfolio_asset.quantity - transaction.quantity
-                if new_quantity <= 0:
-                    # Remove asset if quantity becomes 0 or negative
-                    self.db.delete(portfolio_asset)
-                else:
-                    # Adjust cost basis proportionally
-                    remaining_ratio = new_quantity / portfolio_asset.quantity
-                    portfolio_asset.quantity = new_quantity
-                    portfolio_asset.cost_basis_total = (
-                            portfolio_asset.cost_basis_total * remaining_ratio
-                    )
+        if 'quantity' in update_data or 'price' in update_data:
+            transaction.total_amount = transaction.quantity * transaction.price
 
-        # Update P&L after transaction
-        if portfolio_asset and portfolio_asset in self.db:
-            portfolio_asset = await self._update_asset_pnl(portfolio_asset)
-            self.db.refresh(portfolio_asset)
-
-        # Note: last_updated is handled by SQLAlchemy onupdate trigger
         self.db.commit()
+        self.db.refresh(transaction)
+
+        await self.recalculate_asset_state(
+            portfolio_id_to_recalculate, asset_id_to_recalculate
+        )
+        return transaction
+
+    async def delete_transaction(self, transaction_id: int, user_id: int) -> bool:
+        """Delete a transaction and recalculate the corresponding asset's state."""
+        transaction = self.get_transaction(transaction_id, user_id)
+        if not transaction:
+            return False
+
+        portfolio_id = transaction.portfolio_id
+        asset_id = transaction.asset_id
+
+        self.db.delete(transaction)
+        self.db.commit()
+
+        await self.recalculate_asset_state(portfolio_id, asset_id)
+        return True
 
     def get_portfolio_transactions(
             self, portfolio_id: int, user_id: int, limit: int = 100, offset: int = 0
     ) -> List[Transaction]:
-        """Get transactions for a portfolio."""
+        """Get transactions for a portfolio, ensuring user ownership."""
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if not portfolio:
-            return []
+            return []  # Return empty list if user doesn't own the portfolio
 
         return (
             self.db.query(Transaction)
@@ -598,49 +564,36 @@ class PortfolioService:
     def get_transaction(
             self, transaction_id: int, user_id: int
     ) -> Optional[Transaction]:
-        """Get a specific transaction."""
+        """Get a specific transaction, ensuring user ownership."""
         transaction = (
             self.db.query(Transaction).filter(Transaction.id == transaction_id).first()
         )
         if transaction:
-            # Verify portfolio ownership
             portfolio = self.get_portfolio(transaction.portfolio_id, user_id)
             if not portfolio:
-                return None
+                return None  # User does not own this transaction's portfolio
         return transaction
 
-    def update_transaction(
-            self, transaction_id: int, transaction_data: TransactionUpdate, user_id: int
-    ) -> Optional[Transaction]:
-        """Update a transaction."""
-        transaction = self.get_transaction(transaction_id, user_id)
-        if not transaction:
-            return None
+    def get_all_user_transactions(
+            self, user_id: int, limit: int = 100, offset: int = 0
+    ) -> List[Transaction]:
+        """Get all transactions for a user across all their portfolios."""
+        # First, get the IDs of all portfolios owned by the user
+        user_portfolios = self.get_user_portfolios(user_id)
+        if not user_portfolios:
+            return []  # User has no portfolios, so no transactions
 
-        # Update fields
-        for field, value in transaction_data.dict(exclude_unset=True).items():
-            setattr(transaction, field, value)
+        portfolio_ids = [p.id for p in user_portfolios]
 
-        if transaction_data.quantity is not None or transaction_data.price is not None:
-            # Recalculate total amount
-            quantity = transaction_data.quantity or transaction.quantity
-            price = transaction_data.price or transaction.price
-            transaction.total_amount = quantity * price
-
-        # Note: updated_at is handled by SQLAlchemy onupdate trigger
-        self.db.commit()
-        self.db.refresh(transaction)
-        return transaction
-
-    def delete_transaction(self, transaction_id: int, user_id: int) -> bool:
-        """Delete a transaction."""
-        transaction = self.get_transaction(transaction_id, user_id)
-        if not transaction:
-            return False
-
-        self.db.delete(transaction)
-        self.db.commit()
-        return True
+        # Then, query for transactions within those portfolio IDs
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.portfolio_id.in_(portfolio_ids))
+            .order_by(desc(Transaction.transaction_date))
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
     # Portfolio Analytics and Performance
     async def get_portfolio_summary(
@@ -864,3 +817,57 @@ class PortfolioService:
             .limit(limit)
             .all()
         )
+
+    async def recalculate_asset_state(
+            self, portfolio_id: int, asset_id: int
+    ) -> Optional[PortfolioAsset]:
+        """
+        Recalculates an asset's state (quantity, cost) from its entire transaction history.
+        This is the single source of truth for asset state.
+        """
+        all_transactions = (
+            self.db.query(Transaction)
+            .filter(
+                Transaction.portfolio_id == portfolio_id,
+                Transaction.asset_id == asset_id,
+            )
+            .order_by(Transaction.transaction_date.asc())
+            .all()
+        )
+
+        current_quantity = Decimal("0")
+        total_cost = Decimal("0")
+
+        for tx in all_transactions:
+            if tx.transaction_type == TransactionType.BUY:
+                current_quantity += tx.quantity
+                total_cost += tx.total_amount
+            elif tx.transaction_type == TransactionType.SELL:
+                if current_quantity > 0:
+                    cost_reduction_ratio = tx.quantity / current_quantity
+                    total_cost *= (Decimal("1") - cost_reduction_ratio)
+                current_quantity -= tx.quantity
+
+        portfolio_asset = (
+            self.db.query(PortfolioAsset)
+            .filter_by(portfolio_id=portfolio_id, asset_id=asset_id)
+            .first()
+        )
+
+        if current_quantity > 0:
+            if not portfolio_asset:
+                portfolio_asset = PortfolioAsset(
+                    portfolio_id=portfolio_id, asset_id=asset_id
+                )
+                self.db.add(portfolio_asset)
+
+            portfolio_asset.quantity = current_quantity
+            portfolio_asset.cost_basis_total = total_cost
+            portfolio_asset.cost_basis = total_cost / current_quantity
+            await self._update_asset_pnl(portfolio_asset)
+        elif portfolio_asset:
+            self.db.delete(portfolio_asset)
+            portfolio_asset = None  # Asset no longer exists
+
+        self.db.commit()
+        return portfolio_asset

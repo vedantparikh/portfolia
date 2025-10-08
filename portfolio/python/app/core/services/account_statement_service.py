@@ -28,7 +28,6 @@ class AccountStatementService:
             "trade_republic": TradeRepublicParser(),
             "portfolia": PortfoliaParser(),
         }
-        self.portfolio_service = PortfolioService(db)
 
     def get_supported_providers(self) -> List[AccountStatementProvider]:
         """Get list of supported account statement providers."""
@@ -70,74 +69,72 @@ class AccountStatementService:
         return result
 
     async def create_bulk_transactions(
-        self,
-        portfolio_id: int,
-        transactions_data: List[BulkTransactionItem],
-        user_id: int,
+            self,
+            portfolio_id: int,
+            transactions_data: List[BulkTransactionItem],
+            user_id: int,
     ) -> Tuple[List[CreatedTransaction], BulkCreateSummary]:
-        """Create multiple transactions from parsed data."""
-        created_transactions = []
-        errors = []
-
+        """Create multiple transactions efficiently and robustly from parsed data."""
+        # 1. Verify portfolio access once at the start
         portfolio = self.portfolio_service.get_portfolio(portfolio_id, user_id)
         if not portfolio:
             raise ValueError("Portfolio not found or access denied")
 
-        for i, transaction_data in enumerate(transactions_data):
+        created_transaction_models = []
+        errors = []
+        affected_asset_ids = set()
+
+        # 2. Prepare all transaction models and add them to the session
+        for i, item in enumerate(transactions_data):
             try:
-                if transaction_data.transaction_type in [
-                    "deposit",
-                    "withdrawal",
-                    "interest",
-                    "tax",
+                if item.transaction_type in [
+                    "deposit", "withdrawal", "interest", "tax"
                 ]:
                     continue
 
                 transaction = Transaction(
                     portfolio_id=portfolio_id,
-                    asset_id=transaction_data.asset_id,
-                    transaction_type=transaction_data.transaction_type,
-                    quantity=transaction_data.quantity,
-                    price=transaction_data.price,
-                    total_amount=transaction_data.total_amount,
+                    asset_id=item.asset_id,
+                    transaction_type=item.transaction_type,
+                    quantity=item.quantity,
+                    price=item.price,
+                    total_amount=item.total_amount,
                     transaction_date=datetime.strptime(
-                        transaction_data.transaction_date, "%Y-%m-%d"
+                        item.transaction_date, "%Y-%m-%d"
                     ).replace(tzinfo=timezone.utc),
-                    fees=transaction_data.fees,
-                    notes=transaction_data.notes,
+                    fees=item.fees,
+                    notes=item.notes,
                 )
-
                 self.db.add(transaction)
-                self.db.flush()
-
-                await self.portfolio_service.update_portfolio_asset_from_transaction(
-                    portfolio_id, transaction.asset_id, transaction
-                )
-
-                created_transaction = CreatedTransaction(
-                    id=transaction.id,
-                    transaction_date=transaction.transaction_date.strftime("%Y-%m-%d"),
-                    asset_id=transaction.asset_id,
-                    transaction_type=transaction.transaction_type,
-                    quantity=transaction.quantity,
-                    price=transaction.price,
-                    fees=transaction.fees,
-                    total_amount=transaction.total_amount,
-                    portfolio_id=portfolio_id,
-                    notes=transaction.notes,
-                    created_at=transaction.created_at,
-                )
-                created_transactions.append(created_transaction)
+                affected_asset_ids.add(item.asset_id)
+                created_transaction_models.append(transaction)
 
             except Exception as e:
-                errors.append(f"Transaction {i+1}: {str(e)}")
+                errors.append(f"Data item {i + 1} ('{item.notes}'): {str(e)}")
 
-        self.db.commit()
+        # 3. Perform a single commit for all valid transactions
+        try:
+            if created_transaction_models:
+                self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            return [], BulkCreateSummary(
+                total_created=0,
+                total_failed=len(transactions_data),
+                errors=[f"Database commit failed, rolling back all changes: {e}"] + errors,
+            )
 
+        # 4. Recalculate the state for each affected asset ONCE
+        for asset_id in affected_asset_ids:
+            await self.portfolio_service.recalculate_asset_state(portfolio_id, asset_id)
+
+        # 5. Prepare the successful response data
+        final_created_list = [
+            CreatedTransaction.from_orm(tx) for tx in created_transaction_models
+        ]
         summary = BulkCreateSummary(
-            total_created=len(created_transactions),
+            total_created=len(final_created_list),
             total_failed=len(errors),
             errors=errors,
         )
-
-        return created_transactions, summary
+        return final_created_list, summary

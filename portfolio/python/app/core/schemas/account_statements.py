@@ -46,6 +46,7 @@ class ParsedTransaction(BaseModel):
     price: Optional[Decimal] = Field(None, description="Price per share")
     fees: Decimal = Field(default=Decimal("0"), description="Transaction fees")
 
+
 class ParsingMetadata(BaseModel):
     """Metadata about the parsing process."""
     total_transactions: int = Field(..., description="Total number of transactions parsed")
@@ -103,6 +104,9 @@ class CreatedTransaction(BaseModel):
     portfolio_id: int = Field(..., description="Portfolio ID")
     notes: Optional[str] = Field(None, description="Transaction notes")
     created_at: datetime = Field(..., description="Creation timestamp")
+
+    class Config:
+        orm_mode = True
 
 
 class BulkCreateSummary(BaseModel):

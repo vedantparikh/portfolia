@@ -34,23 +34,23 @@ class PortfolioService:
         self.db = db
         self.market_data_service = MarketDataService()
 
-        # Portfolio CRUD
-        def create_portfolio(
-                self, portfolio_data: PortfolioCreate, user_id: int
-        ) -> Portfolio:
-            """Create a new portfolio."""
-            portfolio = Portfolio(
-                user_id=user_id,
-                name=portfolio_data.name,
-                description=portfolio_data.description,
-                currency=portfolio_data.currency,
-                is_active=portfolio_data.is_active,
-                is_public=portfolio_data.is_public,
-            )
-            self.db.add(portfolio)
-            self.db.commit()
-            self.db.refresh(portfolio)
-            return portfolio
+    # Portfolio CRUD
+    def create_portfolio(
+            self, portfolio_data: PortfolioCreate, user_id: int
+    ) -> Portfolio:
+        """Create a new portfolio."""
+        portfolio = Portfolio(
+            user_id=user_id,
+            name=portfolio_data.name,
+            description=portfolio_data.description,
+            currency=portfolio_data.currency,
+            is_active=portfolio_data.is_active,
+            is_public=portfolio_data.is_public,
+        )
+        self.db.add(portfolio)
+        self.db.commit()
+        self.db.refresh(portfolio)
+        return portfolio
 
     def get_user_portfolios(
             self, user_id: int, include_inactive: bool = False

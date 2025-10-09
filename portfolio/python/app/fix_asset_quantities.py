@@ -1,5 +1,3 @@
-# fix_asset_quantities.py
-
 import asyncio
 from sqlalchemy import distinct
 

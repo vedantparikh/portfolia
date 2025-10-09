@@ -12,7 +12,13 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { ClientSideAssetSearch } from "../shared";
 
-const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
+const ParsedDataTable = ({
+  parsedData,
+  onSave,
+  onCancel,
+  portfolios = [],
+  allAssets = [], // <-- Prop for all available assets
+}) => {
   const [transactions, setTransactions] = useState([]);
   const [editingRow, setEditingRow] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,16 +40,37 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
     { value: "other", label: "Other" },
   ];
 
+  // UPDATED useEffect to auto-match symbols on load
   useEffect(() => {
-    if (parsedData?.transactions) {
-      // Ensure every transaction has an asset_id field, defaulting to null
+    // Wait until both parsedData and allAssets are available
+    if (parsedData?.transactions && allAssets.length > 0) {
+      // Create a Map for efficient symbol lookups (O(1) average)
+      const assetSymbolMap = new Map(
+        allAssets.map((asset) => [asset.symbol.toUpperCase(), asset])
+      );
+
+      const initialTransactions = parsedData.transactions.map((t) => {
+        // Find a matching asset from the provided list
+        const matchedAsset = assetSymbolMap.get(t.symbol?.toUpperCase());
+
+        return {
+          ...t,
+          // If a match is found, use its ID. Otherwise, default to null.
+          asset_id: matchedAsset ? matchedAsset.id : null,
+          // You can also standardize the name from the matched asset
+          name: matchedAsset ? matchedAsset.name : t.name,
+        };
+      });
+      setTransactions(initialTransactions);
+    } else if (parsedData?.transactions) {
+      // Fallback logic if allAssets prop isn't provided or is empty
       const initialTransactions = parsedData.transactions.map((t) => ({
         ...t,
         asset_id: t.asset_id || null,
       }));
       setTransactions(initialTransactions);
     }
-  }, [parsedData]);
+  }, [parsedData, allAssets]); // <-- Add allAssets to the dependency array
 
   const handleEdit = (index) => {
     setEditingRow(index);
@@ -113,7 +140,6 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
     }
   };
 
-  // UPDATED: Now includes validation and the total_amount field
   const handleBulkSave = async () => {
     if (!selectedPortfolio) {
       toast.error("Please select a portfolio");
@@ -125,7 +151,6 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
       return;
     }
 
-    // NEW: Validate that every transaction has a linked asset_id
     const transactionsWithoutAssetId = transactions.filter(
       (txn) => !txn.asset_id
     );
@@ -145,7 +170,7 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
         quantity: parseFloat(txn.quantity) || 0,
         price: parseFloat(txn.price) || 0,
         fees: parseFloat(txn.fees) || 0,
-        total_amount: parseFloat(txn.total_amount) || 0, // FIXED: Added total_amount
+        total_amount: parseFloat(txn.total_amount) || 0,
         notes: txn.notes || `Imported from ${parsedData.provider} statement`,
       }));
 
@@ -172,7 +197,7 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex items-center space-x-3">
@@ -276,7 +301,7 @@ const ParsedDataTable = ({ parsedData, onSave, onCancel, portfolios = [] }) => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto max-h-96">
+        <div className="overflow-auto flex-1">
           <table className="w-full">
             <thead className="bg-gray-700 sticky top-0">
               <tr>

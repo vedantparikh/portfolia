@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, HelpCircle, Plus, Trash2 } from "lucide-react";
 import PropTypes from "prop-types";
-import { useEffect, useMemo, useState } from "react"; // Import useMemo
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import assetCache from "../../services/assetCache";
 import { ClientSideAssetSearch } from "../shared";
@@ -35,8 +35,6 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
     assetCache.preloadAssets();
   }, []);
 
-  // CHANGE 1: Use useMemo to efficiently filter for complete transactions on every render.
-  // A transaction is complete if its essential fields are filled.
   const completeTransactions = useMemo(() => {
     return transactions.filter(
       (t) =>
@@ -52,6 +50,8 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
 
   /**
    * Handles input changes for any field in any row and performs automatic calculations.
+   * The logic prioritizes calculations based on the user's input to provide an
+   * intuitive experience.
    */
   const handleInputChange = (index, field, value) => {
     const newTransactions = [...transactions];
@@ -64,23 +64,42 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
     const total = parseFloat(transaction.total_amount) || 0;
     const fees = parseFloat(transaction.fees) || 0;
 
-    // Only calculate if we have valid numbers
-    if (field === "quantity" || field === "price" || field === "fees") {
-      // If quantity, price, or fees is changed, calculate total amount
-      if (qty > 0 && prc > 0) {
-        transaction.total_amount = (qty * prc + fees).toFixed(4);
+    // The calculation logic is prioritized. If the conditions for a higher-priority
+    // calculation are met, it will execute and the others will be skipped.
+
+    // PRIORITY 1: Calculate Quantity from Total and Price.
+    // This is triggered when the user edits Total, Price, or Fees, indicating
+    // these are the source of truth.
+    if (
+      (field === "total_amount" || field === "price" || field === "fees") &&
+      total > 0 &&
+      prc > 0
+    ) {
+      const newQuantity = (total - fees) / prc;
+      if (newQuantity > 0) {
+        transaction.quantity = newQuantity.toFixed(6);
       }
-    } else if (field === "total_amount") {
-      // If total amount is changed, calculate price or quantity
-      if (total > 0) {
-        if (qty > 0 && prc === 0) {
-          // Calculate price: (total - fees) / quantity
-          transaction.price = ((total - fees) / qty).toFixed(4);
-        } else if (prc > 0 && qty === 0) {
-          // Calculate quantity: (total - fees) / price
-          transaction.quantity = ((total - fees) / prc).toFixed(6);
-        }
+    }
+    // PRIORITY 2: Calculate Price from Total and Quantity.
+    // Triggered when editing Total or Quantity, if Price can be derived.
+    else if (
+      (field === "total_amount" || field === "quantity") &&
+      total > 0 &&
+      qty > 0
+    ) {
+      const newPrice = (total - fees) / qty;
+      if (newPrice > 0) {
+        transaction.price = newPrice.toFixed(4);
       }
+    }
+    // PRIORITY 3 (Fallback): Calculate Total from Quantity and Price.
+    // This is the most common case, triggered when editing Quantity or Price.
+    else if (
+      (field === "quantity" || field === "price" || field === "fees") &&
+      qty > 0 &&
+      prc > 0
+    ) {
+      transaction.total_amount = (qty * prc + fees).toFixed(4);
     }
 
     newTransactions[index] = transaction;
@@ -112,7 +131,6 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
       return;
     }
 
-    // CHANGE 2: Check if there are any complete transactions to save.
     if (completeTransactions.length === 0) {
       toast.error("No complete transaction rows to save.");
       return;
@@ -120,7 +138,6 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
 
     setIsSaving(true);
     try {
-      // CHANGE 3: Map only the 'completeTransactions' to the format for the API.
       const transactionsToSave = completeTransactions.map((t) => ({
         asset_id: t.asset_id,
         transaction_type: t.transaction_type,
@@ -211,7 +228,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
                         calculates <strong>Quantity</strong>
                       </li>
                       <li>
-                        <strong>Fees</strong> are added to the total amount
+                        <strong>Fees</strong> are included in all calculations.
                       </li>
                     </ul>
                   </div>
@@ -421,7 +438,6 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
         </div>
 
         <div className="flex items-center justify-between p-6 border-t border-gray-700 mt-auto">
-          {/* CHANGE 4: Update the footer text to use the count of complete transactions. */}
           <div className="text-sm text-gray-400">
             {completeTransactions.length} transaction
             {completeTransactions.length !== 1 ? "s" : ""} ready to save

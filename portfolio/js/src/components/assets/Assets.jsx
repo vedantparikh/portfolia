@@ -1,5 +1,4 @@
 import {
-    Activity,
     ArrowLeft,
     BarChart3,
     Filter,
@@ -16,6 +15,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
 import assetCache from '../../services/assetCache';
+import { formatMarketCap } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
 import { Sidebar } from '../shared';
@@ -67,7 +67,7 @@ const Assets = () => {
                 console.log('[Assets] Portfolios response:', portfoliosResponse);
 
                 const response = await userAssetsAPI.getUserAssets({
-                    limit: 100,
+                    limit: 1000,
                     include_detail: true,
                     include_performance: true,
                     include_analytics: true
@@ -481,40 +481,44 @@ const Assets = () => {
         toast.info('Use Portfolio section to view assets in specific portfolios');
     };
 
+    // --- MODIFIED: getTotalStats function updated ---
     const getTotalStats = () => {
-        const totalValue = filteredAssets.reduce((sum, asset) => {
-            const value = (asset.quantity || 0) * (asset.current_price || 0);
-            return sum + value;
-        }, 0);
+        if (!filteredAssets || filteredAssets.length === 0) {
+            return {
+                totalAssets: 0,
+                dailyGainers: 0,
+                dailyLosers: 0,
+                totalMarketCap: 0
+            };
+        }
 
-        const totalInvested = filteredAssets.reduce((sum, asset) => {
-            const invested = (asset.quantity || 0) * (asset.purchase_price || 0);
-            return sum + invested;
-        }, 0);
+        const stats = filteredAssets.reduce((acc, asset) => {
+            // Safely access nested properties from the API response
+            const change = parseFloat(asset.detail?.price_change_percentage_24h || 0);
+            const marketCap = parseFloat(asset.detail?.market_cap || 0);
 
-        const totalPnL = totalValue - totalInvested;
-        const totalPnLPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
+            if (change > 0) {
+                acc.dailyGainers += 1;
+            } else if (change < 0) {
+                acc.dailyLosers += 1;
+            }
 
-        const positiveAssets = filteredAssets.filter(asset => {
-            if (!asset.quantity || !asset.purchase_price || !asset.current_price) return false;
-            const pnl = ((asset.current_price - asset.purchase_price) / asset.purchase_price) * 100;
-            return pnl > 0;
-        }).length;
+            if (marketCap > 0) {
+                acc.totalMarketCap += marketCap;
+            }
 
-        const negativeAssets = filteredAssets.filter(asset => {
-            if (!asset.quantity || !asset.purchase_price || !asset.current_price) return false;
-            const pnl = ((asset.current_price - asset.purchase_price) / asset.purchase_price) * 100;
-            return pnl < 0;
-        }).length;
+            return acc;
+        }, {
+            dailyGainers: 0,
+            dailyLosers: 0,
+            totalMarketCap: 0
+        });
 
         return {
-            totalValue,
-            totalInvested,
-            totalPnL,
-            totalPnLPercentage,
-            positiveAssets,
-            negativeAssets,
-            totalAssets: filteredAssets.length
+            totalAssets: filteredAssets.length,
+            dailyGainers: stats.dailyGainers,
+            dailyLosers: stats.dailyLosers,
+            totalMarketCap: stats.totalMarketCap
         };
     };
 
@@ -607,8 +611,8 @@ const Assets = () => {
                         </div>
                     </div>
 
-                    {/* Analysis Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {/* Assets Analyzed Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -621,12 +625,13 @@ const Assets = () => {
                             </div>
                         </div>
 
+                        {/* Daily Gainers Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-400">Market Leaders</p>
-                                    <p className="text-2xl font-bold text-success-400">{stats.positiveAssets}</p>
-                                    <p className="text-xs text-gray-500">positive performers</p>
+                                    <p className="text-sm text-gray-400">Daily Gainers</p>
+                                    <p className="text-2xl font-bold text-success-400">{stats.dailyGainers}</p>
+                                    <p className="text-xs text-gray-500">assets gaining in 24h</p>
                                 </div>
                                 <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
                                     <TrendingUp size={24} className="text-success-400" />
@@ -634,12 +639,13 @@ const Assets = () => {
                             </div>
                         </div>
 
+                        {/* Daily Losers Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-400">Market Laggards</p>
-                                    <p className="text-2xl font-bold text-danger-400">{stats.negativeAssets}</p>
-                                    <p className="text-xs text-gray-500">underperforming</p>
+                                    <p className="text-sm text-gray-400">Daily Losers</p>
+                                    <p className="text-2xl font-bold text-danger-400">{stats.dailyLosers}</p>
+                                    <p className="text-xs text-gray-500">assets losing in 24h</p>
                                 </div>
                                 <div className="w-12 h-12 bg-danger-600/20 rounded-lg flex items-center justify-center">
                                     <TrendingDown size={24} className="text-danger-400" />
@@ -647,15 +653,16 @@ const Assets = () => {
                             </div>
                         </div>
 
+                        {/* Total Market Cap Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-400">Analysis Tools</p>
-                                    <p className="text-2xl font-bold text-primary-400">RSI, MACD</p>
-                                    <p className="text-xs text-gray-500">technical indicators</p>
+                                    <p className="text-sm text-gray-400">Total Market Cap</p>
+                                    <p className="text-2xl font-bold text-primary-400">{formatMarketCap(stats.totalMarketCap)}</p>
+                                    <p className="text-xs text-gray-500">of filtered assets</p>
                                 </div>
                                 <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                                    <Activity size={24} className="text-primary-400" />
+                                    <PieChart size={24} className="text-primary-400" />
                                 </div>
                             </div>
                         </div>
@@ -677,8 +684,8 @@ const Assets = () => {
                             <button
                                 onClick={() => setViewMode('grid')}
                                 className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                                    ? 'bg-primary-600 text-white'
-                                    : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                                        ? 'bg-primary-600 text-white'
+                                        : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
                                     }`}
                             >
                                 <BarChart3 size={16} />
@@ -686,8 +693,8 @@ const Assets = () => {
                             <button
                                 onClick={() => setViewMode('list')}
                                 className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                                    ? 'bg-primary-600 text-white'
-                                    : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                                        ? 'bg-primary-600 text-white'
+                                        : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
                                     }`}
                             >
                                 <PieChart size={16} />

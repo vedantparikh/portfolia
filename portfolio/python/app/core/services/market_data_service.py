@@ -6,6 +6,7 @@ Handles fetching real-time market data from yfinance without database storage.
 import asyncio
 import logging
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
@@ -224,6 +225,27 @@ class MarketDataService:
             logger.error("Error getting current price for %s: %s", symbol, e)
             return None
 
+    async def get_current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
+        """Fetches current prices for a list of symbols in a single batch."""
+        if not symbols:
+            return {}
+
+        # yfinance can fetch multiple tickers at once efficiently
+        tickers_str = " ".join(symbols)
+        data = yf.Tickers(tickers_str)
+
+        prices = {}
+        for ticker in data.tickers.values():
+            price = (
+                    ticker.info.get("currentPrice")
+                    or ticker.info.get("regularMarketPrice")
+                    or ticker.info.get("previousClose")
+                    or ticker.info.get("open")
+            )
+            if price:
+                prices[ticker.ticker] = Decimal(str(price))
+        return prices
+
     async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
         """
         Get the closing price of the last available trading day.
@@ -257,6 +279,51 @@ class MarketDataService:
         except Exception as e:
             logger.error("Error getting yesterday's closing price for %s: %s", symbol, e)
             return None
+
+    async def get_yesterdays_closes(self, symbols: List[str]) -> Dict[str, Decimal]:
+        """
+        Fetches the previous trading day's closing prices for a list of symbols.
+        """
+        if not symbols:
+            return {}
+
+        # yfinance is a synchronous library. To avoid blocking the server,
+        # we run it in a separate thread.
+        def fetch_data_sync():
+            # Fetch data for the last 2 days to reliably get the previous day's close.
+            data = yf.download(
+                tickers=" ".join(symbols),
+                period="2d",
+                interval="1d",
+                progress=False,  # Hides the download progress bar
+            )
+            return data
+
+        try:
+            # Run the synchronous download function in a thread pool
+            data = await asyncio.to_thread(fetch_data_sync)
+
+            if data.empty:
+                return {}
+
+            # The 'Close' column contains the closing prices.
+            close_prices = data['Close']
+
+            # For a 2-day period, the first row (index 0) is the previous day's close.
+            # The last row (index -1) would be today's potentially incomplete data.
+            previous_day_closes = close_prices.iloc[0]
+
+            # Convert the result to a dictionary, automatically dropping any symbols
+            # that didn't have data (NaN values).
+            valid_closes = previous_day_closes.dropna().to_dict()
+
+            # Convert the float values from yfinance into Decimal for precision
+            return {symbol: Decimal(str(price)) for symbol, price in valid_closes.items()}
+
+        except Exception as e:
+            # Log the error if the download fails for any reason
+            print(f"Error fetching yesterday's closes: {e}")
+            return {}
 
     async def get_multiple_current_prices(
             self, symbols: List[str]

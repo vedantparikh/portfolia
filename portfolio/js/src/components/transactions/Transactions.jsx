@@ -1,16 +1,12 @@
 import {
   Activity,
   ArrowLeft,
-  BarChart3,
-  DollarSign,
   Download,
   FileText,
   Filter,
   Plus,
   RefreshCw,
   Search,
-  TrendingDown,
-  TrendingUp,
   Zap,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -41,7 +37,6 @@ const Transactions = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [showParsedData, setShowParsedData] = useState(false);
   const [parsedData, setParsedData] = useState(null);
@@ -77,8 +72,8 @@ const Transactions = () => {
 
       // Load transactions
       const transactionsResponse = await transactionAPI.getTransactions({
-        limit: 100,
-        order_by: "created_at",
+        limit: 10000,
+        order_by: "transaction_date",
         order: "desc",
       });
       setTransactions(transactionsResponse || []);
@@ -314,43 +309,6 @@ const Transactions = () => {
     }
   };
 
-  const getTransactionStats = () => {
-    const totalTransactions = filteredTransactions.length;
-    const buyTransactions = filteredTransactions.filter(
-      (t) => t.transaction_type === "buy" || t.type === "buy"
-    ).length;
-    const sellTransactions = filteredTransactions.filter(
-      (t) => t.transaction_type === "sell" || t.type === "sell"
-    ).length;
-    const totalVolume = filteredTransactions.reduce((sum, t) => {
-      const amount = parseFloat(t.total_amount) || 0;
-      return sum + Math.abs(amount);
-    }, 0);
-    const totalBuys = filteredTransactions
-      .filter((t) => t.transaction_type === "buy" || t.type === "buy")
-      .reduce((sum, t) => {
-        const amount = parseFloat(t.total_amount) || 0;
-        return sum + Math.abs(amount);
-      }, 0);
-    const totalSells = filteredTransactions
-      .filter((t) => t.transaction_type === "sell" || t.type === "sell")
-      .reduce((sum, t) => {
-        const amount = parseFloat(t.total_amount) || 0;
-        return sum + Math.abs(amount);
-      }, 0);
-
-    return {
-      totalTransactions,
-      buyTransactions,
-      sellTransactions,
-      totalVolume,
-      totalBuys,
-      totalSells,
-    };
-  };
-
-  const stats = getTransactionStats();
-
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
@@ -378,7 +336,7 @@ const Transactions = () => {
         onSearchChange={setSearchQuery}
         showFilters={showFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
-        stats={stats}
+        stats={null}
         recentTransactions={filteredTransactions.slice(0, 5)}
         onQuickAction={handleQuickAction}
       />
@@ -464,96 +422,6 @@ const Transactions = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="input-field w-full pl-10 pr-4 py-3"
               />
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            <div className="card p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Total Transactions</p>
-                  <p className="text-2xl font-bold text-gray-100">
-                    {stats.totalTransactions}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                  <Activity size={24} className="text-primary-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Buy Orders</p>
-                  <p className="text-2xl font-bold text-success-400">
-                    {stats.buyTransactions}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                  <TrendingUp size={24} className="text-success-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Sell Orders</p>
-                  <p className="text-2xl font-bold text-danger-400">
-                    {stats.sellTransactions}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-danger-600/20 rounded-lg flex items-center justify-center">
-                  <TrendingDown size={24} className="text-danger-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Total Volume</p>
-                  <p className="text-2xl font-bold text-gray-100">
-                    $
-                    {(stats.totalVolume || 0).toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                  <DollarSign size={24} className="text-warning-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-400">Net Flow</p>
-                  <p
-                    className={`text-2xl font-bold ${
-                      stats.totalSells - stats.totalBuys >= 0
-                        ? "text-success-400"
-                        : "text-danger-400"
-                    }`}
-                  >
-                    $
-                    {(stats.totalSells - stats.totalBuys).toLocaleString(
-                      "en-US",
-                      {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      }
-                    )}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-gray-600/20 rounded-lg flex items-center justify-center">
-                  <BarChart3 size={24} className="text-gray-400" />
-                </div>
-              </div>
             </div>
           </div>
 

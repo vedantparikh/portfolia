@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bell,
   Bookmark,
-  DollarSign,
   Menu,
   Plus,
   RefreshCw,
@@ -15,12 +14,7 @@ import {
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  marketAPI,
-  portfolioAPI,
-  transactionAPI,
-  watchlistAPI,
-} from "../../services/api";
+import { marketAPI, portfolioAPI, transactionAPI } from "../../services/api";
 import {
   formatCurrency,
   formatDateTime,
@@ -30,19 +24,15 @@ import {
 } from "../../utils/formatters";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { Sidebar } from "../shared";
-import MarketInsights from "./MarketInsights";
-import PortfolioPerformance from "./PortfolioPerformance";
+
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     portfolios: [],
     recentTransactions: [],
     topAssets: [],
-    watchlists: [],
-    marketStats: null,
     loading: true,
   });
 
@@ -67,25 +57,20 @@ const Dashboard = () => {
       setDashboardData((prev) => ({ ...prev, loading: true }));
 
       // Load all data in parallel
-      const [
-        portfoliosResponse,
-        transactionsResponse,
-        assetsResponse,
-        watchlistsResponse,
-      ] = await Promise.allSettled([
-        portfolioAPI.getPortfolios(),
-        transactionAPI.getTransactions({
-          limit: 5,
-          order_by: "created_at",
-          order: "desc",
-        }),
-        marketAPI.getAssets({
-          limit: 10,
-          sort: "market_cap",
-          include_detail: true,
-        }),
-        watchlistAPI.getWatchlists(true),
-      ]);
+      const [portfoliosResponse, transactionsResponse, assetsResponse] =
+        await Promise.allSettled([
+          portfolioAPI.getPortfolios(),
+          transactionAPI.getTransactions({
+            limit: 5,
+            order_by: "transaction_date",
+            order: "desc",
+          }),
+          marketAPI.getAssets({
+            limit: 10,
+            sort: "market_cap",
+            include_detail: true,
+          }),
+        ]);
 
       const portfolios =
         portfoliosResponse.status === "fulfilled"
@@ -97,12 +82,8 @@ const Dashboard = () => {
           : [];
       const topAssets =
         assetsResponse.status === "fulfilled" ? assetsResponse.value || [] : [];
-      const watchlists =
-        watchlistsResponse.status === "fulfilled"
-          ? watchlistsResponse.value || []
-          : [];
 
-      // Calculate portfolio summaries
+      // Calculate portfolio summaries asynchronously
       const portfolioSummaries = await Promise.allSettled(
         portfolios.map((portfolio) =>
           portfolioAPI.getPortfolioSummary(portfolio.id)
@@ -121,65 +102,13 @@ const Dashboard = () => {
         portfolios: portfoliosWithStats,
         recentTransactions,
         topAssets,
-        watchlists,
-        marketStats: calculateMarketStats(topAssets),
         loading: false,
       });
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
+      toast.error("Failed to load dashboard data.");
       setDashboardData((prev) => ({ ...prev, loading: false }));
     }
-  };
-
-  const calculateMarketStats = (assets) => {
-    if (!assets || assets.length === 0) return null;
-
-    const totalMarketCap = assets.reduce(
-      (sum, asset) => sum + (asset.market_cap || 0),
-      0
-    );
-    const totalVolume = assets.reduce(
-      (sum, asset) => sum + (asset.total_volume || 0),
-      0
-    );
-    const gainers = assets.filter(
-      (asset) => (asset.price_change_percentage_24h || 0) > 0
-    ).length;
-    const losers = assets.filter(
-      (asset) => (asset.price_change_percentage_24h || 0) < 0
-    ).length;
-
-    return {
-      totalMarketCap,
-      totalVolume,
-      gainers,
-      losers,
-      totalAssets: assets.length,
-    };
-  };
-
-  const getTotalPortfolioValue = () => {
-    return dashboardData.portfolios.reduce((sum, portfolio) => {
-      return sum + (portfolio.stats?.total_value || 0);
-    }, 0);
-  };
-
-  const getTotalGainLoss = () => {
-    return dashboardData.portfolios.reduce((sum, portfolio) => {
-      const totalValue = portfolio.stats?.total_value || 0;
-      const totalCost = portfolio.stats?.total_cost || 0;
-      return sum + (totalValue - totalCost);
-    }, 0);
-  };
-
-  const getTotalGainLossPercent = () => {
-    const totalValue = getTotalPortfolioValue();
-    const totalCost = dashboardData.portfolios.reduce((sum, portfolio) => {
-      return sum + (portfolio.stats?.total_cost || 0);
-    }, 0);
-
-    if (totalCost === 0) return 0;
-    return ((totalValue - totalCost) / totalCost) * 100;
   };
 
   const handleRefresh = () => {
@@ -187,22 +116,22 @@ const Dashboard = () => {
     toast.success("Dashboard data refreshed");
   };
 
-  const handleQuickAction = (action) => {
-    switch (action) {
-      case "create-portfolio":
-        // Navigate to portfolio page or open modal
-        window.location.href = "/portfolio";
-        break;
-      case "create-transaction":
-        // Navigate to transactions page or open modal
-        window.location.href = "/transactions";
-        break;
-      case "refresh":
-        handleRefresh();
-        break;
-      default:
-        break;
-    }
+  // Helper component for displaying P&L stats to avoid repetitive code
+  const PnlDisplay = ({ value, percent, label }) => {
+    const isPositive = value >= 0;
+    const valueColor = isPositive ? "text-success-400" : "text-danger-400";
+
+    return (
+      <div className="text-right">
+        <p className={`font-medium ${valueColor}`}>
+          {formatCurrency(value, { showSign: true })}
+        </p>
+        <p className={`text-sm ${valueColor}`}>
+          {formatPercentage(percent, { showSign: true })}
+        </p>
+        {label && <p className="text-xs text-gray-500 mt-1">{label}</p>}
+      </div>
+    );
   };
 
   return (
@@ -220,7 +149,6 @@ const Dashboard = () => {
         currentView="dashboard"
         portfolios={dashboardData.portfolios}
         onRefresh={handleRefresh}
-        onQuickAction={handleQuickAction}
         isMobile={isMobile}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -301,173 +229,6 @@ const Dashboard = () => {
               </div>
             ) : (
               <>
-                {/* Portfolio Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">
-                          Total Portfolio Value
-                        </p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          ${getTotalPortfolioValue().toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                        <TrendingUp size={24} className="text-primary-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span
-                        className={
-                          getTotalGainLossPercent() >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }
-                      >
-                        {getTotalGainLossPercent() >= 0 ? "+" : ""}
-                        {formatPercentage(getTotalGainLossPercent())}%
-                      </span>
-                      <span className="text-gray-400 ml-2">total return</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Total Gain/Loss</p>
-                        <p
-                          className={`text-2xl font-bold ${
-                            getTotalGainLoss() >= 0
-                              ? "text-success-400"
-                              : "text-danger-400"
-                          }`}
-                        >
-                          {getTotalGainLoss() >= 0 ? "+" : ""}$
-                          {getTotalGainLoss().toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                        {getTotalGainLoss() >= 0 ? (
-                          <TrendingUp size={24} className="text-success-400" />
-                        ) : (
-                          <TrendingDown size={24} className="text-danger-400" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">
-                        across all portfolios
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">
-                          Active Portfolios
-                        </p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {dashboardData.portfolios.length}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                        <Wallet size={24} className="text-warning-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">managed portfolios</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Watchlists</p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {dashboardData.watchlists.length}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-gray-600/20 rounded-lg flex items-center justify-center">
-                        <Bookmark size={24} className="text-gray-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">tracking lists</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Market Overview */}
-                {dashboardData.marketStats && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Market Cap</p>
-                          <p className="text-2xl font-bold text-gray-100">
-                            $
-                            {(
-                              dashboardData.marketStats.totalMarketCap / 1e12
-                            ).toFixed(2)}
-                            T
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                          <DollarSign size={24} className="text-primary-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">24h Volume</p>
-                          <p className="text-2xl font-bold text-gray-100">
-                            $
-                            {(
-                              dashboardData.marketStats.totalVolume / 1e9
-                            ).toFixed(2)}
-                            B
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                          <Activity size={24} className="text-success-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Gainers</p>
-                          <p className="text-2xl font-bold text-success-400">
-                            {dashboardData.marketStats.gainers}
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                          <TrendingUp size={24} className="text-success-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Losers</p>
-                          <p className="text-2xl font-bold text-danger-400">
-                            {dashboardData.marketStats.losers}
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-danger-600/20 rounded-lg flex items-center justify-center">
-                          <TrendingDown size={24} className="text-danger-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                   {/* Portfolio Overview */}
@@ -501,54 +262,65 @@ const Dashboard = () => {
                       </div>
                     ) : (
                       <div className="space-y-4">
+                        <div className="hidden md:grid grid-cols-4 gap-4 px-4 text-xs text-gray-400 font-medium">
+                          <span>Portfolio</span>
+                          <span className="text-right">Total Value</span>
+                          <span className="text-right">Today's P&L</span>
+                          <span className="text-right">Total P&L</span>
+                        </div>
                         {dashboardData.portfolios
                           .slice(0, 3)
                           .map((portfolio) => (
                             <div
                               key={portfolio.id}
-                              className="flex items-center justify-between p-4 bg-dark-800 rounded-lg"
+                              className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 bg-dark-800 rounded-lg"
                             >
-                              <div>
-                                <h4 className="font-medium text-gray-100">
+                              <div className="col-span-2 md:col-span-1">
+                                <h4 className="font-medium text-gray-100 truncate">
                                   {portfolio.name}
                                 </h4>
                                 <p className="text-sm text-gray-400">
-                                  {portfolio.description || "No description"}
+                                  {portfolio.stats?.total_assets ?? 0} Assets
                                 </p>
                               </div>
+
                               <div className="text-right">
                                 <p className="font-semibold text-gray-100">
-                                  $
-                                  {(
-                                    portfolio.stats?.total_value || 0
-                                  ).toLocaleString()}
+                                  {formatCurrency(
+                                    portfolio.stats?.total_current_value
+                                  )}
                                 </p>
-                                <p
-                                  className={`text-sm ${
-                                    (portfolio.stats?.total_value || 0) >=
-                                    (portfolio.stats?.total_cost || 0)
-                                      ? "text-success-400"
-                                      : "text-danger-400"
-                                  }`}
-                                >
-                                  {portfolio.stats?.total_value &&
-                                  portfolio.stats?.total_cost
-                                    ? `${(
-                                        ((portfolio.stats.total_value -
-                                          portfolio.stats.total_cost) /
-                                          portfolio.stats.total_cost) *
-                                        100
-                                      ).toFixed(2)}%`
-                                    : "0.00%"}
+                                <p className="text-xs text-gray-500 mt-1 md:hidden">
+                                  Total Value
                                 </p>
+                              </div>
+
+                              <PnlDisplay
+                                value={portfolio.stats?.today_pnl ?? 0}
+                                percent={
+                                  portfolio.stats?.today_pnl_percent ?? 0
+                                }
+                                label="Today's P&L"
+                              />
+
+                              <div className="hidden md:block">
+                                <PnlDisplay
+                                  value={
+                                    portfolio.stats?.total_unrealized_pnl ?? 0
+                                  }
+                                  percent={
+                                    portfolio.stats
+                                      ?.total_unrealized_pnl_percent ?? 0
+                                  }
+                                />
                               </div>
                             </div>
                           ))}
                         {dashboardData.portfolios.length > 3 && (
-                          <div className="text-center">
+                          <div className="text-center mt-4">
                             <a
                               href="/portfolio"
-                              className="text-primary-400 hover:text-primary-300 text-sm"
+                              className="text-primary-400 hover:text-primary-300 text-sm font-medium"
                             >
                               View all {dashboardData.portfolios.length}{" "}
                               portfolios →
@@ -623,17 +395,12 @@ const Dashboard = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-3">
-                              <p className="text-sm text-gray-400">
-                                {transaction.portfolio.name}
-                              </p>
-                            </div>
                             <div className="text-right">
                               <p
                                 className={`text-sm font-medium ${
                                   transaction.transaction_type === "buy"
-                                    ? "text-success-400"
-                                    : "text-danger-400"
+                                    ? "text-danger-400"
+                                    : "text-success-400"
                                 }`}
                               >
                                 {transaction.transaction_type === "buy"
@@ -653,9 +420,8 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Top Assets */}
                 {dashboardData.topAssets.length > 0 && (
-                  <div className="card p-6">
+                  <div className="card p-6 mb-8">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-100">
                         Top Market Assets
@@ -669,63 +435,74 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                      {dashboardData.topAssets.slice(0, 5).map((asset) => (
+                      {dashboardData.topAssets.map((asset) => (
                         <div
                           key={asset.id}
-                          className="p-4 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors cursor-pointer"
+                          className="p-4 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors cursor-pointer flex flex-col justify-between"
                         >
-                          {/* --- Top Section --- */}
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-gray-100">
-                              {asset.symbol}
-                            </h4>
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                (asset.detail.price_change_percentage_24h ||
-                                  0) >= 0
-                                  ? "bg-success-400/20 text-success-400"
-                                  : "bg-danger-400/20 text-danger-400"
-                              }`}
-                            >
-                              {formatPercentage(
-                                asset.detail.price_change_percentage_24h,
-                                {
-                                  precision: 2,
-                                  showSign: true,
-                                }
-                              )}
-                            </span>
+                          <div>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1 pr-2 min-w-0">
+                                <h4 className="font-medium text-gray-100 truncate">
+                                  {asset.symbol}
+                                </h4>
+                                <p className="text-xs text-gray-400 truncate">
+                                  {asset.name}
+                                </p>
+                              </div>
+                              <span
+                                className={`text-xs px-2 py-1 rounded shrink-0 ${
+                                  (asset.detail?.price_change_percentage_24h ??
+                                    0) >= 0
+                                    ? "bg-success-400/20 text-success-400"
+                                    : "bg-danger-400/20 text-danger-400"
+                                }`}
+                              >
+                                {formatPercentage(
+                                  asset.detail?.price_change_percentage_24h,
+                                  {
+                                    precision: 2,
+                                    showSign: true,
+                                  }
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-lg font-semibold text-gray-100">
+                              {formatCurrency(asset.detail?.current_price)}
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-400 mb-1">
-                            {asset.name}
-                          </p>
-                          <p className="text-lg font-semibold text-gray-100">
-                            {formatCurrency(asset.detail.current_price)}
-                          </p>
 
-                          {/* --- NEW STATS SECTION --- */}
                           <div className="mt-4 pt-4 border-t border-dark-700 space-y-1">
-                            {/* 24h Volume */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">Vol (24h)</span>
+                              <span className="text-gray-400">Mkt Cap</span>
                               <span className="font-medium text-gray-100">
-                                {formatVolume(asset.detail.volume_24h)}
+                                {asset.detail?.market_cap
+                                  ? formatVolume(asset.detail.market_cap)
+                                  : "N/A"}
                               </span>
                             </div>
 
-                            {/* 52w High */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">52w H</span>
+                              <span className="text-gray-400">P/E Ratio</span>
                               <span className="font-medium text-gray-100">
-                                {formatCurrency(asset.detail.high_52w)}
+                                {asset.detail?.trailing_PE
+                                  ? Number(asset.detail.trailing_PE).toFixed(2)
+                                  : "N/A"}
                               </span>
                             </div>
 
-                            {/* 52w Low */}
+                            {/* --- ADDED 52 WEEK RANGE LINE --- */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">52w L</span>
+                              <span className="text-gray-400">52w Range</span>
                               <span className="font-medium text-gray-100">
-                                {formatCurrency(asset.detail.low_52w)}
+                                {asset.detail?.low_52w && asset.detail?.high_52w
+                                  ? `${formatCurrency(asset.detail.low_52w, {
+                                      compact: true,
+                                    })} - ${formatCurrency(
+                                      asset.detail.high_52w,
+                                      { compact: true }
+                                    )}`
+                                  : "N/A"}
                               </span>
                             </div>
                           </div>
@@ -790,19 +567,6 @@ const Dashboard = () => {
                       </p>
                     </a>
                   </div>
-                </div>
-
-                {/* Advanced Dashboard Sections */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* Portfolio Performance */}
-                  {dashboardData.portfolios.length > 0 && (
-                    <PortfolioPerformance
-                      portfolios={dashboardData.portfolios}
-                    />
-                  )}
-
-                  {/* Market Insights */}
-                  <MarketInsights />
                 </div>
               </>
             )}

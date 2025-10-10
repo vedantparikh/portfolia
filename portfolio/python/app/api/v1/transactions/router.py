@@ -56,7 +56,7 @@ async def get_user_transactions(
         current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
         portfolio_id: Optional[int] = Query(None, description="Filter by a specific portfolio ID"),
-        limit: int = Query(100, ge=1, le=1000),
+        limit: int = Query(100, ge=1, le=10000),
         offset: int = Query(0, ge=0),
 ):
     """

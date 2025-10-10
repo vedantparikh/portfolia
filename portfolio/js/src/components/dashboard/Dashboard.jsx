@@ -14,11 +14,7 @@ import {
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  marketAPI,
-  portfolioAPI,
-  transactionAPI,
-} from "../../services/api";
+import { marketAPI, portfolioAPI, transactionAPI } from "../../services/api";
 import {
   formatCurrency,
   formatDateTime,
@@ -28,9 +24,9 @@ import {
 } from "../../utils/formatters";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { Sidebar } from "../shared";
+
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [dashboardData, setDashboardData] = useState({
@@ -61,23 +57,20 @@ const Dashboard = () => {
       setDashboardData((prev) => ({ ...prev, loading: true }));
 
       // Load all data in parallel
-      const [
-        portfoliosResponse,
-        transactionsResponse,
-        assetsResponse,
-      ] = await Promise.allSettled([
-        portfolioAPI.getPortfolios(),
-        transactionAPI.getTransactions({
-          limit: 5,
-          order_by: "transaction_date",
-          order: "desc",
-        }),
-        marketAPI.getAssets({
-          limit: 10,
-          sort: "market_cap",
-          include_detail: true,
-        })
-      ]);
+      const [portfoliosResponse, transactionsResponse, assetsResponse] =
+        await Promise.allSettled([
+          portfolioAPI.getPortfolios(),
+          transactionAPI.getTransactions({
+            limit: 5,
+            order_by: "transaction_date",
+            order: "desc",
+          }),
+          marketAPI.getAssets({
+            limit: 10,
+            sort: "market_cap",
+            include_detail: true,
+          }),
+        ]);
 
       const portfolios =
         portfoliosResponse.status === "fulfilled"
@@ -90,7 +83,7 @@ const Dashboard = () => {
       const topAssets =
         assetsResponse.status === "fulfilled" ? assetsResponse.value || [] : [];
 
-      // Calculate portfolio summaries
+      // Calculate portfolio summaries asynchronously
       const portfolioSummaries = await Promise.allSettled(
         portfolios.map((portfolio) =>
           portfolioAPI.getPortfolioSummary(portfolio.id)
@@ -113,6 +106,7 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
+      toast.error("Failed to load dashboard data.");
       setDashboardData((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -122,22 +116,22 @@ const Dashboard = () => {
     toast.success("Dashboard data refreshed");
   };
 
-  const handleQuickAction = (action) => {
-    switch (action) {
-      case "create-portfolio":
-        // Navigate to portfolio page or open modal
-        window.location.href = "/portfolio";
-        break;
-      case "create-transaction":
-        // Navigate to transactions page or open modal
-        window.location.href = "/transactions";
-        break;
-      case "refresh":
-        handleRefresh();
-        break;
-      default:
-        break;
-    }
+  // Helper component for displaying P&L stats to avoid repetitive code
+  const PnlDisplay = ({ value, percent, label }) => {
+    const isPositive = value >= 0;
+    const valueColor = isPositive ? "text-success-400" : "text-danger-400";
+
+    return (
+      <div className="text-right">
+        <p className={`font-medium ${valueColor}`}>
+          {formatCurrency(value, { showSign: true })}
+        </p>
+        <p className={`text-sm ${valueColor}`}>
+          {formatPercentage(percent, { showSign: true })}
+        </p>
+        {label && <p className="text-xs text-gray-500 mt-1">{label}</p>}
+      </div>
+    );
   };
 
   return (
@@ -155,7 +149,6 @@ const Dashboard = () => {
         currentView="dashboard"
         portfolios={dashboardData.portfolios}
         onRefresh={handleRefresh}
-        onQuickAction={handleQuickAction}
         isMobile={isMobile}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -236,7 +229,6 @@ const Dashboard = () => {
               </div>
             ) : (
               <>
-
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                   {/* Portfolio Overview */}
@@ -270,54 +262,65 @@ const Dashboard = () => {
                       </div>
                     ) : (
                       <div className="space-y-4">
+                        <div className="hidden md:grid grid-cols-4 gap-4 px-4 text-xs text-gray-400 font-medium">
+                          <span>Portfolio</span>
+                          <span className="text-right">Total Value</span>
+                          <span className="text-right">Today's P&L</span>
+                          <span className="text-right">Total P&L</span>
+                        </div>
                         {dashboardData.portfolios
                           .slice(0, 3)
                           .map((portfolio) => (
                             <div
                               key={portfolio.id}
-                              className="flex items-center justify-between p-4 bg-dark-800 rounded-lg"
+                              className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 bg-dark-800 rounded-lg"
                             >
-                              <div>
-                                <h4 className="font-medium text-gray-100">
+                              <div className="col-span-2 md:col-span-1">
+                                <h4 className="font-medium text-gray-100 truncate">
                                   {portfolio.name}
                                 </h4>
                                 <p className="text-sm text-gray-400">
-                                  {portfolio.description || "No description"}
+                                  {portfolio.stats?.total_assets ?? 0} Assets
                                 </p>
                               </div>
+
                               <div className="text-right">
                                 <p className="font-semibold text-gray-100">
-                                  $
-                                  {(
-                                    portfolio.stats?.total_value || 0
-                                  ).toLocaleString()}
+                                  {formatCurrency(
+                                    portfolio.stats?.total_current_value
+                                  )}
                                 </p>
-                                <p
-                                  className={`text-sm ${
-                                    (portfolio.stats?.total_value || 0) >=
-                                    (portfolio.stats?.total_cost || 0)
-                                      ? "text-success-400"
-                                      : "text-danger-400"
-                                  }`}
-                                >
-                                  {portfolio.stats?.total_value &&
-                                  portfolio.stats?.total_cost
-                                    ? `${(
-                                        ((portfolio.stats.total_value -
-                                          portfolio.stats.total_cost) /
-                                          portfolio.stats.total_cost) *
-                                        100
-                                      ).toFixed(2)}%`
-                                    : "0.00%"}
+                                <p className="text-xs text-gray-500 mt-1 md:hidden">
+                                  Total Value
                                 </p>
+                              </div>
+
+                              <PnlDisplay
+                                value={portfolio.stats?.today_pnl ?? 0}
+                                percent={
+                                  portfolio.stats?.today_pnl_percent ?? 0
+                                }
+                                label="Today's P&L"
+                              />
+
+                              <div className="hidden md:block">
+                                <PnlDisplay
+                                  value={
+                                    portfolio.stats?.total_unrealized_pnl ?? 0
+                                  }
+                                  percent={
+                                    portfolio.stats
+                                      ?.total_unrealized_pnl_percent ?? 0
+                                  }
+                                />
                               </div>
                             </div>
                           ))}
                         {dashboardData.portfolios.length > 3 && (
-                          <div className="text-center">
+                          <div className="text-center mt-4">
                             <a
                               href="/portfolio"
-                              className="text-primary-400 hover:text-primary-300 text-sm"
+                              className="text-primary-400 hover:text-primary-300 text-sm font-medium"
                             >
                               View all {dashboardData.portfolios.length}{" "}
                               portfolios →
@@ -392,17 +395,12 @@ const Dashboard = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-3">
-                              <p className="text-sm text-gray-400">
-                                {transaction.portfolio.name}
-                              </p>
-                            </div>
                             <div className="text-right">
                               <p
                                 className={`text-sm font-medium ${
                                   transaction.transaction_type === "buy"
-                                    ? "text-success-400"
-                                    : "text-danger-400"
+                                    ? "text-danger-400"
+                                    : "text-success-400"
                                 }`}
                               >
                                 {transaction.transaction_type === "buy"
@@ -422,9 +420,8 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Top Assets */}
                 {dashboardData.topAssets.length > 0 && (
-                  <div className="card p-6">
+                  <div className="card p-6 mb-8">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-100">
                         Top Market Assets
@@ -438,63 +435,74 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                      {dashboardData.topAssets.slice(0, 5).map((asset) => (
+                      {dashboardData.topAssets.map((asset) => (
                         <div
                           key={asset.id}
-                          className="p-4 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors cursor-pointer"
+                          className="p-4 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors cursor-pointer flex flex-col justify-between"
                         >
-                          {/* --- Top Section --- */}
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-gray-100">
-                              {asset.symbol}
-                            </h4>
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                (asset.detail.price_change_percentage_24h ||
-                                  0) >= 0
-                                  ? "bg-success-400/20 text-success-400"
-                                  : "bg-danger-400/20 text-danger-400"
-                              }`}
-                            >
-                              {formatPercentage(
-                                asset.detail.price_change_percentage_24h,
-                                {
-                                  precision: 2,
-                                  showSign: true,
-                                }
-                              )}
-                            </span>
+                          <div>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1 pr-2 min-w-0">
+                                <h4 className="font-medium text-gray-100 truncate">
+                                  {asset.symbol}
+                                </h4>
+                                <p className="text-xs text-gray-400 truncate">
+                                  {asset.name}
+                                </p>
+                              </div>
+                              <span
+                                className={`text-xs px-2 py-1 rounded shrink-0 ${
+                                  (asset.detail?.price_change_percentage_24h ??
+                                    0) >= 0
+                                    ? "bg-success-400/20 text-success-400"
+                                    : "bg-danger-400/20 text-danger-400"
+                                }`}
+                              >
+                                {formatPercentage(
+                                  asset.detail?.price_change_percentage_24h,
+                                  {
+                                    precision: 2,
+                                    showSign: true,
+                                  }
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-lg font-semibold text-gray-100">
+                              {formatCurrency(asset.detail?.current_price)}
+                            </p>
                           </div>
-                          <p className="text-sm text-gray-400 mb-1">
-                            {asset.name}
-                          </p>
-                          <p className="text-lg font-semibold text-gray-100">
-                            {formatCurrency(asset.detail.current_price)}
-                          </p>
 
-                          {/* --- NEW STATS SECTION --- */}
                           <div className="mt-4 pt-4 border-t border-dark-700 space-y-1">
-                            {/* 24h Volume */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">Vol (24h)</span>
+                              <span className="text-gray-400">Mkt Cap</span>
                               <span className="font-medium text-gray-100">
-                                {formatVolume(asset.detail.volume_24h)}
+                                {asset.detail?.market_cap
+                                  ? formatVolume(asset.detail.market_cap)
+                                  : "N/A"}
                               </span>
                             </div>
 
-                            {/* 52w High */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">52w H</span>
+                              <span className="text-gray-400">P/E Ratio</span>
                               <span className="font-medium text-gray-100">
-                                {formatCurrency(asset.detail.high_52w)}
+                                {asset.detail?.trailing_PE
+                                  ? Number(asset.detail.trailing_PE).toFixed(2)
+                                  : "N/A"}
                               </span>
                             </div>
 
-                            {/* 52w Low */}
+                            {/* --- ADDED 52 WEEK RANGE LINE --- */}
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-gray-400">52w L</span>
+                              <span className="text-gray-400">52w Range</span>
                               <span className="font-medium text-gray-100">
-                                {formatCurrency(asset.detail.low_52w)}
+                                {asset.detail?.low_52w && asset.detail?.high_52w
+                                  ? `${formatCurrency(asset.detail.low_52w, {
+                                      compact: true,
+                                    })} - ${formatCurrency(
+                                      asset.detail.high_52w,
+                                      { compact: true }
+                                    )}`
+                                  : "N/A"}
                               </span>
                             </div>
                           </div>
@@ -560,7 +568,6 @@ const Dashboard = () => {
                     </a>
                   </div>
                 </div>
-
               </>
             )}
           </div>

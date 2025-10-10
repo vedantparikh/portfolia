@@ -280,6 +280,10 @@ const ParsedDataTable = ({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-auto flex-1">
           {parsedData.metadata?.warnings &&
             parsedData.metadata.warnings.length > 0 && (
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
@@ -298,10 +302,6 @@ const ParsedDataTable = ({
                 </div>
               </div>
             )}
-        </div>
-
-        {/* Table */}
-        <div className="overflow-auto flex-1">
           <table className="w-full">
             <thead className="bg-gray-700 sticky top-0">
               <tr>
@@ -341,9 +341,8 @@ const ParsedDataTable = ({
               {filteredTransactions.map((transaction, index) => (
                 <tr
                   key={transaction.id || index}
-                  className={`hover:bg-gray-700/50 ${
-                    !transaction.asset_id ? "bg-danger-900/20" : ""
-                  }`}
+                  className={`hover:bg-gray-700/50 ${!transaction.asset_id ? "bg-danger-900/20" : ""
+                    }`}
                 >
                   <td className="px-4 py-3 text-sm text-gray-300">
                     {editingRow === index ? (
@@ -384,13 +383,12 @@ const ParsedDataTable = ({
                       </select>
                     ) : (
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          transaction.transaction_type === "buy"
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.transaction_type === "buy"
                             ? "bg-success-500/20 text-success-400"
                             : transaction.transaction_type === "sell"
-                            ? "bg-danger-500/20 text-danger-400"
-                            : "bg-primary-500/20 text-primary-400"
-                        }`}
+                              ? "bg-danger-500/20 text-danger-400"
+                              : "bg-primary-500/20 text-primary-400"
+                          }`}
                       >
                         {transactionTypes.find(
                           (t) => t.value === transaction.transaction_type

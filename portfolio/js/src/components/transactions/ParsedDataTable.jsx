@@ -140,7 +140,7 @@ const ParsedDataTable = ({
     if (!selectedPortfolio) return toast.error("Please select a portfolio");
     if (transactions.length === 0) return toast.error("No transactions to save");
 
-    // Only consider transactions that have a symbol but no matched asset_id as errors.
+    // This pre-save validation is good to keep.
     const transactionsWithUnmatchedSymbol = transactions.filter(
       (txn) => txn.symbol && !txn.asset_id
     );
@@ -149,11 +149,6 @@ const ParsedDataTable = ({
       return toast.error(
         `Error: ${transactionsWithUnmatchedSymbol.length} transaction(s) have an unmatched symbol. Please correct them before importing.`
       );
-    }
-
-    const transactionsWithoutAssetId = transactions.filter((txn) => !txn.asset_id);
-    if (transactionsWithoutAssetId.length > 0) {
-      return toast.error(`Error: ${transactionsWithoutAssetId.length} transaction(s) are missing a matched asset.`);
     }
 
     setSaveErrors({});
@@ -173,28 +168,49 @@ const ParsedDataTable = ({
         notes: txn.notes || `Imported from ${parsedData.provider} statement`,
       }));
 
+      // The 'onSave' call now receives the actual API response.
       const response = await onSave(selectedPortfolio, transactionData);
 
-      const successfulTxIds = new Set(response.succeeded?.map(tx => tx.temp_id) || []);
-      const failedTxs = response.failed || [];
+      // --- NEW LOGIC STARTS HERE ---
 
+      // 1. Use the ACTUAL keys from your API response, defaulting to 0 for safety.
+      const totalSucceeded = response?.summary?.total_created ?? 0;
+      const totalFailed = response?.summary?.total_failed ?? 0;
+      const errors = response?.summary?.errors || [];
+
+      // 2. Check if the response format is what we expect.
+      if (!response?.summary) {
+        toast.error("Received an invalid response from the server.");
+        setIsSaving(false); // Stop the spinner
+        return;
+      }
+      
+      // 3. Process and display errors on the failed rows.
+      // This assumes your `errors` array contains objects like { temp_id: '...', error: '...' }
       const newSaveErrors = {};
-      failedTxs.forEach(tx => {
-        newSaveErrors[tx.temp_id] = tx.error || 'An unknown error occurred.';
+      errors.forEach(err => {
+        if (err.temp_id) {
+          newSaveErrors[err.temp_id] = err.error || 'An unknown error occurred.';
+        }
       });
-
       setSaveErrors(newSaveErrors);
-      setTransactions(prev => prev.filter(tx => !successfulTxIds.has(tx.id)));
 
-      if (response.summary?.total_succeeded > 0) {
-        toast.success(`${response.summary.total_succeeded} transaction(s) imported successfully.`);
+      // 4. Display toast messages based on the outcome.
+      if (totalSucceeded > 0) {
+        toast.success(`${totalSucceeded} transaction(s) imported successfully.`);
       }
-      if (response.summary?.total_failed > 0) {
-        toast.error(`${response.summary.total_failed} transaction(s) failed. Please review the highlighted rows.`);
+      if (totalFailed > 0) {
+        toast.error(`${totalFailed} transaction(s) failed. Please review the highlighted rows.`);
       }
-      if (response.summary?.total_succeeded > 0 && response.summary?.total_failed === 0) {
-        onCancel(); // Close the modal if everything was successful
+
+      // 5. IMPORTANT: Only close the modal on a FULL success.
+      // If any transactions failed, the modal stays open for the user to review.
+      if (totalSucceeded > 0 && totalFailed === 0) {
+        onCancel(); // Close the modal
+      } else if (totalSucceeded === 0 && totalFailed === 0) {
+        toast.success("Import process finished. No new transactions were added.");
       }
+
     } catch (error) {
       console.error("Failed to save transactions:", error);
       toast.error("A critical error occurred while saving. Please try again.");

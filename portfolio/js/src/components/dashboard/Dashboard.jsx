@@ -76,7 +76,7 @@ const Dashboard = () => {
         portfolioAPI.getPortfolios(),
         transactionAPI.getTransactions({
           limit: 5,
-          order_by: "created_at",
+          order_by: "transaction_date",
           order: "desc",
         }),
         marketAPI.getAssets({

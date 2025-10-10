@@ -261,7 +261,7 @@ async def delete_asset(
 @router.get("/search/{query}", response_model=AssetSearchResponse)
 async def search_assets(
         query: str,
-        limit: int = Query(20, ge=1, le=100, description="Maximum number of results"),
+        limit: int = Query(20, ge=1, le=1000, description="Maximum number of results"),
         current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
 ):

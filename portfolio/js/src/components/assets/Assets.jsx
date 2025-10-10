@@ -67,7 +67,7 @@ const Assets = () => {
                 console.log('[Assets] Portfolios response:', portfoliosResponse);
 
                 const response = await userAssetsAPI.getUserAssets({
-                    limit: 100,
+                    limit: 1000,
                     include_detail: true,
                     include_performance: true,
                     include_analytics: true

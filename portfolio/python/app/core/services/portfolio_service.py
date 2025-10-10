@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, desc, case, func
 from sqlalchemy.orm import Session
 
 from core.database.models import (
@@ -821,15 +821,48 @@ class PortfolioService:
             self, portfolio_id: int, asset_id: int
     ) -> Optional[PortfolioAsset]:
         """
-        Recalculates an asset's state (quantity, cost) from its entire transaction history.
-        This is the single source of truth for asset state.
+        Recalculates an asset's state from its transaction history using daily aggregation.
+        This method is robust against the intra-day order of transactions and is the
+        correct approach when timestamps are not available.
         """
-        all_transactions = (
-            self.db.query(Transaction)
+
+        # 1. Define aggregation expressions to sum up daily buys and sells.
+        # This creates SQL expressions like SUM(CASE WHEN ... THEN ... ELSE 0 END).
+        daily_buy_qty = func.sum(
+            case(
+                (Transaction.transaction_type == TransactionType.BUY, Transaction.quantity),
+                else_=Decimal("0"),
+            )
+        ).label("daily_buy_qty")
+
+        daily_buy_cost = func.sum(
+            case(
+                (Transaction.transaction_type == TransactionType.BUY, Transaction.total_amount),
+                else_=Decimal("0"),
+            )
+        ).label("daily_buy_cost")
+
+        daily_sell_qty = func.sum(
+            case(
+                (Transaction.transaction_type == TransactionType.SELL, Transaction.quantity),
+                else_=Decimal("0"),
+            )
+        ).label("daily_sell_qty")
+
+        # 2. Query the database for daily aggregated transaction data, sorted by date.
+        # The result will be one row for each day that had transactions for this asset.
+        daily_aggregates = (
+            self.db.query(
+                Transaction.transaction_date,
+                daily_buy_qty,
+                daily_buy_cost,
+                daily_sell_qty,
+            )
             .filter(
                 Transaction.portfolio_id == portfolio_id,
                 Transaction.asset_id == asset_id,
             )
+            .group_by(Transaction.transaction_date)
             .order_by(Transaction.transaction_date.asc())
             .all()
         )
@@ -837,21 +870,34 @@ class PortfolioService:
         current_quantity = Decimal("0")
         total_cost = Decimal("0")
 
-        for tx in all_transactions:
-            if tx.transaction_type == TransactionType.BUY:
-                current_quantity += tx.quantity
-                total_cost += tx.total_amount
-            elif tx.transaction_type == TransactionType.SELL:
-                if current_quantity > 0:
-                    cost_reduction_ratio = tx.quantity / current_quantity
-                    total_cost *= (Decimal("1") - cost_reduction_ratio)
-                current_quantity -= tx.quantity
+        # 3. Process each day's net change chronologically.
+        for day in daily_aggregates:
+            # STEP A: Add all of the day's buys to the running totals first.
+            # This establishes the correct quantity and cost basis BEFORE any sells are processed.
+            if day.daily_buy_qty > 0:
+                current_quantity += day.daily_buy_qty
+                total_cost += day.daily_buy_cost
 
+            # STEP B: Process the day's sells against the now-updated totals.
+            if day.daily_sell_qty > 0:
+                # Calculate cost reduction based on the proportion of shares sold.
+                # This correctly reduces the cost basis based on the assets held *before* the sale.
+                if current_quantity > 0:
+                    # Avoid division by zero if data is inconsistent (selling without holding)
+                    cost_reduction_ratio = day.daily_sell_qty / current_quantity
+                    total_cost *= (Decimal("1") - cost_reduction_ratio)
+
+                current_quantity -= day.daily_sell_qty
+
+        # 4. Update or delete the final PortfolioAsset record based on the final quantity.
         portfolio_asset = (
             self.db.query(PortfolioAsset)
             .filter_by(portfolio_id=portfolio_id, asset_id=asset_id)
             .first()
         )
+
+        # Ensure quantity is not negative due to bad data.
+        current_quantity = max(Decimal("0"), current_quantity)
 
         if current_quantity > 0:
             if not portfolio_asset:
@@ -865,8 +911,9 @@ class PortfolioService:
             portfolio_asset.cost_basis = total_cost / current_quantity
             await self._update_asset_pnl(portfolio_asset)
         elif portfolio_asset:
+            # If quantity is zero, the user no longer holds the asset.
             self.db.delete(portfolio_asset)
-            portfolio_asset = None  # Asset no longer exists
+            portfolio_asset = None
 
         self.db.commit()
         return portfolio_asset

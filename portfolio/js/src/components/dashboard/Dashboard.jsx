@@ -3,7 +3,6 @@ import {
   BarChart3,
   Bell,
   Bookmark,
-  DollarSign,
   Menu,
   Plus,
   RefreshCw,
@@ -19,7 +18,6 @@ import {
   marketAPI,
   portfolioAPI,
   transactionAPI,
-  watchlistAPI,
 } from "../../services/api";
 import {
   formatCurrency,
@@ -30,8 +28,6 @@ import {
 } from "../../utils/formatters";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { Sidebar } from "../shared";
-import MarketInsights from "./MarketInsights";
-import PortfolioPerformance from "./PortfolioPerformance";
 const Dashboard = () => {
   const { user } = useAuth();
   const { profile } = useAuth();
@@ -41,8 +37,6 @@ const Dashboard = () => {
     portfolios: [],
     recentTransactions: [],
     topAssets: [],
-    watchlists: [],
-    marketStats: null,
     loading: true,
   });
 
@@ -71,7 +65,6 @@ const Dashboard = () => {
         portfoliosResponse,
         transactionsResponse,
         assetsResponse,
-        watchlistsResponse,
       ] = await Promise.allSettled([
         portfolioAPI.getPortfolios(),
         transactionAPI.getTransactions({
@@ -83,8 +76,7 @@ const Dashboard = () => {
           limit: 10,
           sort: "market_cap",
           include_detail: true,
-        }),
-        watchlistAPI.getWatchlists(true),
+        })
       ]);
 
       const portfolios =
@@ -97,10 +89,6 @@ const Dashboard = () => {
           : [];
       const topAssets =
         assetsResponse.status === "fulfilled" ? assetsResponse.value || [] : [];
-      const watchlists =
-        watchlistsResponse.status === "fulfilled"
-          ? watchlistsResponse.value || []
-          : [];
 
       // Calculate portfolio summaries
       const portfolioSummaries = await Promise.allSettled(
@@ -121,65 +109,12 @@ const Dashboard = () => {
         portfolios: portfoliosWithStats,
         recentTransactions,
         topAssets,
-        watchlists,
-        marketStats: calculateMarketStats(topAssets),
         loading: false,
       });
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
       setDashboardData((prev) => ({ ...prev, loading: false }));
     }
-  };
-
-  const calculateMarketStats = (assets) => {
-    if (!assets || assets.length === 0) return null;
-
-    const totalMarketCap = assets.reduce(
-      (sum, asset) => sum + (asset.market_cap || 0),
-      0
-    );
-    const totalVolume = assets.reduce(
-      (sum, asset) => sum + (asset.total_volume || 0),
-      0
-    );
-    const gainers = assets.filter(
-      (asset) => (asset.price_change_percentage_24h || 0) > 0
-    ).length;
-    const losers = assets.filter(
-      (asset) => (asset.price_change_percentage_24h || 0) < 0
-    ).length;
-
-    return {
-      totalMarketCap,
-      totalVolume,
-      gainers,
-      losers,
-      totalAssets: assets.length,
-    };
-  };
-
-  const getTotalPortfolioValue = () => {
-    return dashboardData.portfolios.reduce((sum, portfolio) => {
-      return sum + (portfolio.stats?.total_value || 0);
-    }, 0);
-  };
-
-  const getTotalGainLoss = () => {
-    return dashboardData.portfolios.reduce((sum, portfolio) => {
-      const totalValue = portfolio.stats?.total_value || 0;
-      const totalCost = portfolio.stats?.total_cost || 0;
-      return sum + (totalValue - totalCost);
-    }, 0);
-  };
-
-  const getTotalGainLossPercent = () => {
-    const totalValue = getTotalPortfolioValue();
-    const totalCost = dashboardData.portfolios.reduce((sum, portfolio) => {
-      return sum + (portfolio.stats?.total_cost || 0);
-    }, 0);
-
-    if (totalCost === 0) return 0;
-    return ((totalValue - totalCost) / totalCost) * 100;
   };
 
   const handleRefresh = () => {
@@ -301,172 +236,6 @@ const Dashboard = () => {
               </div>
             ) : (
               <>
-                {/* Portfolio Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">
-                          Total Portfolio Value
-                        </p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          ${getTotalPortfolioValue().toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                        <TrendingUp size={24} className="text-primary-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span
-                        className={
-                          getTotalGainLossPercent() >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }
-                      >
-                        {getTotalGainLossPercent() >= 0 ? "+" : ""}
-                        {formatPercentage(getTotalGainLossPercent())}%
-                      </span>
-                      <span className="text-gray-400 ml-2">total return</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Total Gain/Loss</p>
-                        <p
-                          className={`text-2xl font-bold ${
-                            getTotalGainLoss() >= 0
-                              ? "text-success-400"
-                              : "text-danger-400"
-                          }`}
-                        >
-                          {getTotalGainLoss() >= 0 ? "+" : ""}$
-                          {getTotalGainLoss().toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                        {getTotalGainLoss() >= 0 ? (
-                          <TrendingUp size={24} className="text-success-400" />
-                        ) : (
-                          <TrendingDown size={24} className="text-danger-400" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">
-                        across all portfolios
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">
-                          Active Portfolios
-                        </p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {dashboardData.portfolios.length}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                        <Wallet size={24} className="text-warning-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">managed portfolios</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Watchlists</p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {dashboardData.watchlists.length}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-gray-600/20 rounded-lg flex items-center justify-center">
-                        <Bookmark size={24} className="text-gray-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">tracking lists</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Market Overview */}
-                {dashboardData.marketStats && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Market Cap</p>
-                          <p className="text-2xl font-bold text-gray-100">
-                            $
-                            {(
-                              dashboardData.marketStats.totalMarketCap / 1e12
-                            ).toFixed(2)}
-                            T
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                          <DollarSign size={24} className="text-primary-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">24h Volume</p>
-                          <p className="text-2xl font-bold text-gray-100">
-                            $
-                            {(
-                              dashboardData.marketStats.totalVolume / 1e9
-                            ).toFixed(2)}
-                            B
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                          <Activity size={24} className="text-success-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Gainers</p>
-                          <p className="text-2xl font-bold text-success-400">
-                            {dashboardData.marketStats.gainers}
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                          <TrendingUp size={24} className="text-success-400" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="card p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-400">Losers</p>
-                          <p className="text-2xl font-bold text-danger-400">
-                            {dashboardData.marketStats.losers}
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 bg-danger-600/20 rounded-lg flex items-center justify-center">
-                          <TrendingDown size={24} className="text-danger-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -792,18 +561,6 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Advanced Dashboard Sections */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* Portfolio Performance */}
-                  {dashboardData.portfolios.length > 0 && (
-                    <PortfolioPerformance
-                      portfolios={dashboardData.portfolios}
-                    />
-                  )}
-
-                  {/* Market Insights */}
-                  <MarketInsights />
-                </div>
               </>
             )}
           </div>

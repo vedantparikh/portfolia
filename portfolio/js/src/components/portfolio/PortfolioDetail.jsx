@@ -1,20 +1,18 @@
 import {
   Activity,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
   Download,
   Plus,
   RefreshCw,
   Target,
   TrendingUp,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { analyticsAPI, portfolioAPI } from "../../services/api";
-import {
-  formatCurrency,
-  formatDateTime,
-  getTransactionColor,
-  getTransactionIcon,
-} from "../../utils/formatters.jsx";
+import { formatCurrency } from "../../utils/formatters.jsx";
 import {
   BenchmarkComparison,
   PortfolioAllocationManager,
@@ -22,23 +20,16 @@ import {
   RebalancingRecommendations,
 } from "../analytics";
 
-const PortfolioDetail = ({ portfolio, stats, transactions }) => {
-  const [showAllTransactions, setShowAllTransactions] = useState(false);
-  const [transactionFilter, setTransactionFilter] = useState("all");
+const PortfolioDetail = ({ portfolio }) => {
   const [holdings, setHoldings] = useState([]);
   const [loadingHoldings, setLoadingHoldings] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-
-  const filteredTransactions = transactions.filter((transaction) => {
-    if (transactionFilter === "all") return true;
-    return transaction.transaction_type === transactionFilter;
+  const [sortConfig, setSortConfig] = useState({
+    key: "value",
+    direction: "descending",
   });
-
-  const displayedTransactions = showAllTransactions
-    ? filteredTransactions
-    : filteredTransactions.slice(0, 10);
 
   // Load portfolio holdings and analytics
   useEffect(() => {
@@ -58,20 +49,20 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
         portfolio.id
       );
 
-      // Try to get holdings from the API
+      // Get holdings from the API
       const holdingsResponse = await portfolioAPI.getPortfolioHoldings(
         portfolio.id
       );
       console.log("[PortfolioDetail] Holdings response:", holdingsResponse);
 
       // Process holdings data from API response
-      let holdings = [];
+      let processedHoldings = [];
       if (
         holdingsResponse &&
         Array.isArray(holdingsResponse) &&
         holdingsResponse.length > 0
       ) {
-        holdings = holdingsResponse.map((holding) => ({
+        processedHoldings = holdingsResponse.map((holding) => ({
           id: holding.asset_id,
           symbol: holding.symbol,
           name: holding.name,
@@ -86,92 +77,12 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
           realizedGainLoss: holding.realized_pnl,
           realizedGainLossPercent: holding.realized_pnl_percent,
         }));
-      } else {
-        // Mock holdings data fallback - replace with real API data when available
-        const mockHoldings = [
-          {
-            id: 1,
-            symbol: "AAPL",
-            name: "Apple Inc.",
-            quantity: 10,
-            avgPrice: 150.0,
-            currentPrice: 175.5,
-            value: 1755.0,
-            change: 16.67,
-            gainLoss: 255.0,
-            todayGainLoss: 100.0,
-            todayGainLossPercent: 10.0,
-            realizedGainLoss: 100.0,
-            realizedGainLossPercent: 10.0,
-          },
-          {
-            id: 2,
-            symbol: "GOOGL",
-            name: "Alphabet Inc.",
-            quantity: 5,
-            avgPrice: 2800.0,
-            currentPrice: 2950.0,
-            value: 14750.0,
-            change: 5.36,
-            gainLoss: 750.0,
-            todayGainLoss: 200.0,
-            todayGainLossPercent: 10.0,
-            realizedGainLoss: 200.0,
-            realizedGainLossPercent: 10.0,
-          },
-          {
-            id: 3,
-            symbol: "MSFT",
-            name: "Microsoft Corporation",
-            quantity: 8,
-            avgPrice: 300.0,
-            currentPrice: 320.0,
-            value: 2560.0,
-            change: 6.67,
-            gainLoss: 160.0,
-            todayGainLoss: 50.0,
-            todayGainLossPercent: 10.0,
-            realizedGainLoss: 50.0,
-            realizedGainLossPercent: 10.0,
-          },
-          {
-            id: 4,
-            symbol: "TSLA",
-            name: "Tesla Inc.",
-            quantity: 3,
-            avgPrice: 800.0,
-            currentPrice: 750.0,
-            value: 2250.0,
-            change: -6.25,
-            gainLoss: -150.0,
-            todayGainLoss: -50.0,
-            todayGainLossPercent: 10.0,
-            realizedGainLoss: -50.0,
-            realizedGainLossPercent: 10.0,
-          },
-          {
-            id: 5,
-            symbol: "NVDA",
-            name: "NVIDIA Corporation",
-            quantity: 6,
-            avgPrice: 400.0,
-            currentPrice: 450.0,
-            value: 2700.0,
-            change: 12.5,
-            gainLoss: 300.0,
-            todayGainLoss: 100.0,
-            todayGainLossPercent: 10.0,
-            realizedGainLoss: 100.0,
-            realizedGainLossPercent: 10.0,
-          },
-        ];
-        holdings = mockHoldings;
       }
 
-      setHoldings(holdings);
+      setHoldings(processedHoldings);
     } catch (error) {
       console.warn("[PortfolioDetail] Failed to load holdings:", error);
-      // Set empty holdings on error
+      // Set empty holdings on error to prevent crashes
       setHoldings([]);
     } finally {
       setLoadingHoldings(false);
@@ -200,6 +111,46 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
     } finally {
       setLoadingAnalytics(false);
     }
+  };
+
+  const sortedHoldings = useMemo(() => {
+    let sortableHoldings = [...holdings];
+    if (sortConfig.key) {
+      sortableHoldings.sort((a, b) => {
+        const valA = a[sortConfig.key];
+        const valB = b[sortConfig.key];
+
+        if (valA === null || valA === undefined) return 1;
+        if (valB === null || valB === undefined) return -1;
+
+        if (valA < valB) {
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        }
+        if (valA > valB) {
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableHoldings;
+  }, [holdings, sortConfig]);
+
+  const requestSort = (key) => {
+    let direction = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIndicator = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <ChevronsUpDown size={14} className="ml-2 text-gray-500" />;
+    }
+    if (sortConfig.direction === "descending") {
+      return <ChevronDown size={14} className="ml-2" />;
+    }
+    return <ChevronUp size={14} className="ml-2" />;
   };
 
   const totalHoldingsValue = holdings.reduce(
@@ -248,10 +199,11 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
                     ? "border-primary-500 text-primary-400"
                     : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
-                  }`}
+                }`}
               >
                 <Icon size={16} />
                 <span>{tab.label}</span>
@@ -295,36 +247,76 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-dark-700">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">
-                      Symbol
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-left">
+                      <button
+                        onClick={() => requestSort("name")}
+                        className="flex items-center hover:text-gray-200"
+                      >
+                        Name {getSortIndicator("name")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Quantity
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("quantity")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Quantity {getSortIndicator("quantity")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Avg Price
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("avgPrice")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Avg Price {getSortIndicator("avgPrice")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Current Price
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("currentPrice")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Current Price {getSortIndicator("currentPrice")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Value
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("value")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Value {getSortIndicator("value")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Unrealized Gain/Loss
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("gainLoss")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Unrealized G/L {getSortIndicator("gainLoss")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Today's Gain/Loss
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("todayGainLoss")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Today's G/L {getSortIndicator("todayGainLoss")}
+                      </button>
                     </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-400">
-                      Realized Gain/Loss
+                    <th className="py-3 px-4 text-sm font-medium text-gray-400 text-right">
+                      <button
+                        onClick={() => requestSort("realizedGainLoss")}
+                        className="flex items-center ml-auto hover:text-gray-200"
+                      >
+                        Realized G/L {getSortIndicator("realizedGainLoss")}
+                      </button>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingHoldings ? (
                     <tr>
-                      <td colSpan="9" className="py-8 text-center">
+                      <td colSpan="8" className="py-8 text-center">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-400" />
                         <span className="text-gray-400">
                           Loading holdings...
@@ -333,23 +325,25 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                     </tr>
                   ) : holdings.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="py-8 text-center">
+                      <td colSpan="8" className="py-8 text-center">
                         <span className="text-gray-400">
                           No holdings found in this portfolio
                         </span>
                       </td>
                     </tr>
                   ) : (
-                    holdings.map((holding, index) => (
+                    sortedHoldings.map((holding, index) => (
                       <tr
-                        key={index}
+                        key={holding.id || index}
                         className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors"
                       >
                         <td className="py-3 px-4">
                           <span className="font-medium text-gray-100">
                             {holding.name}
                           </span>
-                          <div className="text-xs text-gray-500">{holding.symbol}</div>
+                          <div className="text-xs text-gray-500">
+                            {holding.symbol}
+                          </div>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span className="text-gray-100">
@@ -373,19 +367,21 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${(holding.gainLoss || 0) >= 0
+                            className={`font-medium ${
+                              (holding.gainLoss || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.gainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.gainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${(holding.change || 0) >= 0
+                            className={`font-medium ${
+                              (holding.change || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.change || 0) >= 0 ? "+" : ""}
                             {(holding.change || 0).toFixed(2)}%
@@ -394,19 +390,21 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
 
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${(holding.todayGainLoss || 0) >= 0
+                            className={`font-medium ${
+                              (holding.todayGainLoss || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.todayGainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.todayGainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${(holding.todayGainLossPercent || 0) >= 0
+                            className={`font-medium ${
+                              (holding.todayGainLossPercent || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.todayGainLossPercent || 0) >= 0
                               ? "+"
@@ -417,24 +415,27 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
 
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${(holding.realizedGainLoss || 0) >= 0
+                            className={`font-medium ${
+                              (holding.realizedGainLoss || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.realizedGainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.realizedGainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${(holding.realizedGainLossPercent || 0) >= 0
+                            className={`font-medium ${
+                              (holding.realizedGainLossPercent || 0) >= 0
                                 ? "text-success-400"
                                 : "text-danger-400"
-                              }`}
+                            }`}
                           >
                             {(holding.realizedGainLossPercent || 0) >= 0
                               ? "+"
                               : ""}
-                            {(holding.realizedGainLossPercent || 0).toFixed(2)}%
+                            {(holding.realizedGainLossPercent || 0).toFixed(2)}
+                            %
                           </p>
                         </td>
                       </tr>
@@ -456,19 +457,21 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${totalGainLoss >= 0
+                        className={`text-lg font-bold ${
+                          totalGainLoss >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
                         {totalGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${totalGainLossPercent >= 0
+                        className={`text-lg font-bold ${
+                          totalGainLossPercent >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
                         {totalGainLossPercent >= 0 ? "+" : ""}
                         {totalGainLossPercent.toFixed(2)}%
@@ -477,19 +480,21 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
 
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${totalTodayGainLoss >= 0
+                        className={`text-lg font-bold ${
+                          totalTodayGainLoss >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
                         {totalTodayGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalTodayGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${totalTodayGainLossPercent >= 0
+                        className={`text-lg font-bold ${
+                          totalTodayGainLossPercent >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
                         {totalTodayGainLossPercent >= 0 ? "+" : ""}
                         {totalTodayGainLossPercent.toFixed(2)}%
@@ -498,19 +503,21 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
 
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${totalRealizedGainLossPercent >= 0
+                        className={`text-lg font-bold ${
+                          totalRealizedGainLoss >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
-                        {totalRealizedGainLossPercent >= 0 ? "+" : ""}
+                        {totalRealizedGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalRealizedGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${totalRealizedGainLossPercent >= 0
+                        className={`text-lg font-bold ${
+                          totalRealizedGainLossPercent >= 0
                             ? "text-success-400"
                             : "text-danger-400"
-                          }`}
+                        }`}
                       >
                         {totalRealizedGainLossPercent >= 0 ? "+" : ""}
                         {totalRealizedGainLossPercent.toFixed(2)}%
@@ -522,108 +529,7 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
             </div>
           </div>
 
-          {/* Transaction History */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-100">
-                Transaction History
-              </h3>
-              <div className="flex items-center space-x-3">
-                <select
-                  value={transactionFilter}
-                  onChange={(e) => setTransactionFilter(e.target.value)}
-                  className="input-field text-sm"
-                >
-                  <option value="all">All Transactions</option>
-                  <option value="buy">Buys</option>
-                  <option value="sell">Sells</option>
-                </select>
-                <button className="btn-outline text-sm flex items-center space-x-2">
-                  <Download size={16} />
-                  <span>Export</span>
-                </button>
-              </div>
-            </div>
-
-            {displayedTransactions.length > 0 ? (
-              <div className="space-y-3">
-                {displayedTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-4 bg-dark-800 rounded-lg hover:bg-dark-700 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center justify-center w-10 h-10 bg-dark-700 rounded-lg">
-                        {getTransactionIcon(transaction.transaction_type)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-100">
-                          {transaction.transaction_type.toUpperCase()}{" - "}
-                          {transaction.asset.name}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {formatDateTime(transaction.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <p className="text-sm text-gray-400">
-                        {transaction.portfolio.name}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={`text-sm font-medium ${getTransactionColor(
-                          transaction.transaction_type
-                        )}`}
-                      >
-                        {transaction.transaction_type === "buy" ? "-" : "+"}
-                        {formatCurrency(transaction.total_amount)}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {transaction.quantity} @{" "}
-                        {formatCurrency(transaction.price)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {filteredTransactions.length > 10 && (
-                  <div className="text-center pt-4">
-                    <button
-                      onClick={() =>
-                        setShowAllTransactions(!showAllTransactions)
-                      }
-                      className="btn-outline text-sm"
-                    >
-                      {showAllTransactions
-                        ? `Show Less (${filteredTransactions.length - 10
-                        } hidden)`
-                        : `Show All (${filteredTransactions.length - 10} more)`}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">
-                  No transactions found
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  {transactionFilter === "all"
-                    ? "Start by adding your first position to this portfolio"
-                    : `No ${transactionFilter} transactions found`}
-                </p>
-                <button className="btn-primary flex items-center space-x-2 mx-auto">
-                  <Plus size={16} />
-                  <span>Add Position</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Portfolio Allocation Chart */}
+          {/* Portfolio Allocation Chart & Performance Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-gray-100 mb-4">
@@ -641,7 +547,9 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-100">
                             {holding.name}
-                            <div className="text-xs text-gray-500">{holding.symbol}</div>
+                            <div className="text-xs text-gray-500">
+                              {holding.symbol}
+                            </div>
                           </span>
                           <span className="text-sm text-gray-400">
                             {percentage.toFixed(1)}%
@@ -682,12 +590,15 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Total Gain/Loss</span>
+                  <span className="text-sm text-gray-400">
+                    Total Gain/Loss
+                  </span>
                   <span
-                    className={`text-sm font-medium ${totalGainLoss >= 0
+                    className={`text-sm font-medium ${
+                      totalGainLoss >= 0
                         ? "text-success-400"
                         : "text-danger-400"
-                      }`}
+                    }`}
                   >
                     {totalGainLoss >= 0 ? "+" : ""}
                     {formatCurrency(totalGainLoss)}
@@ -696,10 +607,11 @@ const PortfolioDetail = ({ portfolio, stats, transactions }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">Total Return</span>
                   <span
-                    className={`text-sm font-medium ${totalGainLossPercent >= 0
+                    className={`text-sm font-medium ${
+                      totalGainLossPercent >= 0
                         ? "text-success-400"
                         : "text-danger-400"
-                      }`}
+                    }`}
                   >
                     {totalGainLossPercent >= 0 ? "+" : ""}
                     {totalGainLossPercent.toFixed(2)}%

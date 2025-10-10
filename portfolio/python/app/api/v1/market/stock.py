@@ -262,7 +262,7 @@ async def get_stock_latest_data(
     start_time = time.time()
     try:
         symbols_list = symbols.split(",")
-        data = await market_data_service.get_stock_latest_data(symbols_list)
+        data = await market_data_service.get_symbols_info(symbols_list)
         response_time = time.time() - start_time
         log_api_response(logger, "GET", "/stock-latest-data", 200, response_time)
         return data

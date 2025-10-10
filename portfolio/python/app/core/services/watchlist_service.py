@@ -627,7 +627,7 @@ class WatchlistService:
             # Update prices for all symbols in the watchlist
             symbols = list(set([item.symbol for item in watchlist.items]))
 
-            latest_data = await self.market_data_service.get_stock_latest_data(
+            latest_data = await self.market_data_service.get_symbols_info(
                 symbols=symbols
             )
 

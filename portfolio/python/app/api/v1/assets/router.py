@@ -143,7 +143,8 @@ async def get_assets(
     if include_detail:
         asset_details = []
         symbols = [asset.symbol for asset in assets]
-        ticker_detail_map = await market_data_service.get_symbols_info(symbols)
+        ticker_detail_list = await market_data_service.get_symbols_info(symbols)
+        ticker_detail_map = {item['symbol']: item for item in ticker_detail_list}
         for asset in assets:
             asset_detail = AssetSchema(
                 id=asset.id,

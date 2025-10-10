@@ -1601,7 +1601,7 @@ class PortfolioAnalyticsService:
                 raise ValueError("No symbols found for assets")
 
             # Bulk fetch current prices
-            current_prices = await market_data_service.get_multiple_current_prices(
+            current_prices = await market_data_service.get_current_prices(
                 symbols
             )
 

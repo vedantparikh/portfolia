@@ -59,3 +59,6 @@ pyxirr==0.10.7
 PyPDF2==3.0.1
 reportlab==4.0.4
 pypdf==3.17.1
+
+# monitoring
+sentry-sdk==2.41.0

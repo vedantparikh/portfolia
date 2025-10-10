@@ -821,99 +821,142 @@ class PortfolioService:
             self, portfolio_id: int, asset_id: int
     ) -> Optional[PortfolioAsset]:
         """
-        Recalculates an asset's state from its transaction history using daily aggregation.
-        This method is robust against the intra-day order of transactions and is the
-        correct approach when timestamps are not available.
+        Recalculates an asset's complete state from its transaction history using
+        a modified FIFO method.
+
+        This method handles transactions without timestamps by applying a consistent
+        rule: for any given day, all BUY transactions are processed before all
+        SELL transactions.
+
+        It serves as the single source of truth for calculating:
+        - Current Quantity & Cost Basis
+        - Total Realized P&L (FIFO)
+        - Current Value & Unrealized P&L (from live market data)
         """
-
-        # 1. Define aggregation expressions to sum up daily buys and sells.
-        # This creates SQL expressions like SUM(CASE WHEN ... THEN ... ELSE 0 END).
-        daily_buy_qty = func.sum(
-            case(
-                (Transaction.transaction_type == TransactionType.BUY, Transaction.quantity),
-                else_=Decimal("0"),
-            )
-        ).label("daily_buy_qty")
-
-        daily_buy_cost = func.sum(
-            case(
-                (Transaction.transaction_type == TransactionType.BUY, Transaction.total_amount),
-                else_=Decimal("0"),
-            )
-        ).label("daily_buy_cost")
-
-        daily_sell_qty = func.sum(
-            case(
-                (Transaction.transaction_type == TransactionType.SELL, Transaction.quantity),
-                else_=Decimal("0"),
-            )
-        ).label("daily_sell_qty")
-
-        # 2. Query the database for daily aggregated transaction data, sorted by date.
-        # The result will be one row for each day that had transactions for this asset.
-        daily_aggregates = (
-            self.db.query(
-                Transaction.transaction_date,
-                daily_buy_qty,
-                daily_buy_cost,
-                daily_sell_qty,
-            )
+        # 1. Fetch and sort all transactions for the asset.
+        buy_first_sort_order = case(
+            (Transaction.transaction_type == TransactionType.BUY, 1),
+            (Transaction.transaction_type == TransactionType.SELL, 2),
+            else_=3,
+        )
+        transactions = (
+            self.db.query(Transaction)
             .filter(
                 Transaction.portfolio_id == portfolio_id,
                 Transaction.asset_id == asset_id,
             )
-            .group_by(Transaction.transaction_date)
-            .order_by(Transaction.transaction_date.asc())
+            .order_by(
+                Transaction.transaction_date.asc(),
+                buy_first_sort_order.asc()
+            )
             .all()
         )
 
-        current_quantity = Decimal("0")
-        total_cost = Decimal("0")
+        # 2. Initialize state variables for the FIFO calculation.
+        buy_lots = []
+        realized_pnl = Decimal("0")
 
-        # 3. Process each day's net change chronologically.
-        for day in daily_aggregates:
-            # STEP A: Add all of the day's buys to the running totals first.
-            # This establishes the correct quantity and cost basis BEFORE any sells are processed.
-            if day.daily_buy_qty > 0:
-                current_quantity += day.daily_buy_qty
-                total_cost += day.daily_buy_cost
+        # 3. Process each transaction sequentially to determine historical state.
+        for tx in transactions:
+            if tx.transaction_type == TransactionType.BUY:
+                buy_lots.append(
+                    {
+                        "quantity": tx.quantity,
+                        "total_amount": tx.total_amount,
+                    }
+                )
+            elif tx.transaction_type == TransactionType.SELL:
+                sell_quantity = tx.quantity
+                sell_proceeds = tx.total_amount
+                cost_of_goods_sold = Decimal("0")
 
-            # STEP B: Process the day's sells against the now-updated totals.
-            if day.daily_sell_qty > 0:
-                # Calculate cost reduction based on the proportion of shares sold.
-                # This correctly reduces the cost basis based on the assets held *before* the sale.
-                if current_quantity > 0:
-                    # Avoid division by zero if data is inconsistent (selling without holding)
-                    cost_reduction_ratio = day.daily_sell_qty / current_quantity
-                    total_cost *= (Decimal("1") - cost_reduction_ratio)
+                ## Loop condition must be > 0 to prevent infinite loop.
+                while sell_quantity > 0 and buy_lots:
+                    oldest_lot = buy_lots[0]
 
-                current_quantity -= day.daily_sell_qty
+                    quantity_to_sell_from_lot = min(sell_quantity, oldest_lot["quantity"])
 
-        # 4. Update or delete the final PortfolioAsset record based on the final quantity.
+                    ## Condition must be > 0 to prevent division by zero.
+                    if oldest_lot["quantity"] > 0:
+                        cost_basis_portion = (
+                                (quantity_to_sell_from_lot / oldest_lot["quantity"])
+                                * oldest_lot["total_amount"]
+                        )
+                        cost_of_goods_sold += cost_basis_portion
+
+                        oldest_lot["quantity"] -= quantity_to_sell_from_lot
+                        oldest_lot["total_amount"] -= cost_basis_portion
+
+                    sell_quantity -= quantity_to_sell_from_lot
+
+                    if oldest_lot["quantity"] <= 0:
+                        buy_lots.pop(0)
+
+                realized_pnl += (sell_proceeds - cost_of_goods_sold)
+
+        # 4. Calculate the final state of current holdings.
+        current_quantity = sum(lot["quantity"] for lot in buy_lots)
+        total_cost = sum(lot["total_amount"] for lot in buy_lots)
+
+        # 5. Find or create the PortfolioAsset record.
         portfolio_asset = (
             self.db.query(PortfolioAsset)
             .filter_by(portfolio_id=portfolio_id, asset_id=asset_id)
             .first()
         )
 
-        # Ensure quantity is not negative due to bad data.
-        current_quantity = max(Decimal("0"), current_quantity)
+        # If there are no transactions at all, there's nothing to do.
+        if not transactions:
+            if portfolio_asset:
+                self.db.delete(portfolio_asset)
+                self.db.commit()
+            return None
 
+        if not portfolio_asset:
+            portfolio_asset = PortfolioAsset(
+                portfolio_id=portfolio_id, asset_id=asset_id
+            )
+            self.db.add(portfolio_asset)
+
+        # 6. Update the record with all calculated values.
+        portfolio_asset.quantity = current_quantity
+        portfolio_asset.cost_basis_total = total_cost
+        portfolio_asset.cost_basis = total_cost / current_quantity if current_quantity > 0 else Decimal("0")
+        portfolio_asset.realized_pnl = realized_pnl
+
+        # 7. Update market-dependent values.
+        ## This logic now correctly handles the zero-quantity case.
         if current_quantity > 0:
-            if not portfolio_asset:
-                portfolio_asset = PortfolioAsset(
-                    portfolio_id=portfolio_id, asset_id=asset_id
-                )
-                self.db.add(portfolio_asset)
+            # Fetch live market data for currently held assets
+            try:
+                asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
+                if asset:
+                    current_price = await self.market_data_service.get_current_price(asset.symbol)
+                    if current_price:
+                        current_value = current_price * portfolio_asset.quantity
+                        unrealized_pnl = current_value - portfolio_asset.cost_basis_total
 
-            portfolio_asset.quantity = current_quantity
-            portfolio_asset.cost_basis_total = total_cost
-            portfolio_asset.cost_basis = total_cost / current_quantity
-            await self._update_asset_pnl(portfolio_asset)
-        elif portfolio_asset:
-            # If quantity is zero, the user no longer holds the asset.
-            self.db.delete(portfolio_asset)
-            portfolio_asset = None
+                        portfolio_asset.current_value = current_value
+                        portfolio_asset.unrealized_pnl = unrealized_pnl
+                        if portfolio_asset.cost_basis_total > 0:
+                            portfolio_asset.unrealized_pnl_percent = (
+                                                                                 unrealized_pnl / portfolio_asset.cost_basis_total) * 100
+                        else:
+                            portfolio_asset.unrealized_pnl_percent = Decimal("0")
+                    else:
+                        portfolio_asset.current_value = None
+                        portfolio_asset.unrealized_pnl = None
+                        portfolio_asset.unrealized_pnl_percent = None
+            except Exception as e:
+                print(f"Error fetching market data for asset {asset_id}: {e}")
+                portfolio_asset.current_value = None
+                portfolio_asset.unrealized_pnl = None
+                portfolio_asset.unrealized_pnl_percent = None
+        else:
+            # For closed positions (quantity is 0), nullify market-dependent fields.
+            portfolio_asset.current_value = Decimal("0")
+            portfolio_asset.unrealized_pnl = Decimal("0")
+            portfolio_asset.unrealized_pnl_percent = Decimal("0")
 
         self.db.commit()
         return portfolio_asset

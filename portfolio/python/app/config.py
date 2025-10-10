@@ -78,6 +78,7 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = env.str("FRONTEND_URL", "http://localhost:3000")
 
+    ALLOW_MONITORING: bool = env.bool("ALLOW_MONITORING", False)
     SENTRY_DSN: str = env.str("SENTRY_DSN", "")
     SEND_DEFAULT_PII: bool = env.bool("SEND_DEFAULT_PII", False)
     TRACES_SAMPLE_RATE: float = env.float("TRACES_SAMPLE_RATE", 1.0)

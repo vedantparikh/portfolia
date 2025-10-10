@@ -88,21 +88,22 @@ async def lifespan(app: FastAPI):
     logger.info("👋 Portfolia API shutdown complete")
 
 
-sentry_sdk.init(
-    dsn=settings.SENTRY_DSN,
-    # Add data like request headers and IP for users,
-    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
-    send_default_pii=settings.SEND_DEFAULT_PII,
-    # Set traces_sample_rate to 1.0 to capture 100%
-    # of transactions for tracing.
-    traces_sample_rate=settings.TRACES_SAMPLE_RATE,
-    # Set profile_session_sample_rate to 1.0 to profile 100%
-    # of profile sessions.
-    profile_session_sample_rate=settings.PROFILE_SESSION_SAMPLE_RATE,
-    # Set profile_lifecycle to "trace" to automatically
-    # run the profiler on when there is an active transaction
-    profile_lifecycle=settings.PROFILE_LIFECYCLE,
-)
+if settings.ALLOW_MONITORING:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=settings.SEND_DEFAULT_PII,
+        # Set traces_sample_rate to 1.0 to capture 100%
+        # of transactions for tracing.
+        traces_sample_rate=settings.TRACES_SAMPLE_RATE,
+        # Set profile_session_sample_rate to 1.0 to profile 100%
+        # of profile sessions.
+        profile_session_sample_rate=settings.PROFILE_SESSION_SAMPLE_RATE,
+        # Set profile_lifecycle to "trace" to automatically
+        # run the profiler on when there is an active transaction
+        profile_lifecycle=settings.PROFILE_LIFECYCLE,
+    )
 # Create FastAPI app with lifespan management
 app = FastAPI(
     title="Portfolia API",
@@ -374,11 +375,6 @@ async def api_root():
         "message": "Portfolia API v1",
         "endpoints": {"health": "/health", "test": "/api/v1/test", "docs": "/docs"},
     }
-
-
-@app.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1 / 0
 
 
 if __name__ == "__main__":

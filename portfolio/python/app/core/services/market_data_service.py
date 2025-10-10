@@ -6,6 +6,7 @@ Handles fetching real-time market data from yfinance without database storage.
 import asyncio
 import logging
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
@@ -223,6 +224,27 @@ class MarketDataService:
         except Exception as e:
             logger.error("Error getting current price for %s: %s", symbol, e)
             return None
+
+    async def get_current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
+        """Fetches current prices for a list of symbols in a single batch."""
+        if not symbols:
+            return {}
+
+        # yfinance can fetch multiple tickers at once efficiently
+        tickers_str = " ".join(symbols)
+        data = yf.Tickers(tickers_str)
+
+        prices = {}
+        for ticker in data.tickers.values():
+            price = (
+                    ticker.info.get("currentPrice")
+                    or ticker.info.get("regularMarketPrice")
+                    or ticker.info.get("previousClose")
+                    or ticker.info.get("open")
+            )
+            if price:
+                prices[ticker.ticker] = Decimal(str(price))
+        return prices
 
     async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
         """

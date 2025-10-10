@@ -73,5 +73,4 @@ async def main():
 
 if __name__ == "__main__":
     # The script is executed from the command line
-    # To run: python scripts/recalculate_all_pnl.py
     asyncio.run(main())

@@ -256,9 +256,16 @@ const Dashboard = () => {
                 {/* Portfolio Overview */}
                 <div className="card p-6 flex flex-col">
                   <div className="flex items-center justify-between mb-6">
+                    {/* --- MODIFICATION START --- */}
                     <h3 className="text-lg font-semibold text-gray-100">
                       Your Portfolios
+                      {!loadingStates.portfolios && (
+                        <span className="text-gray-400 font-normal ml-2">
+                          ({dashboardData.portfolios.length})
+                        </span>
+                      )}
                     </h3>
+                    {/* --- MODIFICATION END --- */}
                     <a
                       href="/portfolio"
                       className="btn-primary text-sm flex items-center space-x-2"
@@ -374,10 +381,11 @@ const Dashboard = () => {
                         >
                           <div className="flex items-center space-x-3">
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
-                                ? "bg-success-400/20"
-                                : "bg-danger-400/20"
-                                }`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                transaction.transaction_type === "buy"
+                                  ? "bg-success-400/20"
+                                  : "bg-danger-400/20"
+                              }`}
                             >
                               {transaction.transaction_type === "buy" ? (
                                 <TrendingUp
@@ -403,10 +411,11 @@ const Dashboard = () => {
                           </div>
                           <div className="text-right">
                             <p
-                              className={`text-sm font-medium ${transaction.transaction_type === "buy"
-                                ? "text-danger-400"
-                                : "text-success-400"
-                                }`}
+                              className={`text-sm font-medium ${
+                                transaction.transaction_type === "buy"
+                                  ? "text-danger-400"
+                                  : "text-success-400"
+                              }`}
                             >
                               {transaction.transaction_type === "buy"
                                 ? "-"
@@ -458,11 +467,12 @@ const Dashboard = () => {
                               </p>
                             </div>
                             <span
-                              className={`text-xs px-2 py-1 rounded shrink-0 ${(asset.detail?.price_change_percentage_24h ??
-                                0) >= 0
-                                ? "bg-success-400/20 text-success-400"
-                                : "bg-danger-400/20 text-danger-400"
-                                }`}
+                              className={`text-xs px-2 py-1 rounded shrink-0 ${
+                                (asset.detail?.price_change_percentage_24h ??
+                                  0) >= 0
+                                  ? "bg-success-400/20 text-success-400"
+                                  : "bg-danger-400/20 text-danger-400"
+                              }`}
                             >
                               {formatPercentage(
                                 asset.detail?.price_change_percentage_24h,
@@ -499,11 +509,11 @@ const Dashboard = () => {
                             <span className="font-medium text-gray-100">
                               {asset.detail?.low_52w && asset.detail?.high_52w
                                 ? `${formatCurrency(asset.detail.low_52w, {
-                                  compact: true,
-                                })} - ${formatCurrency(
-                                  asset.detail.high_52w,
-                                  { compact: true }
-                                )}`
+                                    compact: true,
+                                  })} - ${formatCurrency(
+                                    asset.detail.high_52w,
+                                    { compact: true }
+                                  )}`
                                 : "N/A"}
                             </span>
                           </div>

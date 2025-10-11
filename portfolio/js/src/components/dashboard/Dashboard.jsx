@@ -25,7 +25,6 @@ import {
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { Sidebar } from "../shared";
 
-// --- MODIFICATION: Added a reusable loader component ---
 const CardLoader = ({ text = "Loading..." }) => (
   <div className="flex items-center justify-center py-8">
     <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
@@ -38,7 +37,6 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  // --- MODIFICATION: Separated data and loading states ---
   const [dashboardData, setDashboardData] = useState({
     portfolios: [],
     recentTransactions: [],
@@ -49,7 +47,6 @@ const Dashboard = () => {
     transactions: true,
     assets: true,
   });
-  // --- END MODIFICATION ---
 
   // Load dashboard data
   useEffect(() => {
@@ -67,7 +64,6 @@ const Dashboard = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // --- MODIFICATION: Rewrote data loading to be sequential ---
   const loadDashboardData = async () => {
     // Reset all loading states to true on refresh
     setLoadingStates({
@@ -140,7 +136,6 @@ const Dashboard = () => {
       setLoadingStates((prev) => ({ ...prev, portfolios: false }));
     }
   };
-  // --- END MODIFICATION ---
 
   const handleRefresh = () => {
     loadDashboardData();
@@ -165,11 +160,9 @@ const Dashboard = () => {
     );
   };
 
-  // --- MODIFICATION: Check if any section is loading for the refresh button ---
   const isAnythingLoading = Object.values(loadingStates).some(
     (state) => state === true
   );
-  // --- END MODIFICATION ---
 
   return (
     <div className="min-h-screen gradient-bg flex">
@@ -208,7 +201,6 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* --- MODIFICATION: Update disabled and animation logic for refresh button --- */}
               <button
                 onClick={handleRefresh}
                 disabled={isAnythingLoading}
@@ -220,7 +212,6 @@ const Dashboard = () => {
                 />
                 <span>Refresh</span>
               </button>
-              {/* --- END MODIFICATION --- */}
             </div>
 
             <div className="flex items-center space-x-4">
@@ -259,7 +250,6 @@ const Dashboard = () => {
               </p>
             </div>
 
-            {/* --- MODIFICATION: Removed the main loading spinner wrapper --- */}
             <>
               {/* Main Content Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -278,7 +268,6 @@ const Dashboard = () => {
                     </a>
                   </div>
 
-                  {/* --- MODIFICATION: Individual loading state for Portfolios --- */}
                   {loadingStates.portfolios ? (
                     <CardLoader text="Loading portfolios..." />
                   ) : dashboardData.portfolios.length === 0 ? (
@@ -345,7 +334,6 @@ const Dashboard = () => {
                       ))}
                     </div>
                   )}
-                  {/* --- END MODIFICATION --- */}
                 </div>
 
                 {/* Recent Transactions */}
@@ -362,7 +350,6 @@ const Dashboard = () => {
                     </a>
                   </div>
 
-                  {/* --- MODIFICATION: Individual loading state for Transactions --- */}
                   {loadingStates.transactions ? (
                     <CardLoader text="Loading transactions..." />
                   ) : dashboardData.recentTransactions.length === 0 ? (
@@ -387,11 +374,10 @@ const Dashboard = () => {
                         >
                           <div className="flex items-center space-x-3">
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                transaction.transaction_type === "buy"
-                                  ? "bg-success-400/20"
-                                  : "bg-danger-400/20"
-                              }`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
+                                ? "bg-success-400/20"
+                                : "bg-danger-400/20"
+                                }`}
                             >
                               {transaction.transaction_type === "buy" ? (
                                 <TrendingUp
@@ -417,11 +403,10 @@ const Dashboard = () => {
                           </div>
                           <div className="text-right">
                             <p
-                              className={`text-sm font-medium ${
-                                transaction.transaction_type === "buy"
-                                  ? "text-danger-400"
-                                  : "text-success-400"
-                              }`}
+                              className={`text-sm font-medium ${transaction.transaction_type === "buy"
+                                ? "text-danger-400"
+                                : "text-success-400"
+                                }`}
                             >
                               {transaction.transaction_type === "buy"
                                 ? "-"
@@ -437,11 +422,9 @@ const Dashboard = () => {
                       ))}
                     </div>
                   )}
-                  {/* --- END MODIFICATION --- */}
                 </div>
               </div>
 
-              {/* --- MODIFICATION: Always render the Top Assets card wrapper --- */}
               <div className="card p-6 mb-8">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-100">
@@ -455,7 +438,6 @@ const Dashboard = () => {
                   </a>
                 </div>
 
-                {/* --- MODIFICATION: Individual loading/empty state for Assets --- */}
                 {loadingStates.assets ? (
                   <CardLoader text="Loading market data..." />
                 ) : dashboardData.topAssets.length > 0 ? (
@@ -476,12 +458,11 @@ const Dashboard = () => {
                               </p>
                             </div>
                             <span
-                              className={`text-xs px-2 py-1 rounded shrink-0 ${
-                                (asset.detail?.price_change_percentage_24h ??
-                                  0) >= 0
-                                  ? "bg-success-400/20 text-success-400"
-                                  : "bg-danger-400/20 text-danger-400"
-                              }`}
+                              className={`text-xs px-2 py-1 rounded shrink-0 ${(asset.detail?.price_change_percentage_24h ??
+                                0) >= 0
+                                ? "bg-success-400/20 text-success-400"
+                                : "bg-danger-400/20 text-danger-400"
+                                }`}
                             >
                               {formatPercentage(
                                 asset.detail?.price_change_percentage_24h,
@@ -518,11 +499,11 @@ const Dashboard = () => {
                             <span className="font-medium text-gray-100">
                               {asset.detail?.low_52w && asset.detail?.high_52w
                                 ? `${formatCurrency(asset.detail.low_52w, {
-                                    compact: true,
-                                  })} - ${formatCurrency(
-                                    asset.detail.high_52w,
-                                    { compact: true }
-                                  )}`
+                                  compact: true,
+                                })} - ${formatCurrency(
+                                  asset.detail.high_52w,
+                                  { compact: true }
+                                )}`
                                 : "N/A"}
                             </span>
                           </div>
@@ -535,7 +516,6 @@ const Dashboard = () => {
                     No market data could be loaded.
                   </div>
                 )}
-                {/* --- END MODIFICATION --- */}
               </div>
 
               {/* Quick Actions */}
@@ -595,7 +575,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </>
-            {/* --- END MODIFICATION --- */}
           </div>
         </main>
       </div>

@@ -193,27 +193,6 @@ async def create_assets_bulk(
     return AssetBulkCreateResponse(created=created_assets, failed=failed_assets)
 
 
-@router.get("/market-search/{query}", response_model=List[Dict])
-async def search_market_assets(
-        query: str,
-        limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
-        current_user: User = Depends(get_current_active_user)
-):
-    """Search for assets from the general market data provider."""
-    if not query or len(query) < 2:
-        return []
-    try:
-        # This assumes your market_data_service has a method for searching symbols
-        results = await market_data_service.search_symbols(query, limit=limit)
-        return results
-    except Exception as e:
-        logger.error(f"Error during market search for query '{query}': {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while searching for assets."
-        )
-
-
 @router.get("/", response_model=List[AssetSchema])
 async def get_assets(
         skip: int = Query(0, ge=0, description="Number of assets to skip"),

@@ -9,7 +9,8 @@ import {
     Settings,
     TrendingDown,
     TrendingUp,
-    X
+    X,
+    Zap
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -23,6 +24,7 @@ import CreateTransactionModal from '../transactions/CreateTransactionModal';
 import AssetCard from './AssetCard';
 import AssetFilters from './AssetFilters';
 import AssetModal from './AssetModal';
+import BulkAssetModal from './BulkAssetModal';
 
 const Assets = () => {
     const [assets, setAssets] = useState([]);
@@ -41,6 +43,7 @@ const Assets = () => {
     const [showConfigurationManager, setShowConfigurationManager] = useState(false);
     const [showTransactionModal, setShowTransactionModal] = useState(false);
     const [transactionAsset, setTransactionAsset] = useState(null);
+    const [showBulkAssetModal, setShowBulkAssetModal] = useState(false);
     const [filters, setFilters] = useState({
         category: 'all',
         priceRange: 'all',
@@ -570,6 +573,13 @@ const Assets = () => {
                                     <span>Add Asset</span>
                                 </button>
                                 <button
+                                    onClick={() => setShowBulkAssetModal(true)}
+                                    className="btn-secondary flex items-center space-x-2"
+                                >
+                                    <Zap size={16} />
+                                    <span>Bulk Entry</span>
+                                </button>
+                                <button
                                     onClick={handleRefresh}
                                     className="btn-secondary flex items-center space-x-2"
                                 >
@@ -798,6 +808,15 @@ const Assets = () => {
                                 setModalMode('view');
                             }}
                             onSave={handleAssetSave}
+                        />
+                    )}
+                    {showBulkAssetModal && (
+                        <BulkAssetModal
+                            onClose={() => setShowBulkAssetModal(false)}
+                            onSuccess={() => {
+                                setShowBulkAssetModal(false);
+                                handleRefresh(); // Refresh asset list on success
+                            }}
                         />
                     )}
 

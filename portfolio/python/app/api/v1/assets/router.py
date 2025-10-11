@@ -3,7 +3,7 @@ Assets management router with authentication.
 """
 
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,6 +29,9 @@ from core.schemas.portfolio import (
 )
 from core.schemas.portfolio import (
     AssetDetail as AssetDetailSchema,
+    AssetBulkCreateRequest,
+    FailedAssetInfo,
+    AssetBulkCreateResponse,
 )
 from core.services.market_data_service import market_data_service
 
@@ -111,6 +114,104 @@ async def create_asset(
     response_time = time.time() - start_time
     log_api_response(logger, "POST", "/assets", 200, response_time)
     return new_asset
+
+
+@router.post("/bulk-create", response_model=AssetBulkCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_assets_bulk(
+        asset_data: AssetBulkCreateRequest,
+        current_user: User = Depends(get_current_verified_user),
+        db: Session = Depends(get_db),
+):
+    """Create multiple financial assets in bulk for the authenticated user."""
+    log_api_request(
+        logger,
+        "POST",
+        "/assets/bulk-create",
+        current_user.id,
+        f"Bulk creating assets for symbols: {asset_data.symbols}",
+    )
+    start_time = time.time()
+
+    unique_symbols = sorted(list(set([s.upper() for s in asset_data.symbols])))
+
+    # Get existing assets for the user to prevent duplicates
+    existing_symbols = {
+        r[0]
+        for r in db.query(AssetModel.symbol)
+        .filter(AssetModel.user_id == current_user.id, AssetModel.symbol.in_(unique_symbols))
+        .all()
+    }
+
+    created_assets = []
+    failed_assets = []
+    assets_to_create = []
+
+    for symbol in unique_symbols:
+        if symbol in existing_symbols:
+            failed_assets.append({"symbol": symbol, "reason": "Asset already exists."})
+            continue
+
+        try:
+            ticker_data = await market_data_service.get_ticker_info(symbol)
+            if not ticker_data or not (ticker_data.get("long_name") or ticker_data.get("short_name")):
+                raise ValueError("Invalid or incomplete market data received.")
+
+            new_asset = AssetModel(
+                symbol=symbol,
+                name=ticker_data.get("long_name") or ticker_data.get("short_name") or symbol,
+                asset_type=(
+                    AssetType[ticker_data.get("quote_type").upper()]
+                    if ticker_data.get("quote_type")
+                    else AssetType.OTHER
+                ),
+                currency=ticker_data.get("currency", "USD"),
+                exchange=ticker_data.get("exchange"),
+                isin=ticker_data.get("isin"),
+                cusip=ticker_data.get("cusip"),
+                sector=ticker_data.get("sector"),
+                industry=ticker_data.get("industry"),
+                country=ticker_data.get("country"),
+                description=ticker_data.get("long_business_summary"),
+                user_id=current_user.id,
+                is_active=True,
+            )
+            assets_to_create.append(new_asset)
+        except Exception as e:
+            logger.warning("Failed to process symbol %s for bulk creation: %s", symbol, e)
+            failed_assets.append({"symbol": symbol, "reason": f"Failed to fetch market data or symbol not found."})
+
+    if assets_to_create:
+        db.add_all(assets_to_create)
+        db.commit()
+        for asset in assets_to_create:
+            db.refresh(asset)
+        created_assets.extend(assets_to_create)
+
+    response_time = time.time() - start_time
+    log_api_response(logger, "POST", "/assets/bulk-create", 201, response_time)
+
+    return AssetBulkCreateResponse(created=created_assets, failed=failed_assets)
+
+
+@router.get("/market-search/{query}", response_model=List[Dict])
+async def search_market_assets(
+        query: str,
+        limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+        current_user: User = Depends(get_current_active_user)
+):
+    """Search for assets from the general market data provider."""
+    if not query or len(query) < 2:
+        return []
+    try:
+        # This assumes your market_data_service has a method for searching symbols
+        results = await market_data_service.search_symbols(query, limit=limit)
+        return results
+    except Exception as e:
+        logger.error(f"Error during market search for query '{query}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while searching for assets."
+        )
 
 
 @router.get("/", response_model=List[AssetSchema])

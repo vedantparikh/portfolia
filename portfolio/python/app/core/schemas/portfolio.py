@@ -161,6 +161,23 @@ class Asset(AssetBase):
         from_attributes = True
 
 
+class AssetBulkCreateRequest(BaseModel):
+    """Schema for bulk asset creation request."""
+    symbols: List[str]
+
+
+class FailedAssetInfo(BaseModel):
+    """Schema for reporting a failed asset creation."""
+    symbol: str
+    reason: str
+
+
+class AssetBulkCreateResponse(BaseModel):
+    """Schema for bulk asset creation response."""
+    created: List[Asset]
+    failed: List[FailedAssetInfo]
+
+
 class AssetPriceData(BaseModel):
     date: datetime
     open: Decimal

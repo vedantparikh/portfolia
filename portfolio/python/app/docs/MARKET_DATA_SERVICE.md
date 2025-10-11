@@ -230,7 +230,7 @@ from core.services.market_data_service import market_data_service
 
 # Get current prices for portfolio assets
 symbols = ["AAPL", "GOOGL", "MSFT"]
-prices = await market_data_service.get_multiple_current_prices(symbols)
+prices = await market_data_service.get_current_prices(symbols)
 
 # Calculate portfolio value
 total_value = 0

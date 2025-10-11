@@ -42,6 +42,7 @@ const Transactions = () => {
   const [parsedData, setParsedData] = useState(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [allAssets, setAllAssets] = useState([]);
   const [filters, setFilters] = useState({
     portfolio: "all",
     type: "all",
@@ -53,10 +54,21 @@ const Transactions = () => {
   // Load data on component mount and preload assets
   useEffect(() => {
     loadData();
-    // Preload assets in the background for faster transaction creation
-    assetCache.preloadAssets();
-  }, []);
 
+    // Initialize state with whatever is currently in the cache
+    setAllAssets(assetCache.assets || []);
+
+    // Subscribe to any updates (like when the preload finishes)
+    const unsubscribe = assetCache.subscribe(({ assets }) => {
+      setAllAssets(assets || []);
+    });
+
+    // Kick off the preload
+    assetCache.preloadAssets();
+
+    // Clean up the subscription when the component unmounts
+    return () => unsubscribe();
+  }, []);
   // Filter transactions when search query or filters change
   useEffect(() => {
     filterTransactions();
@@ -278,37 +290,44 @@ const Transactions = () => {
     setParsedData(null);
   };
 
-  // ✅ CORRECTED FUNCTION
-  // This function now waits for the bulk creation and then triggers a full, safe data reload.
-  const handleBulkCreate = async (portfolioId, transactionData, options) => {
-    const { onSuccess, context } = options;
+  const handleBulkCreate = async (portfolioId, transactionData, options = {}) => {
+    const { context, onSuccess } = options;
 
     try {
       const response = await accountStatementsAPI.bulkCreateTransactions(
         portfolioId,
         transactionData
       );
+      if (response.summary?.total_succeeded > 0) {
+        toast.success(
+          `Successfully imported ${response.summary.total_succeeded} transactions.`
+        );
+        await loadData(); // Refresh the main transaction list
+      }
+      // If the call is NOT from the parser (e.g., from the other bulk entry modal),
+      // we handle the success case here as before.
+      if (context === "create") {
+        onSuccess(); // Close the bulk entry modal
+        toast.success(
+          `Successfully created ${response.summary?.total_created || transactionData.length
+          } transactions. Refreshing list...`
+        );
+        await loadData();
+      }
 
-      // Call the specific success handler passed in options (e.g., to close the modal)
-      onSuccess();
+      // CRITICAL: Always return the full response from the API.
+      // ParsedDataTable needs this to know which transactions succeeded or failed.
+      return response;
 
-      const verb = context === "import" ? "imported" : "created";
-      toast.success(
-        `Successfully ${verb} ${
-          response.summary?.total_created || transactionData.length
-        } transactions. Refreshing list...`
-      );
-
-      // Instead of adding partial data, we reload everything to ensure data integrity.
-      await loadData();
     } catch (error) {
       const verb = context === "import" ? "import" : "create";
       console.error(`Failed to bulk ${verb} transactions:`, error);
       toast.error(`Failed to ${verb} transactions`);
+
+      // Re-throw the error so the calling component's 'catch' block is triggered.
       throw error;
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
@@ -515,6 +534,7 @@ const Transactions = () => {
               }
               onCancel={handleCancelParsedData}
               portfolios={portfolios}
+              allAssets={allAssets}
             />
           )}
 

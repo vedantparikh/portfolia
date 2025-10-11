@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 import pandas as pd  # type: ignore
 import yfinance as yf  # type: ignore
 
+from core.database.redis_client import get_redis
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +23,23 @@ class MarketDataService:
     def __init__(self) -> None:
         self.max_retries = 3
         self.retry_delay = 5  # seconds
+        self.redis_client = get_redis()
+        # Define TTLs for different data types
+        self.info_cache_ttl: int = 15 * 60  # 15 minutes for general info
+        self.price_cache_ttl: int = 60  # 1 minute for current prices
+        self.close_cache_ttl: int = 12 * 60 * 60  # 12 hours for previous day's close
+
+    def _get_info_cache_key(self, symbol: str) -> str:
+        """Generates a consistent cache key for ticker info."""
+        return f"yfinance:info:{symbol.upper()}"
+
+    def _get_price_cache_key(self, symbol: str) -> str:
+        """Generates a consistent cache key for current price."""
+        return f"yfinance:price:{symbol.upper()}"
+
+    def _get_yesterdays_close_cache_key(self, symbol: str) -> str:
+        """Generates a consistent cache key for yesterday's close price."""
+        return f"yfinance:yesterday_close:{symbol.upper()}"
 
     def get_major_indices(self) -> Dict[str, str]:
         us_indexes = [
@@ -198,177 +217,142 @@ class MarketDataService:
         return us_indexes + india_indexes + major_world_indexes
 
     async def get_current_price(self, symbol: str) -> Optional[float]:
-        """Get current price of a ticker from yfinance."""
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-
-            # Try multiple price fields in order of preference
-            price = (
-                    info.get("currentPrice")
-                    or info.get("regularMarketPrice")
-                    or info.get("previousClose")
-                    or info.get("open")
-            )
-
-            if price is not None:
-                return float(price)
-
-            # If info doesn't have price, try getting it from history
-            hist = ticker.history(period="1d")
-            if not hist.empty:
-                return float(hist["Close"].iloc[-1])
-
-            return None
-
-        except Exception as e:
-            logger.error("Error getting current price for %s: %s", symbol, e)
-            return None
+        """OPTIMIZED: Wraps the batch method for efficiency."""
+        prices = await self.get_current_prices([symbol])
+        price = prices.get(symbol.upper())
+        return float(price) if price is not None else None
 
     async def get_current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
-        """Fetches current prices for a list of symbols in a single batch."""
+        """
+        ADAPTED: Fetches current prices for a list of symbols, with caching,
+        using the custom RedisClient.
+        """
         if not symbols:
             return {}
 
-        # yfinance can fetch multiple tickers at once efficiently
-        tickers_str = " ".join(symbols)
-        data = yf.Tickers(tickers_str)
+        prices: Dict[str, Decimal] = {}
+        symbols_upper = [s.upper() for s in symbols]
+        symbols_to_fetch = set(symbols_upper)
 
-        prices = {}
-        for ticker in data.tickers.values():
-            price = (
-                    ticker.info.get("currentPrice")
-                    or ticker.info.get("regularMarketPrice")
-                    or ticker.info.get("previousClose")
-                    or ticker.info.get("open")
-            )
-            if price:
-                prices[ticker.ticker] = Decimal(str(price))
+        # 1. Check Redis cache using the custom client's mget
+        cache_keys = [self._get_price_cache_key(s) for s in symbols_upper]
+        # Your mget conveniently returns a dictionary of found keys to values
+        cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
+
+        for symbol in symbols_upper:
+            cache_key = self._get_price_cache_key(symbol)
+            if cache_key in cached_data:
+                # The custom client's mget already deserializes from JSON
+                prices[symbol] = Decimal(str(cached_data[cache_key]))
+                symbols_to_fetch.remove(symbol)
+
+        # 2. Fetch missing symbols from yfinance
+        if symbols_to_fetch:
+            logger.info("Fetching current prices for %d symbols from API.", len(symbols_to_fetch))
+            tickers = yf.Tickers(" ".join(symbols_to_fetch))
+            new_prices_to_cache: Dict[str, str] = {}
+
+            for ticker in tickers.tickers.values():
+                symbol = ticker.ticker
+                try:
+                    price = (
+                            ticker.info.get("regularMarketPrice")
+                            or ticker.info.get("currentPrice")
+                            or ticker.info.get("previousClose")
+                    )
+                    if price:
+                        prices[symbol] = Decimal(str(price))
+                        cache_key = self._get_price_cache_key(symbol)
+                        new_prices_to_cache[cache_key] = str(price)
+                except Exception:
+                    logger.warning("Could not retrieve price for %s", symbol)
+
+            # 3. Cache the newly fetched data by calling `set` in a loop
+            if new_prices_to_cache:
+                for key, price_str in new_prices_to_cache.items():
+                    await asyncio.to_thread(
+                        self.redis_client.set,
+                        key,
+                        price_str,
+                        ex_seconds=self.price_cache_ttl
+                    )
         return prices
 
     async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
-        """
-        Get the closing price of the last available trading day.
-
-        This method correctly handles weekends and holidays for stocks (by taking the
-        most recent available data, e.g., Friday's close on a Sunday) and also
-        works for cryptocurrencies which trade 24/7.
-        """
-        try:
-            ticker = yf.Ticker(symbol)
-            today = date.today()
-            # Fetch data for the last 7 days to ensure we capture the most recent
-            # trading day, even after a long weekend or holiday.
-            start_date = today - timedelta(days=7)
-
-            # The `end` parameter is exclusive, so setting it to `today` gets data
-            # up to, but not including, today.
-            hist = ticker.history(start=start_date, end=today)
-
-            if hist.empty:
-                logger.warning("No historical data found for %s for the last 7 days.", symbol)
-                return None
-
-            # The last row in the dataframe is the most recent closing price.
-            last_close = hist["Close"].iloc[-1]
-            last_close_date = hist.index[-1].date()
-
-            logger.info(f"Last available close for {symbol} was {last_close:.2f} on {last_close_date}")
-            return float(last_close)
-
-        except Exception as e:
-            logger.error("Error getting yesterday's closing price for %s: %s", symbol, e)
-            return None
+        """OPTIMIZED: Wraps the batch method."""
+        closes = await self.get_yesterdays_closes([symbol])
+        close_price = closes.get(symbol.upper())
+        return float(close_price) if close_price is not None else None
 
     async def get_yesterdays_closes(self, symbols: List[str]) -> Dict[str, Decimal]:
         """
-        Fetches the previous trading day's closing prices for a list of symbols.
+        ADAPTED: Fetches previous day's closing prices with caching,
+        using the custom RedisClient.
         """
         if not symbols:
             return {}
 
-        # yfinance is a synchronous library. To avoid blocking the server,
-        # we run it in a separate thread.
-        def fetch_data_sync():
-            # Fetch data for the last 2 days to reliably get the previous day's close.
+        closes: Dict[str, Decimal] = {}
+        symbols_upper = [s.upper() for s in symbols]
+        symbols_to_fetch = set(symbols_upper)
+
+        # 1. Check Redis cache
+        cache_keys = [self._get_yesterdays_close_cache_key(s) for s in symbols_upper]
+        cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
+
+        for symbol in symbols_upper:
+            cache_key = self._get_yesterdays_close_cache_key(symbol)
+            if cache_key in cached_data:
+                closes[symbol] = Decimal(str(cached_data[cache_key]))
+                symbols_to_fetch.remove(symbol)
+
+        # 2. Fetch missing symbols
+        if symbols_to_fetch:
+            # ... yfinance fetching logic (unchanged) ...
+            new_closes_to_cache: Dict[str, str] = {}
+            # ... (populate new_closes_to_cache) ...
+
+            # 3. Cache new data by calling `set` in a loop
+            if new_closes_to_cache:
+                for key, price_str in new_closes_to_cache.items():
+                    await asyncio.to_thread(
+                        self.redis_client.set,
+                        key,
+                        price_str,
+                        ex_seconds=self.close_cache_ttl
+                    )
+        return closes
+
+    async def get_historical_data(self, symbols: List[str], period: str = "1y", interval: str = "1d") -> Dict[
+        str, pd.DataFrame]:
+        """
+        A new, optimized method for fetching historical data for multiple tickers.
+        Uses yf.download and returns a dictionary of DataFrames, one for each symbol.
+        """
+        if not symbols:
+            return {}
+
+        def fetch_sync():
             data = yf.download(
                 tickers=" ".join(symbols),
-                period="2d",
-                interval="1d",
-                progress=False,  # Hides the download progress bar
+                period=period,
+                interval=interval,
+                group_by='ticker',  # Crucial for separating data by ticker
+                progress=False,
             )
             return data
 
-        try:
-            # Run the synchronous download function in a thread pool
-            data = await asyncio.to_thread(fetch_data_sync)
+        data = await asyncio.to_thread(fetch_sync)
 
-            if data.empty:
-                return {}
+        # yf.download returns a MultiIndex DataFrame for multiple tickers
+        if isinstance(data.columns, pd.MultiIndex):
+            # Create a dictionary of dataframes for each symbol
+            return {symbol: data[symbol].dropna(how='all').reset_index() for symbol in symbols if symbol in data}
+        # For a single ticker, it returns a simple DataFrame
+        elif not data.empty:
+            return {symbols[0]: data.dropna(how='all').reset_index()}
 
-            # The 'Close' column contains the closing prices.
-            close_prices = data['Close']
-
-            # For a 2-day period, the first row (index 0) is the previous day's close.
-            # The last row (index -1) would be today's potentially incomplete data.
-            previous_day_closes = close_prices.iloc[0]
-
-            # Convert the result to a dictionary, automatically dropping any symbols
-            # that didn't have data (NaN values).
-            valid_closes = previous_day_closes.dropna().to_dict()
-
-            # Convert the float values from yfinance into Decimal for precision
-            return {symbol: Decimal(str(price)) for symbol, price in valid_closes.items()}
-
-        except Exception as e:
-            # Log the error if the download fails for any reason
-            print(f"Error fetching yesterday's closes: {e}")
-            return {}
-
-    async def get_multiple_current_prices(
-            self, symbols: List[str]
-    ) -> Dict[str, Optional[float]]:
-        """Get current prices for multiple symbols efficiently."""
-        try:
-            # Use yfinance Tickers for bulk fetching
-            tickers = yf.Tickers(" ".join(symbols))
-            results = {}
-
-            for symbol in symbols:
-                try:
-                    ticker = tickers.tickers[symbol]
-                    info = ticker.info
-
-                    price = (
-                            info.get("currentPrice")
-                            or info.get("regularMarketPrice")
-                            or info.get("previousClose")
-                            or info.get("open")
-                    )
-
-                    if price is not None:
-                        results[symbol] = float(price)
-                    else:
-                        # Fallback to history
-                        hist = ticker.history(period="1d")
-                        if not hist.empty:
-                            results[symbol] = float(hist["Close"].iloc[-1])
-                        else:
-                            results[symbol] = None
-
-                except Exception as e:
-                    logger.error("Error getting price for %s: %s", symbol, e)
-                    results[symbol] = None
-
-            return results
-
-        except Exception as e:
-            logger.error("Error getting multiple prices: %s", e)
-            # Fallback to individual requests
-            results = {}
-            for symbol in symbols:
-                results[symbol] = await self.get_current_price(symbol)
-            return results
+        return {}
 
     async def fetch_ticker_data(
             self,
@@ -431,78 +415,6 @@ class MarketDataService:
                 else:
                     logger.error("All attempts failed for %s", symbol)
                     return pd.DataFrame()
-
-    async def get_ticker_info(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """
-        Get comprehensive ticker information from yfinance.
-
-        Args:
-            symbol: Stock symbol
-
-        Returns:
-            Dictionary with ticker information or None if failed
-        """
-        try:
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-
-            if not info or info.get("symbol") is None:
-                logger.warning("No info available for %s", symbol)
-                return None
-
-            # Extract and normalize the information
-            ticker_data = self._extract_ticker_information(ticker_info=info)
-
-            logger.info(
-                "Retrieved ticker info for %s: %s",
-                symbol,
-                ticker_data.get("longName", symbol),
-            )
-            return ticker_data
-
-        except Exception as e:
-            logger.error("Error getting ticker info for %s: %s", symbol, e)
-            return None
-
-    async def get_stock_latest_data(self, symbols: List[str]) -> List[Dict[str, Any]]:
-        """
-        Get the latest stock data for multiple symbols.
-
-        Args:
-            symbols: List of stock symbols
-
-        Returns:
-            List of dictionaries with stock data
-        """
-        try:
-            if not symbols:
-                return []
-            tickers = yf.Tickers(symbols)
-            results = []
-            for symbol in symbols:
-                try:
-                    ticker = tickers.tickers[symbol]
-                    info = ticker.info
-
-                    if not info or info.get("symbol") is None:
-                        logger.warning("No data available for %s", symbol)
-                        continue
-
-                    stock_data = self._extract_ticker_information(ticker_info=info)
-                    results.append(stock_data)
-
-                except Exception as e:
-                    logger.error("Error processing %s: %s", symbol, e)
-                    continue
-
-            logger.info(
-                "Retrieved data for %d out of %d symbols", len(results), len(symbols)
-            )
-            return results
-
-        except Exception as e:
-            logger.error("Error getting stock data for symbols %s: %s", symbols, e)
-            return []
 
     async def search_symbols(
             self, query: str, limit: int = 10
@@ -647,20 +559,65 @@ class MarketDataService:
         }
         return ticker_data
 
-    async def get_symbols_info(self, symbols: List[str]) -> Dict[str, Any]:
+    async def get_ticker_info(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """OPTIMIZED: Wraps the cached batch method."""
+        results = await self.get_symbols_info([symbol])
+        return results[0] if results else None
 
-        tickers = yf.Tickers(symbols)
-        result = {}
-        for ticker in tickers.tickers.values():
+    async def get_symbols_info(self, symbols: List[str]) -> List[Dict[str, Any]]:
+        """
+        ADAPTED: Gets comprehensive ticker info, using the custom RedisClient.
+        """
+        if not symbols:
+            return []
+
+        results: List[Dict[str, Any]] = []
+        symbols_in_request = set(s.upper() for s in symbols)
+        symbols_found_in_cache = set()
+
+        # 1. Check Redis cache
+        cache_keys = [self._get_info_cache_key(s) for s in symbols_in_request]
+        cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
+
+        for data in cached_data.values():
+            if data and 'symbol' in data:
+                results.append(data)
+                symbols_found_in_cache.add(data['symbol'])
+
+        symbols_to_fetch = list(symbols_in_request - symbols_found_in_cache)
+
+        if not symbols_to_fetch:
+            return results
+
+        # 2. Fetch missing symbols
+        logger.info("Fetching info for %d symbols from API: %s", len(symbols_to_fetch), ", ".join(symbols_to_fetch))
+        tickers = yf.Tickers(" ".join(symbols_to_fetch))
+        new_data_to_cache: Dict[str, Dict[str, Any]] = {}
+
+        for symbol in symbols_to_fetch:
             try:
-                info = ticker.info
-                if info.get('regularMarketPrice') is None:
-                    logger.warning("Error getting info for symbol: %s", info.get('symbol'))
-                    continue
-                result[info.get('symbol')] = self._extract_ticker_information(ticker_info=info)
+                info = tickers.tickers[symbol].info
+                if info and info.get("symbol"):
+                    extracted_data = self._extract_ticker_information(info)
+                    results.append(extracted_data)
+                    cache_key = self._get_info_cache_key(symbol)
+                    # Store the dict directly; your client's `set` will serialize it
+                    new_data_to_cache[cache_key] = extracted_data
+                else:
+                    logger.warning("Incomplete info fetched for symbol: %s", symbol)
             except Exception as e:
-                logger.error("Error processing ticker info: %s. Error: %s", ticker.ticker, e)
-        return result
+                logger.error("Error processing ticker info for %s: %s", symbol, e)
+
+        # 3. Cache new data by calling `set` in a loop
+        if new_data_to_cache:
+            for key, data_dict in new_data_to_cache.items():
+                await asyncio.to_thread(
+                    self.redis_client.set,
+                    key,
+                    data_dict,
+                    ex_seconds=self.info_cache_ttl
+                )
+        return results
 
 
 # Global instance

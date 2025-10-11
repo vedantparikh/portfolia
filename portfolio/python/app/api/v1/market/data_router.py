@@ -213,7 +213,7 @@ async def get_bulk_prices(
         # Convert to uppercase
         symbols = [s.upper() for s in symbols]
 
-        prices = await market_data_service.get_multiple_current_prices(symbols)
+        prices = await market_data_service.get_current_prices(symbols)
 
         return BulkPricesResponse(
             prices=prices,

@@ -232,7 +232,7 @@ const Dashboard = () => {
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                   {/* Portfolio Overview */}
-                  <div className="card p-6">
+                  <div className="card p-6 flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-lg font-semibold text-gray-100">
                         Your Portfolios
@@ -261,72 +261,61 @@ const Dashboard = () => {
                         </a>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="hidden md:grid grid-cols-4 gap-4 px-4 text-xs text-gray-400 font-medium">
+                      /* --- MODIFICATION START --- */
+                      // Removed pr-2 and changed max-h-[300px] to max-h-80
+                      <div className="space-y-4 max-h-80 overflow-y-auto">
+                        {/* --- END MODIFICATION --- */}
+                        <div className="hidden md:grid grid-cols-4 gap-4 px-4 text-xs text-gray-400 font-medium sticky top-0 bg-dark-900 z-10 py-2">
                           <span>Portfolio</span>
                           <span className="text-right">Total Value</span>
                           <span className="text-right">Today's P&L</span>
                           <span className="text-right">Total P&L</span>
                         </div>
-                        {dashboardData.portfolios
-                          .slice(0, 3)
-                          .map((portfolio) => (
-                            <div
-                              key={portfolio.id}
-                              className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 bg-dark-800 rounded-lg"
-                            >
-                              <div className="col-span-2 md:col-span-1">
-                                <h4 className="font-medium text-gray-100 truncate">
-                                  {portfolio.name}
-                                </h4>
-                                <p className="text-sm text-gray-400">
-                                  {portfolio.stats?.total_assets ?? 0} Assets
-                                </p>
-                              </div>
-
-                              <div className="text-right">
-                                <p className="font-semibold text-gray-100">
-                                  {formatCurrency(
-                                    portfolio.stats?.total_current_value
-                                  )}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1 md:hidden">
-                                  Total Value
-                                </p>
-                              </div>
-
-                              <PnlDisplay
-                                value={portfolio.stats?.today_pnl ?? 0}
-                                percent={
-                                  portfolio.stats?.today_pnl_percent ?? 0
-                                }
-                                label="Today's P&L"
-                              />
-
-                              <div className="hidden md:block">
-                                <PnlDisplay
-                                  value={
-                                    portfolio.stats?.total_unrealized_pnl ?? 0
-                                  }
-                                  percent={
-                                    portfolio.stats
-                                      ?.total_unrealized_pnl_percent ?? 0
-                                  }
-                                />
-                              </div>
+                        {dashboardData.portfolios.map((portfolio) => (
+                          <div
+                            key={portfolio.id}
+                            className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center p-4 bg-dark-800 rounded-lg"
+                          >
+                            <div className="col-span-2 md:col-span-1">
+                              <h4 className="font-medium text-gray-100 truncate">
+                                {portfolio.name}
+                              </h4>
+                              <p className="text-sm text-gray-400">
+                                {portfolio.stats?.total_assets ?? 0} Assets
+                              </p>
                             </div>
-                          ))}
-                        {dashboardData.portfolios.length > 3 && (
-                          <div className="text-center mt-4">
-                            <a
-                              href="/portfolio"
-                              className="text-primary-400 hover:text-primary-300 text-sm font-medium"
-                            >
-                              View all {dashboardData.portfolios.length}{" "}
-                              portfolios →
-                            </a>
+
+                            <div className="text-right">
+                              <p className="font-semibold text-gray-100">
+                                {formatCurrency(
+                                  portfolio.stats?.total_current_value
+                                )}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1 md:hidden">
+                                Total Value
+                              </p>
+                            </div>
+
+                            <PnlDisplay
+                              value={portfolio.stats?.today_pnl ?? 0}
+                              percent={
+                                portfolio.stats?.today_pnl_percent ?? 0
+                              }
+                            />
+
+                            <div className="hidden md:block">
+                              <PnlDisplay
+                                value={
+                                  portfolio.stats?.total_unrealized_pnl ?? 0
+                                }
+                                percent={
+                                  portfolio.stats
+                                    ?.total_unrealized_pnl_percent ?? 0
+                                }
+                              />
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>

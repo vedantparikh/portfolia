@@ -21,6 +21,7 @@
 
 // Import React - the core library for building user interfaces
 import React from "react";
+import * as Sentry from "@sentry/react";
 
 // Import Toaster from react-hot-toast - this shows popup notifications to users
 import { Toaster } from "react-hot-toast";
@@ -56,6 +57,23 @@ import ValidateResetToken from "./components/auth/ValidateResetToken"; // Token 
 
 // Import AuthProvider - this provides authentication state to all components
 import { AuthProvider } from "./contexts/AuthContext";
+
+
+Sentry.init({
+  dsn: import.meta.env.SENTRY_DSN,
+  integrations: [
+    Sentry.browserTracingIntegration(),
+    Sentry.replayIntegration(),
+  ],
+  
+  // Performance Monitoring
+  tracesSampleRate: parseFloat(import.meta.env.SENTRY_TRACES_SAMPLE_RATE || 1.0),
+  
+  // Session Replay
+  replaysSessionSampleRate: parseFloat(import.meta.env.SENTRY_REPLAYS_SAMPLE_RATE || 0.1),
+  replaysOnErrorSampleRate: parseFloat(import.meta.env.SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE || 1.0),
+});
+
 
 /**
  * App Component Function

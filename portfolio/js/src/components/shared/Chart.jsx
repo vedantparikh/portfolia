@@ -1,9 +1,4 @@
-import {
-  AreaSeries,
-  CandlestickSeries,
-  LineSeries,
-  createChart,
-} from "lightweight-charts";
+import { createChart } from "lightweight-charts";
 import {
   BarChart3,
   Maximize2,
@@ -292,7 +287,7 @@ const Chart = ({
     let comparisonSeries = null;
 
     if (isPortfolioChart) {
-      priceSeries = chart.addSeries(LineSeries, {
+      priceSeries = chart.addLineSeries({
         color: "#0ea5e9",
         lineWidth: 2,
         title: "Portfolio Value",
@@ -300,7 +295,7 @@ const Chart = ({
       priceSeries.setData(portfolioLineData);
 
       if (showComparisonLine && comparisonLineData.length > 0) {
-        comparisonSeries = chart.addSeries(LineSeries, {
+        comparisonSeries = chart.addLineSeries({
           color: "#6b7280",
           lineWidth: 2,
           lineStyle: 2,
@@ -310,7 +305,7 @@ const Chart = ({
       }
     } else {
       if (chartType === "candlestick") {
-        priceSeries = chart.addSeries(CandlestickSeries, {
+        priceSeries = chart.addCandlestickSeries({
           upColor: "#22c55e",
           downColor: "#ef4444",
           borderDownColor: "#dc2626",
@@ -325,14 +320,14 @@ const Chart = ({
           value: d.close,
         }));
         if (chartType === "area") {
-          priceSeries = chart.addSeries(AreaSeries, {
+          priceSeries = chart.addAreaSeries({
             topColor: "rgba(14, 165, 233, 0.3)",
             bottomColor: "rgba(14, 165, 233, 0.0)",
             lineColor: "#0ea5e9",
             lineWidth: 2,
           });
         } else {
-          priceSeries = chart.addSeries(LineSeries, {
+          priceSeries = chart.addLineSeries({
             color: "#0ea5e9",
             lineWidth: 2,
           });
@@ -351,7 +346,7 @@ const Chart = ({
           if (indicatorValues && indicatorValues.length > 0) {
             const isSecondaryAxis = isSecondaryAxisIndicator(indicatorName);
 
-            const series = chart.addSeries(LineSeries, {
+            const series = chart.addLineSeries({
               color: getIndicatorColor(indicatorName),
               lineWidth: 2,
               priceLineVisible: false,

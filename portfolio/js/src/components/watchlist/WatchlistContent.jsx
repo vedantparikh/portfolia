@@ -12,7 +12,7 @@ import {
     X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { DragDropContext, Draggable, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
 import { watchlistAPI } from '../../services/api';
 import {

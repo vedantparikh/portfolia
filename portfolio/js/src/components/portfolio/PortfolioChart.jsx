@@ -45,6 +45,106 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState("30d");
   const [chartType, setChartType] = useState("line");
+  const [metricsData, setMetricsData] = useState(null);
+  const [advancedMetrics, setAdvancedMetrics] = useState(null);
+  const [showMetricsPanel, setShowMetricsPanel] = useState(true);
+  const [portfolioConcentration, setPortfolioConcentration] = useState(null);
+
+
+  const calculateAdvancedMetrics = (performanceData) => {
+    if (!performanceData || performanceData.length < 2) {
+      setAdvancedMetrics(null);
+      return;
+    }
+
+    const sortedData = [...performanceData].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Daily returns for other calculations
+    const dailyReturns = sortedData.slice(1).map((day, i) => {
+      const yesterday = sortedData[i];
+      return yesterday.value !== 0 ? (day.value - yesterday.value) / yesterday.value : 0;
+    });
+
+    if (dailyReturns.length === 0) {
+      setAdvancedMetrics({ sortinoRatio: 0, winRate: 0 });
+      return;
+    }
+
+    // Sortino Ratio
+    const negativeReturns = dailyReturns.filter(r => r < 0);
+    const avgReturn = dailyReturns.reduce((sum, val) => sum + val, 0) / dailyReturns.length;
+    const negVariance = negativeReturns.reduce((sum, val) => sum + Math.pow(val, 2), 0) / dailyReturns.length;
+    const downsideDeviation = Math.sqrt(negVariance);
+    const sortinoRatio = downsideDeviation > 0 ? (avgReturn / downsideDeviation) * Math.sqrt(252) : Infinity; // Annualized
+
+    // Win Rate
+    const winRate = (dailyReturns.filter(r => r > 0).length / dailyReturns.length) * 100;
+
+    setAdvancedMetrics({
+      sortinoRatio,
+      winRate,
+    });
+  };
+  const calculatePerformanceMetrics = (performanceData) => {
+    if (!performanceData || performanceData.length < 2) {
+      setMetricsData(null);
+      return;
+    }
+
+    const sortedData = [...performanceData].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    const firstRecord = sortedData[0];
+    const lastRecord = sortedData[sortedData.length - 1];
+
+    const endingMarketValue = lastRecord.value;
+    const beginningMarketValue = firstRecord.value;
+    
+    // Net Cash Flow: The total amount of money added or removed during the period.
+    const cashFlow = lastRecord.cost_basis - firstRecord.cost_basis;
+
+    const gainLoss = endingMarketValue - beginningMarketValue - cashFlow;
+    const averageCapital = beginningMarketValue + (0.5 * cashFlow);
+
+    let totalReturn = averageCapital !== 0 ? (gainLoss / averageCapital) * 100 : 0;
+    
+    const isUnstable = Math.abs(averageCapital) < (Math.abs(beginningMarketValue) * 0.05);
+    if (isUnstable) {
+      totalReturn = beginningMarketValue !== 0 ? ((endingMarketValue - beginningMarketValue) / beginningMarketValue) * 100 : 0;
+    }
+    
+    const highValue = Math.max(...sortedData.map((d) => d.value));
+    const lowValue = Math.min(...sortedData.map((d) => d.value));
+
+    const dailyReturns = sortedData.slice(1).map((d, i) => {
+      const yesterdayValue = sortedData[i].value;
+      return yesterdayValue > 0 ? ((d.value - yesterdayValue) / yesterdayValue) * 100 : 0;
+    });
+
+    const avgReturn = dailyReturns.reduce((sum, val) => sum + val, 0) / dailyReturns.length;
+    const variance = dailyReturns.reduce((sum, val) => sum + Math.pow(val - avgReturn, 2), 0) / dailyReturns.length;
+    const volatility = Math.sqrt(variance);
+
+    let peak = -Infinity;
+    let maxDrawdown = 0;
+    sortedData.forEach((d) => {
+      if (d.value > peak) { peak = d.value; }
+      const drawdown = peak > 0 ? ((peak - d.value) / peak) * 100 : 0;
+      if (drawdown > maxDrawdown) { maxDrawdown = drawdown; }
+    });
+
+    setMetricsData({
+      totalReturn,
+      highValue,
+      lowValue,
+      volatility,
+      maxDrawdown,
+      netContributions: cashFlow,
+    });
+  };
 
   const chartTypes = [
     { value: "line", label: "Line Chart", icon: TrendingUp },
@@ -66,7 +166,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         const historyResponse =
           await analyticsAPI.getPortfolioPerformanceHistory(portfolio.id, days);
         if (historyResponse?.history && historyResponse.history.length > 0) {
-          const processedData = processHistoryData(historyResponse.history);
+          const processedData = processHistoryData([...historyResponse.history].reverse());
           setChartData(processedData);
         }
       } catch (historyError) {
@@ -105,14 +205,47 @@ const PortfolioChart = ({ portfolio, stats }) => {
           current_value: parseFloat(holding.current_value) || 0,
         }));
         setAllocationData(allocations);
+
+        // --- Calculate Largest/Smallest Holding by allocation % ---
+        if (allocations && allocations.length > 0) {
+          // Filter out any holdings with 0% to find the smallest meaningful position
+          const meaningfulAllocations = allocations.filter(h => h.current_percentage > 0);
+
+          if (meaningfulAllocations.length > 0) {
+            let largestHolding = meaningfulAllocations[0];
+            let smallestHolding = meaningfulAllocations[0];
+            
+            for (const holding of meaningfulAllocations) {
+              if (holding.current_percentage > largestHolding.current_percentage) {
+                largestHolding = holding;
+              }
+              if (holding.current_percentage < smallestHolding.current_percentage) {
+                smallestHolding = holding;
+              }
+            }
+            setPortfolioConcentration({ largest: largestHolding, smallest: smallestHolding });
+          } else {
+            setPortfolioConcentration(null);
+          }
+        } else {
+          setPortfolioConcentration(null);
+        }
+
+      } else {
+        setPortfolioConcentration(null);
       }
     } catch (error) {
       console.error("[PortfolioChart] Failed to load allocation data:", error);
     }
   }, [portfolio]);
 
+
   const processHistoryData = (historyData) => {
-    if (!historyData || historyData.length === 0) return null;
+    if (!historyData || historyData.length === 0) {
+      setMetricsData(null);
+      setAdvancedMetrics(null); 
+      return null;
+    }
 
     const performanceData = historyData.map((item) => ({
       date: item.snapshot_date || new Date().toISOString(),
@@ -120,23 +253,15 @@ const PortfolioChart = ({ portfolio, stats }) => {
       cost_basis: parseFloat(item.total_cost_basis) || 0,
     }));
 
-    const firstValue = performanceData[0]?.value || 0;
-    const lastValue = performanceData[performanceData.length - 1]?.value || 0;
-    const totalReturn =
-      firstValue > 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0;
+    // Trigger state updates with the processed data
+    calculatePerformanceMetrics(performanceData);
+    calculateAdvancedMetrics(performanceData);
 
+    // Only return the data needed for the chart
     return {
       performance_data: performanceData,
-      total_return: totalReturn,
-      volatility:
-        parseFloat(historyData[historyData.length - 1]?.volatility) || 0,
-      sharpe_ratio:
-        parseFloat(historyData[historyData.length - 1]?.sharpe_ratio) || 0,
-      max_drawdown:
-        parseFloat(historyData[historyData.length - 1]?.max_drawdown) || 0,
     };
   };
-
   useEffect(() => {
     if (portfolio?.id) {
       loadChartData();
@@ -147,39 +272,22 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const renderPieChart = () => {
     const allocations = allocationData;
     const colors = [
-      "#4a90e2",
-      "#50e3c2",
-      "#f5a623",
-      "#bd10e0",
-      "#e86060",
-      "#51af39",
-      "#ffcd45",
-      "#7ed321",
-      "#4a4ae2",
-      "#e24a90",
-      "#a16b3f",
-      "#42c2ea",
-      "#9b9b9b",
-      "#ff784f",
-      "#8f55e0",
-      "#33d9b2",
-      "#f7d730",
-      "#6a4aeb",
-      "#ff6f61",
-      "#00c7b6",
+      "#4a90e2", "#50e3c2", "#f5a623", "#bd10e0", "#e86060", "#51af39", "#ffcd45",
+      "#7ed321", "#4a4ae2", "#e24a90", "#a16b3f", "#42c2ea", "#9b9b9b", "#ff784f",
+      "#8f55e0", "#33d9b2", "#f7d730", "#6a4aeb", "#ff6f61", "#00c7b6",
     ];
 
     const pieData =
       allocations && allocations.length > 0
         ? allocations
-            .map((allocation, index) => ({
-              name: allocation.asset_name || `Asset ${index + 1}`,
-              value: parseFloat(allocation.current_percentage) || 0,
-              color: colors[index % colors.length],
-              symbol: allocation.asset_symbol || "",
-              value_amount: parseFloat(allocation.current_value) || 0,
-            }))
-            .filter((item) => item.value > 0)
+          .map((allocation, index) => ({
+            name: allocation.asset_name || `Asset ${index + 1}`,
+            value: parseFloat(allocation.current_percentage) || 0,
+            color: colors[index % colors.length],
+            symbol: allocation.asset_symbol || "",
+            value_amount: parseFloat(allocation.current_value) || 0,
+          }))
+          .filter((item) => item.value > 0)
         : [];
 
     if (pieData.length === 0) {
@@ -208,8 +316,8 @@ const PortfolioChart = ({ portfolio, stats }) => {
     };
 
     return (
-      <div className="h-80 flex items-center justify-center">
-        <div className="relative w-64 h-64">
+      <div className="h-80 flex flex-col md:flex-row items-center justify-center gap-8">
+        <div className="relative w-64 h-64 flex-shrink-0">
           <div className="w-full h-full rounded-full" style={pieStyle} />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-40 h-40 bg-dark-800 rounded-full flex items-center justify-center">
@@ -222,11 +330,11 @@ const PortfolioChart = ({ portfolio, stats }) => {
             </div>
           </div>
         </div>
-        <div className="ml-8 space-y-2 max-h-64 overflow-y-auto">
+        <div className="space-y-2 max-h-64 overflow-y-auto w-full md:w-auto">
           {pieData.map((allocation, index) => (
             <div key={index} className="flex items-center space-x-3">
               <div
-                className="w-4 h-4 rounded"
+                className="w-4 h-4 rounded flex-shrink-0"
                 style={{ backgroundColor: allocation.color }}
               ></div>
               <div className="flex-1 min-w-0">
@@ -302,19 +410,25 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <Download size={16} />
               <span>Export</span>
             </button>
+            <button
+              onClick={() => setShowMetricsPanel(!showMetricsPanel)}
+              className="btn-outline text-sm flex items-center space-x-2"
+            >
+              <Activity size={16} />
+              <span>Performance Metrics</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 mb-6">
+        <div className="flex items-center space-x-2 mb-6 overflow-x-auto pb-2">
           {chartPeriods.map((periodOption) => (
             <button
               key={periodOption.value}
               onClick={() => setTimeRange(periodOption.value)}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                timeRange === periodOption.value
-                  ? "bg-primary-600 text-white font-semibold"
-                  : "bg-dark-800 text-gray-400 hover:bg-dark-700"
-              }`}
+              className={`px-3 py-1 text-xs rounded-md transition-colors flex-shrink-0 ${timeRange === periodOption.value
+                ? "bg-primary-600 text-white font-semibold"
+                : "bg-dark-800 text-gray-400 hover:bg-dark-700"
+                }`}
             >
               {periodOption.label}
             </button>
@@ -329,11 +443,10 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <button
                 key={type.value}
                 onClick={() => setChartType(type.value)}
-                className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  chartType === type.value
-                    ? "bg-primary-600 text-white"
-                    : "bg-dark-700 text-gray-300 hover:bg-dark-600"
-                }`}
+                className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${chartType === type.value
+                  ? "bg-primary-600 text-white"
+                  : "bg-dark-700 text-gray-300 hover:bg-dark-600"
+                  }`}
               >
                 <Icon size={16} />
                 <span>{type.label}</span>
@@ -342,6 +455,78 @@ const PortfolioChart = ({ portfolio, stats }) => {
           })}
         </div>
 
+        {showMetricsPanel && metricsData && (
+          <div className="card p-4 my-4 border border-dark-700">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center mb-4">
+              <Activity className="w-5 h-5 mr-2 text-primary-400" />
+              Performance Metrics
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Total Return</p>
+                <p className={`text-lg font-bold ${metricsData.totalReturn >= 0 ? "text-success-400" : "text-danger-400"}`}>
+                  {formatPercentage(metricsData.totalReturn || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Net Contributions</p>
+                <p className={`text-lg font-bold ${metricsData.netContributions >= 0 ? "text-success-400" : "text-danger-400"}`}>
+                  {formatCurrency(metricsData.netContributions || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Sortino Ratio</p>
+                <p className="text-lg font-bold text-gray-200">
+                  {formatMetricValue(advancedMetrics?.sortinoRatio || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Volatility (Daily)</p>
+                <p className="text-lg font-bold text-gray-200">
+                  {formatPercentage(metricsData.volatility || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Max Drawdown</p>
+                <p className="text-lg font-bold text-danger-400">
+                  -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Win Rate</p>
+                <p className={`text-lg font-bold ${advancedMetrics?.winRate > 50 ? "text-success-400" : "text-gray-200"}`}>
+                  {formatPercentage(advancedMetrics?.winRate || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Largest Holding</p>
+                {portfolioConcentration?.largest ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-200 truncate" title={portfolioConcentration.largest.asset_name}>
+                      {portfolioConcentration.largest.asset_name}
+                    </p>
+                    <p className="text-lg font-bold text-gray-100">
+                      {formatPercentage(portfolioConcentration.largest.current_percentage, 1)}
+                    </p>
+                  </>
+                ) : <p className="text-lg font-bold text-gray-500">-</p>}
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Smallest Holding</p>
+                {portfolioConcentration?.smallest ? (
+                  <>
+                    <p className="text-sm font-medium text-gray-200 truncate" title={portfolioConcentration.smallest.asset_name}>
+                      {portfolioConcentration.smallest.asset_name}
+                    </p>
+                    <p className="text-lg font-bold text-gray-100">
+                      {formatPercentage(portfolioConcentration.smallest.current_percentage, 1)}
+                    </p>
+                  </>
+                ) : <p className="text-lg font-bold text-gray-500">-</p>}
+              </div>
+            </div>
+          </div>
+        )}
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (
             <div className="flex items-center justify-center h-80">
@@ -354,7 +539,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
             <div className="flex items-center justify-center h-80">
               <div className="text-center">
                 <BarChart3 size={48} className="text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400">No chart data available</p>
+                <p className="text-gray-400">No chart data available for this period.</p>
                 <button
                   onClick={loadChartData}
                   className="mt-2 text-primary-400 hover:text-primary-300 text-sm"
@@ -366,56 +551,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
           )}
         </div>
       </div>
-
-      {chartData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Return</p>
-                <p
-                  className={`text-2xl font-bold ${getChangeColor(
-                    chartData.total_return || 0
-                  )}`}
-                >
-                  {formatPercentage(chartData.total_return || 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                <TrendingUp size={24} className="text-primary-400" />
-              </div>
-            </div>
-          </div>
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Volatility</p>
-                <p className="text-2xl font-bold text-gray-100">
-                  {formatPercentage(chartData.volatility || 0, {
-                    precision: 1,
-                  })}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                <Activity size={24} className="text-warning-400" />
-              </div>
-            </div>
-          </div>
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Sharpe Ratio</p>
-                <p className="text-2xl font-bold text-gray-100">
-                  {formatMetricValue(chartData.sharpe_ratio || 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                <TrendingUp size={24} className="text-success-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -811,6 +811,11 @@ export const assetAPI = {
     const response = await api.get(`/assets/${id}/prices`, { params });
     return response;
   },
+
+  createBulkAssets: async (symbols) => {
+    const response = await api.post('/assets/bulk-create', { symbols });
+    return response;
+  },
 };
 
 /* 

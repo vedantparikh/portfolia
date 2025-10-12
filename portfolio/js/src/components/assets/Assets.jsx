@@ -1,4 +1,5 @@
 import {
+    Activity,
     ArrowLeft,
     BarChart3,
     Filter,
@@ -9,10 +10,12 @@ import {
     Settings,
     TrendingDown,
     TrendingUp,
-    X
+    X,
+    Zap
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { InView } from 'react-intersection-observer';
 import { portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
 import assetCache from '../../services/assetCache';
 import { formatMarketCap } from '../../utils/formatters';
@@ -23,24 +26,32 @@ import CreateTransactionModal from '../transactions/CreateTransactionModal';
 import AssetCard from './AssetCard';
 import AssetFilters from './AssetFilters';
 import AssetModal from './AssetModal';
+import BulkAssetModal from './BulkAssetModal';
+
+const PAGE_SIZE = 8; // How many items to fetch per page
 
 const Assets = () => {
     const [assets, setAssets] = useState([]);
-    const [filteredAssets, setFilteredAssets] = useState([]);
     const [portfolios, setPortfolios] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [showModal, setShowModal] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
-    const [viewMode, setViewMode] = useState('grid'); // grid or list
-    const [modalMode, setModalMode] = useState('view'); // view, create, edit
+    const [viewMode, setViewMode] = useState('grid');
+    const [modalMode, setModalMode] = useState('view');
     const [showAnalytics, setShowAnalytics] = useState(false);
     const [chartData, setChartData] = useState([]);
     const [selectedConfiguration, setSelectedConfiguration] = useState(null);
     const [showConfigurationManager, setShowConfigurationManager] = useState(false);
     const [showTransactionModal, setShowTransactionModal] = useState(false);
     const [transactionAsset, setTransactionAsset] = useState(null);
+    const [showBulkAssetModal, setShowBulkAssetModal] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [totalAssetsCount, setTotalAssetsCount] = useState(0);
+
     const [filters, setFilters] = useState({
         category: 'all',
         priceRange: 'all',
@@ -54,118 +65,33 @@ const Assets = () => {
     const [autoRefresh, setAutoRefresh] = useState(false);
     const [refreshInterval, setRefreshInterval] = useState(null);
 
-    // Load assets on component mount
-    useEffect(() => {
-        let isMounted = true;
-
-        const loadAssetsSafe = async () => {
-            try {
-                setLoading(true);
-
-                // Load portfolios for transaction creation
-                const portfoliosResponse = await portfolioAPI.getPortfolios();
-                console.log('[Assets] Portfolios response:', portfoliosResponse);
-
-                const response = await userAssetsAPI.getUserAssets({
-                    limit: 1000,
-                    include_detail: true,
-                    include_performance: true,
-                    include_analytics: true
-                });
-
-                // Only update state if component is still mounted
-                if (isMounted) {
-                    console.log('[Assets] User assets response:', response);
-                    setAssets(response.assets || []);
-                    setPortfolios(portfoliosResponse || []);
-                }
-            } catch (error) {
-                if (isMounted) {
-                    console.error('Failed to load user assets:', error);
-                    toast.error('Failed to load your assets');
-                }
-            } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadAssetsSafe();
-
-        // Cleanup function to prevent state updates on unmounted component
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    // Filter assets when search query or filters change
-    useEffect(() => {
-        filterAssets();
-    }, [assets, searchQuery, filters]);
-
-    // Auto-refresh functionality
-    useEffect(() => {
-        if (autoRefresh) {
-            const interval = setInterval(() => {
-                loadAssets();
-            }, 30000); // Refresh every 30 seconds
-            setRefreshInterval(interval);
+    const loadData = useCallback(async (currentPage, isRefresh = false) => {
+        if (currentPage > 1) {
+            setLoadingMore(true);
         } else {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-                setRefreshInterval(null);
-            }
+            setLoading(true);
         }
 
-        return () => {
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
-            }
-        };
-    }, [autoRefresh]);
-
-    // External loadAssets function for manual refresh and other operations
-    const loadAssets = async () => {
         try {
-            setLoading(true);
+            if (currentPage === 1 && portfolios.length === 0) {
+                const portfoliosResponse = await portfolioAPI.getPortfolios();
+                setPortfolios(portfoliosResponse || []);
+            }
 
-            // Load portfolios for transaction creation
-            const portfoliosResponse = await portfolioAPI.getPortfolios();
-            console.log('[Assets] Portfolios response:', portfoliosResponse);
+            const skip = (currentPage - 1) * PAGE_SIZE;
 
-            const response = await userAssetsAPI.getUserAssets({
-                limit: 100,
+            const apiParams = {
+                limit: PAGE_SIZE,
+                skip: skip,
                 include_detail: true,
                 include_performance: true,
-                include_analytics: true
-            });
-            console.log('[Assets] User assets response:', response);
-            setAssets(response.assets || []);
-            setPortfolios(portfoliosResponse || []);
-        } catch (error) {
-            console.error('Failed to load user assets:', error);
-            toast.error('Failed to load your assets');
-        } finally {
-            setLoading(false);
-        }
-    };
+                include_analytics: true,
+                sort_by: filters.sortBy,
+                sort_order: filters.sortOrder,
+            };
 
-    const filterAssets = () => {
-        let filtered = [...assets];
-
-        // Search filter
-        if (searchQuery) {
-            filtered = filtered.filter(asset =>
-                asset.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                asset.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
-
-        // Category filter
-        if (filters.category !== 'all') {
-            filtered = filtered.filter(asset => {
-                // Map frontend categories to backend asset types
+            if (searchQuery) apiParams.symbol = searchQuery;
+            if (filters.category !== 'all') {
                 const categoryMap = {
                     'cryptocurrency': 'CRYPTOCURRENCY',
                     'stock': 'EQUITY',
@@ -177,159 +103,75 @@ const Assets = () => {
                     'mutual_fund': 'MUTUALFUND',
                     'index_fund': 'INDEX'
                 };
-                return asset.asset_type === categoryMap[filters.category];
-            });
-        }
-
-        // Price range filter
-        if (filters.priceRange !== 'all') {
-            const [min, max] = filters.priceRange.split('-').map(Number);
-            filtered = filtered.filter(asset => {
-                const price = asset.current_price || 0;
-                if (max) {
-                    return price >= min && price <= max;
-                } else {
-                    return price >= min;
-                }
-            });
-        }
-
-        // Value range filter
-        if (filters.valueRange !== 'all') {
-            const [min, max] = filters.valueRange.split('-').map(Number);
-            filtered = filtered.filter(asset => {
-                const totalValue = (asset.quantity || 0) * (asset.current_price || 0);
-                if (max) {
-                    return totalValue >= min && totalValue <= max;
-                } else {
-                    return totalValue >= min;
-                }
-            });
-        }
-
-        // Change range filter
-        if (filters.changeRange !== 'all') {
-            filtered = filtered.filter(asset => {
-                const change = asset.price_change_percentage_24h || 0;
-                switch (filters.changeRange) {
-                    case 'positive':
-                        return change > 0;
-                    case 'negative':
-                        return change < 0;
-                    case 'stable':
-                        return change >= -1 && change <= 1;
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        // Market cap range filter
-        if (filters.marketCapRange !== 'all') {
-            filtered = filtered.filter(asset => {
-                const marketCap = asset.market_cap || 0;
-                switch (filters.marketCapRange) {
-                    case '0-1e6':
-                        return marketCap < 1e6;
-                    case '1e6-1e9':
-                        return marketCap >= 1e6 && marketCap < 1e9;
-                    case '1e9-1e12':
-                        return marketCap >= 1e9 && marketCap < 1e12;
-                    case '1e12-':
-                        return marketCap >= 1e12;
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        // RSI range filter
-        if (filters.rsiRange !== 'all') {
-            filtered = filtered.filter(asset => {
-                const rsi = asset.rsi;
-                if (rsi === null || rsi === undefined) return false;
-                switch (filters.rsiRange) {
-                    case '0-30':
-                        return rsi >= 0 && rsi <= 30;
-                    case '30-70':
-                        return rsi > 30 && rsi < 70;
-                    case '70-100':
-                        return rsi >= 70 && rsi <= 100;
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        // Sort
-        filtered.sort((a, b) => {
-            let aValue, bValue;
-
-            switch (filters.sortBy) {
-                case 'symbol':
-                    aValue = a.symbol || '';
-                    bValue = b.symbol || '';
-                    break;
-                case 'name':
-                    aValue = a.name || '';
-                    bValue = b.name || '';
-                    break;
-                case 'quantity':
-                    aValue = a.quantity || 0;
-                    bValue = b.quantity || 0;
-                    break;
-                case 'purchase_price':
-                    aValue = a.purchase_price || 0;
-                    bValue = b.purchase_price || 0;
-                    break;
-                case 'current_price':
-                    aValue = a.current_price || 0;
-                    bValue = b.current_price || 0;
-                    break;
-                case 'total_value':
-                    aValue = (a.quantity || 0) * (a.current_price || 0);
-                    bValue = (b.quantity || 0) * (b.current_price || 0);
-                    break;
-                case 'purchase_date':
-                    aValue = new Date(a.purchase_date || 0);
-                    bValue = new Date(b.purchase_date || 0);
-                    break;
-                case 'market_cap':
-                    aValue = a.market_cap || 0;
-                    bValue = b.market_cap || 0;
-                    break;
-                case 'volume_24h':
-                    aValue = a.volume_24h || 0;
-                    bValue = b.volume_24h || 0;
-                    break;
-                case 'price_change_percentage_24h':
-                    aValue = a.price_change_percentage_24h || 0;
-                    bValue = b.price_change_percentage_24h || 0;
-                    break;
-                default:
-                    aValue = a.symbol || '';
-                    bValue = b.symbol || '';
+                apiParams.asset_type = categoryMap[filters.category];
             }
+            if (filters.priceRange !== 'all') apiParams.price_range = filters.priceRange;
+            if (filters.valueRange !== 'all') apiParams.value_range = filters.valueRange;
+            if (filters.changeRange !== 'all') apiParams.change_range = filters.changeRange;
+            if (filters.marketCapRange !== 'all') apiParams.market_cap_range = filters.marketCapRange;
+            if (filters.rsiRange !== 'all') apiParams.rsi_range = filters.rsiRange;
 
-            if (filters.sortBy === 'symbol' || filters.sortBy === 'name') {
-                // String comparison
-                if (filters.sortOrder === 'asc') {
-                    return aValue.localeCompare(bValue);
-                } else {
-                    return bValue.localeCompare(aValue);
+            const response = await userAssetsAPI.getUserAssets(apiParams);
+
+            if (response?.assets) {
+                setHasMore(response.assets.length === PAGE_SIZE);
+                // After
+                setAssets(prev => {
+                    if (isRefresh) {
+                        return response.assets; // For a refresh, just replace the data
+                    }
+                    // For infinite scroll, combine previous and new assets
+                    const combinedAssets = [...prev, ...response.assets];
+                    // Create a new array with unique assets based on their ID
+                    const uniqueAssets = Array.from(new Map(combinedAssets.map(asset => [asset.id, asset])).values());
+                    return uniqueAssets;
+                });
+                if (response.total) {
+                    setTotalAssetsCount(response.total);
                 }
             } else {
-                // Numeric comparison
-                if (filters.sortOrder === 'asc') {
-                    return aValue - bValue;
-                } else {
-                    return bValue - aValue;
-                }
+                setHasMore(false);
+                if (isRefresh) setAssets([]);
             }
-        });
+        } catch (error) {
+            console.error('Failed to load user assets:', error);
+            toast.error('Failed to load your assets');
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, [filters, searchQuery, portfolios.length]);
 
-        setFilteredAssets(filtered);
-    };
+
+    useEffect(() => {
+        setAssets([]);
+        setPage(1);
+        setHasMore(true);
+        loadData(1, true);
+    }, [filters, searchQuery, loadData]);
+
+    useEffect(() => {
+        assetCache.preloadAssets();
+    }, []);
+
+    const handleRefresh = useCallback((silent = false) => {
+        setPage(1);
+        setHasMore(true);
+        loadData(1, true);
+        if (!silent) toast.success('Assets refreshed');
+    }, [loadData]);
+
+    useEffect(() => {
+        if (autoRefresh) {
+            const interval = setInterval(() => handleRefresh(true), 30000);
+            setRefreshInterval(interval);
+        } else if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        return () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        };
+    }, [autoRefresh, handleRefresh, refreshInterval]);
 
     const handleAssetClick = (asset) => {
         setSelectedAsset(asset);
@@ -350,34 +192,23 @@ const Assets = () => {
 
     const handleCreateTransaction = async (transactionData) => {
         try {
-            console.log('[Assets] Creating transaction with data:', transactionData);
-            const response = await transactionAPI.createTransaction(transactionData);
-            console.log('[Assets] Create response:', response);
-
+            await transactionAPI.createTransaction(transactionData);
             setShowTransactionModal(false);
             setTransactionAsset(null);
             toast.success('Transaction created successfully');
-
-            // Refresh assets to ensure consistency
-            setTimeout(() => {
-                loadAssets();
-            }, 500);
+            setTimeout(() => handleRefresh(), 500);
         } catch (error) {
             console.error('Failed to create transaction:', error);
-            const errorMessage = error.response?.data?.detail || error.message || 'Failed to create transaction';
+            const errorMessage = error.response?.data?.detail || 'Failed to create transaction';
             toast.error(errorMessage);
-            throw error; // Re-throw so the modal can handle it
+            throw error;
         }
     };
 
     const loadChartData = async (asset) => {
         if (!asset?.id) return;
-
         try {
-            // Load chart data with statistical indicators
             const response = await userAssetsAPI.getUserAsset(asset.id);
-            // For now, we'll use mock data or existing data
-            // In a real implementation, this would call the statistical indicators API
             setChartData(response.price_history || []);
         } catch (error) {
             console.error('Failed to load chart data:', error);
@@ -403,58 +234,33 @@ const Assets = () => {
     };
 
     const handleDeleteAsset = async (assetId) => {
-        if (window.confirm('Are you sure you want to delete this asset?')) {
-            try {
-                await userAssetsAPI.deleteUserAsset(assetId);
-                toast.success('Asset deleted successfully');
-                loadAssets(); // Reload assets
-            } catch (error) {
-                console.error('Failed to delete asset:', error);
-                toast.error('Failed to delete asset');
-            }
+        try {
+            await userAssetsAPI.deleteUserAsset(assetId);
+            toast.success('Asset deleted successfully');
+            handleRefresh();
+        } catch (error) {
+            console.error('Failed to delete asset:', error);
+            toast.error('Failed to delete asset');
         }
     };
 
     const handleAssetSave = async (assetData) => {
         try {
-            let savedAsset;
             if (modalMode === 'create') {
-                savedAsset = await userAssetsAPI.createUserAsset(assetData);
+                await userAssetsAPI.createUserAsset(assetData);
                 toast.success('Asset added successfully');
-
-                // Refresh the asset cache to include the new asset
-                try {
-                    await assetCache.refreshCache();
-                    console.log('[Assets] Asset cache refreshed after creating new asset');
-                } catch (cacheError) {
-                    console.warn('[Assets] Failed to refresh asset cache:', cacheError);
-                }
             } else if (modalMode === 'edit') {
-                savedAsset = await userAssetsAPI.updateUserAsset(selectedAsset.id, assetData);
+                await userAssetsAPI.updateUserAsset(selectedAsset.id, assetData);
                 toast.success('Asset updated successfully');
-
-                // Refresh the asset cache to include the updated asset
-                try {
-                    await assetCache.refreshCache();
-                    console.log('[Assets] Asset cache refreshed after updating asset');
-                } catch (cacheError) {
-                    console.warn('[Assets] Failed to refresh asset cache:', cacheError);
-                }
             }
-            loadAssets(); // Reload assets
+            handleRefresh();
             setShowModal(false);
             setSelectedAsset(null);
-            return savedAsset; // Return the saved asset for transaction creation
         } catch (error) {
             console.error('Failed to save asset:', error);
-            toast.error(`Failed to ${modalMode === 'create' ? 'create' : 'update'} asset`);
-            throw error; // Re-throw error so AssetModal can handle it
+            toast.error(`Failed to ${modalMode} asset`);
+            throw error;
         }
-    };
-
-    const handleRefresh = () => {
-        loadAssets();
-        toast.success('Assets refreshed');
     };
 
     const handleFilterChange = (newFilters) => {
@@ -462,84 +268,41 @@ const Assets = () => {
     };
 
     const handleQuickAction = (action) => {
-        switch (action) {
-            case 'refresh':
-                handleRefresh();
-                break;
-            default:
-                break;
-        }
+        if (action === 'refresh') handleRefresh();
     };
 
-    const handleAddToPortfolio = (asset) => {
-        // Removed - no longer allowing direct portfolio addition
+    const handleAddToPortfolio = () => {
         toast.info('Use Portfolio section to manage assets in specific portfolios');
     };
 
-    const handleViewInPortfolio = (asset) => {
-        // Removed - no longer allowing direct portfolio view
+    const handleViewInPortfolio = () => {
         toast.info('Use Portfolio section to view assets in specific portfolios');
     };
 
-    // --- MODIFIED: getTotalStats function updated ---
     const getTotalStats = () => {
-        if (!filteredAssets || filteredAssets.length === 0) {
-            return {
-                totalAssets: 0,
-                dailyGainers: 0,
-                dailyLosers: 0,
-                totalMarketCap: 0
-            };
+        if (!assets || assets.length === 0) {
+            return { totalAssets: totalAssetsCount, dailyGainers: 0, dailyLosers: 0, totalMarketCap: 0 };
         }
 
-        const stats = filteredAssets.reduce((acc, asset) => {
-            // Safely access nested properties from the API response
+        const stats = assets.reduce((acc, asset) => {
             const change = parseFloat(asset.detail?.price_change_percentage_24h || 0);
             const marketCap = parseFloat(asset.detail?.market_cap || 0);
-
-            if (change > 0) {
-                acc.dailyGainers += 1;
-            } else if (change < 0) {
-                acc.dailyLosers += 1;
-            }
-
-            if (marketCap > 0) {
-                acc.totalMarketCap += marketCap;
-            }
-
+            if (change > 0) acc.dailyGainers += 1;
+            else if (change < 0) acc.dailyLosers += 1;
+            if (marketCap > 0) acc.totalMarketCap += marketCap;
             return acc;
-        }, {
-            dailyGainers: 0,
-            dailyLosers: 0,
-            totalMarketCap: 0
-        });
+        }, { dailyGainers: 0, dailyLosers: 0, totalMarketCap: 0 });
 
-        return {
-            totalAssets: filteredAssets.length,
-            dailyGainers: stats.dailyGainers,
-            dailyLosers: stats.dailyLosers,
-            totalMarketCap: stats.totalMarketCap
-        };
+        return { totalAssets: totalAssetsCount, ...stats };
     };
 
     const stats = getTotalStats();
-
-    if (loading) {
-        return (
-            <div className="min-h-screen gradient-bg flex items-center justify-center">
-                <div className="text-center">
-                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-400">Loading assets...</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="min-h-screen gradient-bg flex">
             <Sidebar
                 currentView="assets"
-                onRefresh={handleRefresh}
+                onRefresh={() => handleRefresh(false)}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 showFilters={showFilters}
@@ -549,46 +312,27 @@ const Assets = () => {
             />
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-7xl mx-auto p-6">
-                    {/* Header */}
                     <div className="mb-8">
                         <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center space-x-4">
-                                <a
-                                    href="/dashboard"
-                                    className="flex items-center space-x-2 text-gray-400 hover:text-gray-300 transition-colors"
-                                >
-                                    <ArrowLeft size={20} />
-                                    <span>Back to Dashboard</span>
-                                </a>
-                            </div>
+                            <a href="/dashboard" className="flex items-center space-x-2 text-gray-400 hover:text-gray-300">
+                                <ArrowLeft size={20} /><span>Back to Dashboard</span>
+                            </a>
                             <div className="flex items-center space-x-3">
-                                <button
-                                    onClick={handleCreateAsset}
-                                    className="btn-primary flex items-center space-x-2"
-                                >
-                                    <Plus size={16} />
-                                    <span>Add Asset</span>
+                                <button onClick={handleCreateAsset} className="btn-primary flex items-center space-x-2">
+                                    <Plus size={16} /><span>Add Asset</span>
                                 </button>
-                                <button
-                                    onClick={handleRefresh}
-                                    className="btn-secondary flex items-center space-x-2"
-                                >
-                                    <RefreshCw size={16} />
-                                    <span>Refresh</span>
+                                <button onClick={() => setShowBulkAssetModal(true)} className="btn-secondary flex items-center space-x-2">
+                                    <Zap size={16} /><span>Bulk Entry</span>
                                 </button>
-                                <button
-                                    onClick={() => setAutoRefresh(!autoRefresh)}
-                                    className={`btn-outline flex items-center space-x-2 ${autoRefresh ? 'bg-primary-600 text-white' : ''}`}
-                                >
+                                <button onClick={() => handleRefresh(false)} className="btn-secondary flex items-center space-x-2">
+                                    <RefreshCw size={16} /><span>Refresh</span>
+                                </button>
+                                <button onClick={() => setAutoRefresh(!autoRefresh)} className={`btn-outline flex items-center space-x-2 ${autoRefresh ? 'bg-primary-600 text-white' : ''}`}>
                                     <RefreshCw size={16} className={autoRefresh ? 'animate-spin' : ''} />
                                     <span>{autoRefresh ? 'Auto-Refresh ON' : 'Auto-Refresh OFF'}</span>
                                 </button>
-                                <button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className="btn-outline flex items-center space-x-2"
-                                >
-                                    <Filter size={16} />
-                                    <span>Filters</span>
+                                <button onClick={() => setShowFilters(!showFilters)} className="btn-outline flex items-center space-x-2">
+                                    <Filter size={16} /><span>Filters</span>
                                 </button>
                             </div>
                         </div>
@@ -598,7 +342,6 @@ const Assets = () => {
                             <p className="text-gray-400">Analyze and research assets for investment decisions</p>
                         </div>
 
-                        {/* Search Bar */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                             <input
@@ -612,11 +355,10 @@ const Assets = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        {/* Assets Analyzed Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-gray-400">Assets Analyzed</p>
+                                    <p className="text-sm text-gray-400">Total Assets</p>
                                     <p className="text-2xl font-bold text-gray-100">{stats.totalAssets}</p>
                                 </div>
                                 <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
@@ -624,8 +366,6 @@ const Assets = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Daily Gainers Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -638,8 +378,6 @@ const Assets = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Daily Losers Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -652,14 +390,12 @@ const Assets = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Total Market Cap Card */}
                         <div className="card p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-gray-400">Total Market Cap</p>
                                     <p className="text-2xl font-bold text-primary-400">{formatMarketCap(stats.totalMarketCap)}</p>
-                                    <p className="text-xs text-gray-500">of filtered assets</p>
+                                    <p className="text-xs text-gray-500">of loaded assets</p>
                                 </div>
                                 <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
                                     <PieChart size={24} className="text-primary-400" />
@@ -668,44 +404,30 @@ const Assets = () => {
                         </div>
                     </div>
 
-                    {/* Filters */}
                     {showFilters && (
                         <div className="card p-6 mb-8">
-                            <AssetFilters
-                                filters={filters}
-                                onFilterChange={handleFilterChange}
-                            />
+                            <AssetFilters filters={filters} onFilterChange={handleFilterChange} />
                         </div>
                     )}
 
-                    {/* View Mode Toggle */}
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center space-x-2">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid'
-                                        ? 'bg-primary-600 text-white'
-                                        : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                                    }`}
-                            >
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-primary-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'}`}>
                                 <BarChart3 size={16} />
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`p-2 rounded-lg transition-colors ${viewMode === 'list'
-                                        ? 'bg-primary-600 text-white'
-                                        : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-                                    }`}
-                            >
+                                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-primary-600 text-white' : 'bg-dark-700 text-gray-400 hover:bg-dark-600'}`}>
                                 <PieChart size={16} />
                             </button>
                         </div>
                         <p className="text-sm text-gray-400">
-                            Showing {filteredAssets.length} of {assets.length} assets
+                            Showing {assets.length} of {totalAssetsCount} assets
                         </p>
                     </div>
 
-                    {/* Analytics View */}
                     {showAnalytics && selectedAsset && (
                         <div className="mb-8">
                             <div className="flex items-center justify-between mb-4">
@@ -749,96 +471,122 @@ const Assets = () => {
                         </div>
                     )}
 
-                    {/* Assets Grid/List */}
-                    {!showAnalytics && filteredAssets.length === 0 ? (
-                        <div className="space-y-6">
-                            <div className="card p-12 text-center">
-                                <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                                <h3 className="text-xl font-semibold text-gray-300 mb-2">No assets found</h3>
-                                <p className="text-gray-500">
-                                    {searchQuery ? 'Try adjusting your search criteria' : 'No assets available for analysis'}
-                                </p>
-                                <p className="text-sm text-gray-600 mt-2">
-                                    Use this section to analyze assets before adding them to your portfolios
-                                </p>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className={
-                            viewMode === 'grid'
-                                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
-                                : 'space-y-4'
-                        }>
-                            {filteredAssets.map((asset) => (
-                                <AssetCard
-                                    key={asset.id}
-                                    asset={asset}
-                                    viewMode={viewMode}
-                                    onClick={() => handleAssetClick(asset)}
-                                    onEdit={() => handleEditAsset(asset)}
-                                    onDelete={() => handleDeleteAsset(asset.id)}
-                                    onAddToPortfolio={handleAddToPortfolio}
-                                    onViewInPortfolio={handleViewInPortfolio}
-                                    onAnalytics={() => handleAnalyticsClick(asset)}
-                                    onTransaction={() => handleTransactionClick(asset)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Asset Modal */}
-                    {showModal && (
-                        <AssetModal
-                            asset={selectedAsset}
-                            mode={modalMode}
-                            existingAssets={assets}
-                            onClose={() => {
-                                setShowModal(false);
-                                setSelectedAsset(null);
-                                setModalMode('view');
-                            }}
-                            onSave={handleAssetSave}
-                        />
-                    )}
-
-                    {/* Configuration Manager Modal */}
-                    {showConfigurationManager && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-dark-800 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
-                                <div className="flex items-center justify-between p-6 border-b border-dark-700">
-                                    <h3 className="text-xl font-semibold text-gray-100">Analysis Configurations</h3>
-                                    <button
-                                        onClick={() => setShowConfigurationManager(false)}
-                                        className="text-gray-400 hover:text-gray-100"
+                    {!showAnalytics && (
+                        <>
+                            {loading && assets.length === 0 ? (
+                                <div className="flex justify-center items-center p-12">
+                                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
+                                    <p className="ml-3 text-gray-400">Loading assets...</p>
+                                </div>
+                            ) : assets.length === 0 ? (
+                                <div className="card p-12 text-center">
+                                    <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                                    <h3 className="text-xl font-semibold text-gray-300 mb-2">No assets found</h3>
+                                    <p className="text-gray-500">
+                                        {searchQuery || filters.category !== 'all' ? 'Try adjusting your search criteria' : 'No assets available for analysis'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-4'}>
+                                        {assets.map((asset) => (
+                                            <AssetCard
+                                                key={asset.id}
+                                                asset={asset}
+                                                viewMode={viewMode}
+                                                onClick={() => handleAssetClick(asset)}
+                                                onEdit={() => handleEditAsset(asset)}
+                                                onDelete={() => handleDeleteAsset(asset.id)}
+                                                onAddToPortfolio={handleAddToPortfolio}
+                                                onViewInPortfolio={handleViewInPortfolio}
+                                                onAnalytics={() => handleAnalyticsClick(asset)}
+                                                onTransaction={() => handleTransactionClick(asset)}
+                                            />
+                                        ))}
+                                    </div>
+                                    <InView
+                                        as="div"
+                                        onChange={(inView) => {
+                                            if (inView && hasMore && !loadingMore && !loading) {
+                                                setPage(prev => {
+                                                    const nextPage = prev + 1;
+                                                    loadData(nextPage);
+                                                    return nextPage;
+                                                });
+                                            }
+                                        }}
+                                        threshold={0.5}
                                     >
-                                        <X size={24} />
-                                    </button>
-                                </div>
-                                <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                                    <IndicatorConfigurationManager
-                                        onConfigurationSelect={handleConfigurationSelect}
-                                        selectedConfigurationId={selectedConfiguration?.id}
-                                        showCreateButton={true}
-                                        showSearch={true}
-                                        showFilters={true}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                                        {loadingMore && (
+                                            <div className="flex justify-center items-center p-4 mt-4">
+                                                <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
+                                                <p className="ml-2 text-gray-400">Loading more assets...</p>
+                                            </div>
+                                        )}
+                                    </InView>
+                                </>
+                            )}
 
-                    {/* Create Transaction Modal */}
-                    {showTransactionModal && transactionAsset && (
-                        <CreateTransactionModal
-                            portfolios={portfolios}
-                            prefilledAsset={transactionAsset}
-                            prefilledPrice={transactionAsset.detail?.current_price || transactionAsset.current_price}
-                            onClose={() => {
-                                setShowTransactionModal(false);
-                                setTransactionAsset(null);
-                            }}
-                            onCreate={handleCreateTransaction}
-                        />
+                            {showModal && (
+                                <AssetModal
+                                    asset={selectedAsset}
+                                    mode={modalMode}
+                                    existingAssets={assets}
+                                    onClose={() => {
+                                        setShowModal(false);
+                                        setSelectedAsset(null);
+                                    }}
+                                    onSave={handleAssetSave}
+                                />
+                            )}
+                            {showBulkAssetModal && (
+                                <BulkAssetModal
+                                    onClose={() => setShowBulkAssetModal(false)}
+                                    onSuccess={() => {
+                                        setShowBulkAssetModal(false);
+                                        handleRefresh();
+                                    }}
+                                />
+                            )}
+
+                            {showConfigurationManager && (
+                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                                    <div className="bg-dark-800 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+                                        <div className="flex items-center justify-between p-6 border-b border-dark-700">
+                                            <h3 className="text-xl font-semibold text-gray-100">Analysis Configurations</h3>
+                                            <button
+                                                onClick={() => setShowConfigurationManager(false)}
+                                                className="text-gray-400 hover:text-gray-100"
+                                            >
+                                                <X size={24} />
+                                            </button>
+                                        </div>
+                                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                                            <IndicatorConfigurationManager
+                                                onConfigurationSelect={handleConfigurationSelect}
+                                                selectedConfigurationId={selectedConfiguration?.id}
+                                                showCreateButton={true}
+                                                showSearch={true}
+                                                showFilters={true}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {showTransactionModal && transactionAsset && (
+                                <CreateTransactionModal
+                                    portfolios={portfolios}
+                                    prefilledAsset={transactionAsset}
+                                    prefilledPrice={transactionAsset.detail?.current_price || transactionAsset.current_price}
+                                    onClose={() => {
+                                        setShowTransactionModal(false);
+                                        setTransactionAsset(null);
+                                    }}
+                                    onCreate={handleCreateTransaction}
+                                />
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -847,3 +595,4 @@ const Assets = () => {
 };
 
 export default Assets;
+

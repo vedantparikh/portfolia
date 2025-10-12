@@ -1,10 +1,4 @@
-import {
-  AreaSeries,
-  CandlestickSeries,
-  HistogramSeries,
-  LineSeries,
-  createChart,
-} from "lightweight-charts";
+import { createChart } from "lightweight-charts";
 import {
   Activity,
   BarChart3,
@@ -303,7 +297,7 @@ const EnhancedChart = ({
         const high = Number(item.high);
         const low = Number(item.low);
         const close = Number(item.close);
-        const volume = Number(item.Volume);
+        const volume = Number(item.volume); // Corrected from item.Volume
 
         if (
           isNaN(open) ||
@@ -327,24 +321,17 @@ const EnhancedChart = ({
       })
       .filter(Boolean);
 
-    const vData = sortedData
+    const vData = cData // Use cData to ensure alignment after filtering
       .map((item) => {
-        const volume = Number(item.volume);
-        const close = Number(item.close);
-        const open = Number(item.open);
-
-        if (isNaN(volume) || isNaN(close) || isNaN(open)) {
-          return null;
-        }
-
         return {
-          time: new Date(item.date).getTime() / 1000,
-          value: volume,
+          time: item.time,
+          value: item.volume,
           color:
-            close >= open ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)",
+            item.close >= item.open
+              ? "rgba(34, 197, 94, 0.2)"
+              : "rgba(239, 68, 68, 0.2)",
         };
-      })
-      .filter(Boolean);
+      });
 
     return { candlestickData: cData, volumeData: vData };
   }, [data]);
@@ -405,9 +392,9 @@ const EnhancedChart = ({
 
     let priceSeries;
 
-    // *** FIX: Reverted all series creation to the original chart.addSeries pattern ***
+    // *** FIX: Replaced chart.addSeries with specific methods ***
     if (chartType === "candlestick") {
-      priceSeries = chart.addSeries(CandlestickSeries, {
+      priceSeries = chart.addCandlestickSeries({
         upColor: "#22c55e",
         downColor: "#ef4444",
         borderDownColor: "#dc2626",
@@ -422,14 +409,14 @@ const EnhancedChart = ({
         value: d.close,
       }));
       if (chartType === "area") {
-        priceSeries = chart.addSeries(AreaSeries, {
+        priceSeries = chart.addAreaSeries({
           topColor: "rgba(14, 165, 233, 0.3)",
           bottomColor: "rgba(14, 165, 233, 0.0)",
           lineColor: "#0ea5e9",
           lineWidth: 2,
         });
       } else {
-        priceSeries = chart.addSeries(LineSeries, {
+        priceSeries = chart.addLineSeries({
           color: "#0ea5e9",
           lineWidth: 2,
         });
@@ -443,7 +430,7 @@ const EnhancedChart = ({
           if (indicatorValues && indicatorValues.length > 0) {
             const isSecondaryAxis = isSecondaryAxisIndicator(indicatorName);
 
-            const series = chart.addSeries(LineSeries, {
+            const series = chart.addLineSeries({ // *** FIX ***
               color: getIndicatorColor(indicatorName),
               lineWidth: 2,
               priceLineVisible: false,
@@ -476,7 +463,7 @@ const EnhancedChart = ({
     }
 
     if (showVolume) {
-      const volumeSeries = chart.addSeries(HistogramSeries, {
+      const volumeSeries = chart.addHistogramSeries({ // *** FIX ***
         priceFormat: { type: "volume" },
         priceScaleId: "",
         scaleMargins: { top: 0.8, bottom: 0 },
@@ -850,7 +837,7 @@ const EnhancedChart = ({
             <div className="text-center">
               <p className="text-sm text-gray-400">Max Drawdown</p>
               <p className="text-lg font-bold text-danger-400">
-                -{formatPercentage(metricsData.maxDrawdown || 0)}
+                -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
               </p>
             </div>
             <div className="text-center">

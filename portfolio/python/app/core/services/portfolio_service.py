@@ -72,6 +72,26 @@ class PortfolioService:
             query = query.filter(Portfolio.user_id == user_id)
         return query.first()
 
+    def get_all_user_transactions(
+            self, user_id: int, limit: int = 100, offset: int = 0
+    ) -> List[Transaction]:
+        """Get all transactions for a user across all their portfolios."""
+        user_portfolios = self.get_user_portfolios(user_id)
+        if not user_portfolios:
+            return []
+
+        portfolio_ids = [p.id for p in user_portfolios]
+
+        # Then, query for transactions within those portfolio IDs
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.portfolio_id.in_(portfolio_ids))
+            .order_by(desc(Transaction.transaction_date))
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
     def update_portfolio(
             self, portfolio_id: int, portfolio_data: PortfolioUpdate, user_id: int
     ) -> Optional[Portfolio]:
@@ -602,33 +622,12 @@ class PortfolioService:
                 return None
         return transaction
 
-    def get_all_user_transactions(
-            self, user_id: int, limit: int = 100, offset: int = 0
-    ) -> List[Transaction]:
-        """Get all transactions for a user across all their portfolios."""
-        # First, get the IDs of all portfolios owned by the user
-        user_portfolios = self.get_user_portfolios(user_id)
-        if not user_portfolios:
-            return []  # User has no portfolios, so no transactions
-
-        portfolio_ids = [p.id for p in user_portfolios]
-
-        # Then, query for transactions within those portfolio IDs
-        return (
-            self.db.query(Transaction)
-            .filter(Transaction.portfolio_id.in_(portfolio_ids))
-            .order_by(desc(Transaction.transaction_date))
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
-
-    # Portfolio Analytics and Performance
     async def get_portfolio_summary(
             self, portfolio_id: int, user_id: int
     ) -> PortfolioSummary:
         """
-        OPTIMIZED & FIXED: Get comprehensive portfolio summary using concurrent calls.
+        OPTIMIZED & REVISED: Get comprehensive portfolio summary with more robust
+        fallback logic to handle market data failures gracefully.
         """
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if not portfolio:
@@ -642,13 +641,11 @@ class PortfolioService:
             .all()
         )
 
-        # If there are no assets, return a default summary
         if not portfolio_assets_with_info:
             return PortfolioSummary(
                 portfolio_id=portfolio.id,
                 portfolio_name=portfolio.name,
                 currency=portfolio.currency,
-                # Defaults for an empty portfolio
                 total_assets=0,
                 total_cost_basis=0.0,
                 total_current_value=0.0,
@@ -659,23 +656,22 @@ class PortfolioService:
                 last_updated=portfolio.updated_at,
                 recent_transactions=0,
                 is_active=portfolio.is_active,
-                is_public=portfolio.is_public,
+                is_public=portfolio.is_public
             )
 
         # 2. Collect symbols for batch API calls
         symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
 
         # 3. Concurrently fetch today's and yesterday's market data
-
         current_prices, yesterdays_prices = await asyncio.gather(
             self.market_data_service.get_current_prices(symbols),
-            self.market_data_service.get_yesterdays_closes(symbols)  # You may need to create this method
+            self.market_data_service.get_yesterdays_closes(symbols)
         )
 
-        # 4. Calculate totals
+        # 4. Calculate totals with explicit variable names for clarity
         total_cost_basis = Decimal("0")
-        total_current_value = Decimal("0")
-        total_previous_day_value = Decimal("0")
+        total_market_value_current = Decimal("0")
+        total_market_value_previous = Decimal("0")
 
         for portfolio_asset, asset_info in portfolio_assets_with_info:
             total_cost_basis += portfolio_asset.cost_basis_total
@@ -683,33 +679,46 @@ class PortfolioService:
             current_price = current_prices.get(asset_info.symbol)
             yesterday_price = yesterdays_prices.get(asset_info.symbol)
 
-            # Add to total current value
-            if current_price:
-                total_current_value += current_price * portfolio_asset.quantity
-            else:  # Fallback to cost basis if no live price
-                total_current_value += portfolio_asset.cost_basis_total
+            # --- Step 4a: Calculate the current market value ---
+            # Fallback is cost basis. This is for displaying total portfolio worth.
+            if current_price is not None:
+                total_market_value_current += current_price * portfolio_asset.quantity
+            else:
+                total_market_value_current += portfolio_asset.cost_basis_total
 
-            # Add to total previous day value (for today's P&L calculation)
-            if yesterday_price:
-                total_previous_day_value += yesterday_price * portfolio_asset.quantity
-            else:  # Fallback to cost basis if no yesterday price
-                total_previous_day_value += portfolio_asset.cost_basis_total
+            # --- Step 4b: Calculate the previous day's market value ---
+            # This has a 2-step fallback to prevent matching the cost basis.
+            if yesterday_price is not None:
+                # Best case: Use yesterday's actual closing price.
+                total_market_value_previous += yesterday_price * portfolio_asset.quantity
+            elif current_price is not None:
+                # Fallback 1: Use today's price. This assumes 0 change for the day for this asset.
+                total_market_value_previous += current_price * portfolio_asset.quantity
+            else:
+                # Fallback 2 (Last Resort): Use cost basis. This only happens if BOTH prices are unavailable.
+                total_market_value_previous += portfolio_asset.cost_basis_total
 
+        # 5. Convert to float and calculate final P&L metrics
+        total_current_value_f = float(total_market_value_current)
         total_cost_basis_f = float(total_cost_basis)
-        total_current_value_f = float(total_current_value)
-        total_previous_day_value_f = float(total_previous_day_value)
+        total_previous_day_value_f = float(total_market_value_previous)
 
-        # 5. Calculate all required P&L metrics
+        # --- UNREALIZED P&L (Current Value vs. Cost) ---
         total_unrealized_pnl = total_current_value_f - total_cost_basis_f
         total_unrealized_pnl_percent = (
-                    total_unrealized_pnl / total_cost_basis_f * 100) if total_cost_basis_f > 0 else 0
+            (total_unrealized_pnl / total_cost_basis_f * 100) if total_cost_basis_f > 0 else 0
+        )
 
+        # --- TODAY'S P&L (Current Value vs. Yesterday's Value) ---
         total_today_pnl = total_current_value_f - total_previous_day_value_f
         total_today_pnl_percent = (
-                    total_today_pnl / total_previous_day_value_f * 100) if total_previous_day_value_f > 0 else 0
+            (total_today_pnl / total_previous_day_value_f * 100) if total_previous_day_value_f > 0 else 0
+        )
 
         # 6. Fetch recent transactions
-        recent_transactions_count = self.db.query(Transaction).filter(Transaction.portfolio_id == portfolio_id).count()
+        recent_transactions_count = self.db.query(Transaction).filter(
+            Transaction.portfolio_id == portfolio_id
+        ).count()
 
         # 7. Return the complete summary object
         return PortfolioSummary(
@@ -807,7 +816,8 @@ class PortfolioService:
                 today_pnl_percent=float(today_pnl_percent) if today_pnl_percent is not None else 0.0,
                 realized_pnl=float(portfolio_asset.realized_pnl),
                 realized_pnl_percent=float(
-                    portfolio_asset.realized_pnl_percent) if portfolio_asset.realized_pnl_percent is not None else None,
+                    portfolio_asset.realized_pnl_percent
+                ) if portfolio_asset.realized_pnl_percent is not None else None,
                 last_updated=portfolio_asset.last_updated,
             )
             holdings.append(holding)
@@ -990,7 +1000,8 @@ class PortfolioService:
                         portfolio_asset.unrealized_pnl = unrealized_pnl
                         if portfolio_asset.cost_basis_total > 0:
                             portfolio_asset.unrealized_pnl_percent = (
-                                                                             unrealized_pnl / portfolio_asset.cost_basis_total) * 100
+                                                                             unrealized_pnl /
+                                                                             portfolio_asset.cost_basis_total) * 100
                         else:
                             portfolio_asset.unrealized_pnl_percent = Decimal("0")
             except Exception as e:

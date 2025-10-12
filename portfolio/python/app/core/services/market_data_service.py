@@ -308,9 +308,7 @@ class MarketDataService:
 
         # 2. Fetch missing symbols
         if symbols_to_fetch:
-            # ... yfinance fetching logic (unchanged) ...
             new_closes_to_cache: Dict[str, str] = {}
-            # ... (populate new_closes_to_cache) ...
 
             # 3. Cache new data by calling `set` in a loop
             if new_closes_to_cache:

@@ -837,7 +837,7 @@ const EnhancedChart = ({
             <div className="text-center">
               <p className="text-sm text-gray-400">Max Drawdown</p>
               <p className="text-lg font-bold text-danger-400">
-                -{formatPercentage(metricsData.maxDrawdown || 0)}
+                -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
               </p>
             </div>
             <div className="text-center">

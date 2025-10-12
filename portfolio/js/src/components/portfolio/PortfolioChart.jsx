@@ -45,6 +45,77 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState("30d");
   const [chartType, setChartType] = useState("line");
+  const [metricsData, setMetricsData] = useState(null);
+  const [showMetricsPanel, setShowMetricsPanel] = useState(true);
+
+  // Add this new function inside your PortfolioChart component
+  const calculatePerformanceMetrics = (historyData) => {
+    if (!historyData || historyData.length < 2) {
+      setMetricsData(null);
+      return;
+    }
+
+    const sortedData = [...historyData].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Use 'value' instead of 'close', 'high', 'low'
+    const dataWithReturns = sortedData.map((d, i) => {
+      if (i === 0) return { ...d, dailyReturn: 0 };
+      const yesterdayValue = sortedData[i - 1].value;
+      const dailyReturn =
+        yesterdayValue > 0
+          ? ((d.value - yesterdayValue) / yesterdayValue) * 100
+          : 0;
+      return { ...d, dailyReturn };
+    });
+
+    const firstValue = sortedData[0]?.value || 0;
+    const lastValue = sortedData[sortedData.length - 1]?.value || 0;
+    const highValue = Math.max(...sortedData.map((d) => d.value));
+    const lowValue = Math.min(...sortedData.map((d) => d.value));
+
+    const totalReturn =
+      firstValue > 0 ? ((lastValue - firstValue) / firstValue) * 100 : 0;
+    const maxGain =
+      firstValue > 0 ? ((highValue - firstValue) / firstValue) * 100 : 0;
+    const maxLoss =
+      firstValue > 0 ? ((lowValue - firstValue) / firstValue) * 100 : 0;
+
+    // Calculate Volatility
+    const dailyReturns = dataWithReturns.slice(1).map((d) => d.dailyReturn);
+    const avgReturn =
+      dailyReturns.reduce((sum, val) => sum + val, 0) / dailyReturns.length;
+    const variance =
+      dailyReturns.reduce((sum, val) => sum + Math.pow(val - avgReturn, 2), 0) /
+      dailyReturns.length;
+    const volatility = Math.sqrt(variance);
+
+    // Calculate Max Drawdown
+    let peak = -Infinity;
+    let maxDrawdown = 0;
+    sortedData.forEach((d) => {
+      if (d.value > peak) {
+        peak = d.value;
+      }
+      const drawdown = peak > 0 ? ((peak - d.value) / peak) * 100 : 0;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    });
+
+    // Note: We are excluding ATR and OBV as they are not applicable.
+
+    setMetricsData({
+      totalReturn,
+      maxGain,
+      maxLoss,
+      highValue,
+      lowValue,
+      volatility,
+      maxDrawdown,
+    });
+  };
 
   const chartTypes = [
     { value: "line", label: "Line Chart", icon: TrendingUp },
@@ -111,8 +182,12 @@ const PortfolioChart = ({ portfolio, stats }) => {
     }
   }, [portfolio]);
 
+
   const processHistoryData = (historyData) => {
-    if (!historyData || historyData.length === 0) return null;
+    if (!historyData || historyData.length === 0) {
+      setMetricsData(null);
+      return null;
+    }
 
     const performanceData = historyData.map((item) => ({
       date: item.snapshot_date || new Date().toISOString(),
@@ -120,6 +195,10 @@ const PortfolioChart = ({ portfolio, stats }) => {
       cost_basis: parseFloat(item.total_cost_basis) || 0,
     }));
 
+    // Call our new calculation function here
+    calculatePerformanceMetrics(performanceData);
+
+    // The rest of the function remains the same
     const firstValue = performanceData[0]?.value || 0;
     const lastValue = performanceData[performanceData.length - 1]?.value || 0;
     const totalReturn =
@@ -136,7 +215,6 @@ const PortfolioChart = ({ portfolio, stats }) => {
         parseFloat(historyData[historyData.length - 1]?.max_drawdown) || 0,
     };
   };
-
   useEffect(() => {
     if (portfolio?.id) {
       loadChartData();
@@ -172,14 +250,14 @@ const PortfolioChart = ({ portfolio, stats }) => {
     const pieData =
       allocations && allocations.length > 0
         ? allocations
-            .map((allocation, index) => ({
-              name: allocation.asset_name || `Asset ${index + 1}`,
-              value: parseFloat(allocation.current_percentage) || 0,
-              color: colors[index % colors.length],
-              symbol: allocation.asset_symbol || "",
-              value_amount: parseFloat(allocation.current_value) || 0,
-            }))
-            .filter((item) => item.value > 0)
+          .map((allocation, index) => ({
+            name: allocation.asset_name || `Asset ${index + 1}`,
+            value: parseFloat(allocation.current_percentage) || 0,
+            color: colors[index % colors.length],
+            symbol: allocation.asset_symbol || "",
+            value_amount: parseFloat(allocation.current_value) || 0,
+          }))
+          .filter((item) => item.value > 0)
         : [];
 
     if (pieData.length === 0) {
@@ -302,6 +380,13 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <Download size={16} />
               <span>Export</span>
             </button>
+            <button
+              onClick={() => setShowMetricsPanel(!showMetricsPanel)}
+              className="btn-outline text-sm flex items-center space-x-2"
+            >
+              <Activity size={16} />
+              <span>Performance Metrics</span>
+            </button>
           </div>
         </div>
 
@@ -310,11 +395,10 @@ const PortfolioChart = ({ portfolio, stats }) => {
             <button
               key={periodOption.value}
               onClick={() => setTimeRange(periodOption.value)}
-              className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                timeRange === periodOption.value
-                  ? "bg-primary-600 text-white font-semibold"
-                  : "bg-dark-800 text-gray-400 hover:bg-dark-700"
-              }`}
+              className={`px-3 py-1 text-xs rounded-md transition-colors ${timeRange === periodOption.value
+                ? "bg-primary-600 text-white font-semibold"
+                : "bg-dark-800 text-gray-400 hover:bg-dark-700"
+                }`}
             >
               {periodOption.label}
             </button>
@@ -329,11 +413,10 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <button
                 key={type.value}
                 onClick={() => setChartType(type.value)}
-                className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  chartType === type.value
-                    ? "bg-primary-600 text-white"
-                    : "bg-dark-700 text-gray-300 hover:bg-dark-600"
-                }`}
+                className={`flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${chartType === type.value
+                  ? "bg-primary-600 text-white"
+                  : "bg-dark-700 text-gray-300 hover:bg-dark-600"
+                  }`}
               >
                 <Icon size={16} />
                 <span>{type.label}</span>
@@ -341,6 +424,60 @@ const PortfolioChart = ({ portfolio, stats }) => {
             );
           })}
         </div>
+
+
+        {showMetricsPanel && metricsData && (
+          <div className="card p-4 my-4">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center mb-3">
+              <Activity className="w-5 h-5 mr-2 text-primary-400" />
+              Performance Metrics
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Total Return</p>
+                <p
+                  className={`text-lg font-bold ${metricsData.totalReturn >= 0
+                      ? "text-success-400"
+                      : "text-danger-400"
+                    }`}
+                >
+                  {formatPercentage(metricsData.totalReturn || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Max Gain</p>
+                <p className="text-lg font-bold text-success-400">
+                  {formatPercentage(metricsData.maxGain || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Max Loss vs Start</p>
+                <p className="text-lg font-bold text-danger-400">
+                  {formatPercentage(metricsData.maxLoss || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Value Range</p>
+                <p className="text-sm font-medium text-gray-200">
+                  {formatCurrency(metricsData.lowValue || 0)} -{" "}
+                  {formatCurrency(metricsData.highValue || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Volatility (Daily)</p>
+                <p className="text-lg font-bold text-gray-200">
+                  {formatPercentage(metricsData.volatility || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Max Drawdown</p>
+                <p className="text-lg font-bold text-danger-400">
+                  -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (

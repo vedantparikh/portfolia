@@ -13,7 +13,6 @@ import {
   formatCurrency,
   formatMetricValue,
   formatPercentage,
-  getChangeColor,
 } from "../../utils/formatters.jsx";
 import Chart from "../shared/Chart";
 
@@ -287,6 +286,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
             symbol: allocation.asset_symbol || "",
             value_amount: parseFloat(allocation.current_value) || 0,
           }))
+          .sort((a, b) => b.value - a.value)
           .filter((item) => item.value > 0)
         : [];
 

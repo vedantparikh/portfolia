@@ -1,14 +1,12 @@
 import {
     Activity,
+    Award,
     BarChart3,
     Filter,
-    MoreVertical,
+    Gem,
     PieChart,
-    Plus,
     RefreshCw,
     Search,
-    Trash2,
-    TrendingDown,
     TrendingUp
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -16,307 +14,9 @@ import toast from 'react-hot-toast';
 import { portfolioAPI, transactionAPI } from '../../services/api';
 import AssetFilters from '../assets/AssetFilters';
 import AssetModal from '../assets/AssetModal';
+import PortfolioAssetCard from './PortfolioAssetCard';
 import CreateTransactionModal from '../transactions/CreateTransactionModal';
 
-// Custom portfolio asset display component
-const PortfolioAssetCard = ({ asset, viewMode = 'grid', onClick, onTransaction, onAnalytics, onDelete }) => {
-    const [showMenu, setShowMenu] = useState(false);
-
-    const handleMenuClick = (e) => {
-        e.stopPropagation();
-        setShowMenu(!showMenu);
-    };
-
-    const handleDelete = (e) => {
-        e.stopPropagation();
-        setShowMenu(false);
-        onDelete && onDelete();
-    };
-
-    const handleTransaction = (e) => {
-        e.stopPropagation();
-        setShowMenu(false);
-        onTransaction && onTransaction();
-    };
-
-    const handleAnalytics = (e) => {
-        e.stopPropagation();
-        setShowMenu(false);
-        onAnalytics && onAnalytics();
-    };
-
-    if (viewMode === 'list') {
-        return (
-            <div
-                className={`card p-4 hover:bg-dark-800/50 transition-colors cursor-pointer relative ${showMenu ? 'z-10' : 'z-0'}`}
-                onClick={onClick}
-            >
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                            <BarChart3 size={24} className="text-primary-400" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-100">{asset.symbol}</h3>
-                            <p className="text-sm text-gray-400 truncate max-w-48">{asset.name}</p>
-                            {asset.asset_type && (
-                                <p className="text-xs text-primary-400 capitalize">
-                                    {asset.asset_type.toLowerCase().replace('_', ' ')}
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center space-x-8">
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Quantity</p>
-                            <p className="text-lg font-semibold text-gray-100">
-                                {asset.quantity?.toFixed(4) || '0'}
-                            </p>
-                        </div>
-
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Purchase Price</p>
-                            <p className="text-sm font-medium text-gray-100">
-                                ${asset.purchase_price?.toFixed(2) || '0.00'}
-                            </p>
-                        </div>
-
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Current Price</p>
-                            <p className="text-sm font-medium text-gray-100">
-                                ${asset.current_price?.toFixed(2) || '0.00'}
-                            </p>
-                        </div>
-
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Total Value</p>
-                            <p className="text-lg font-semibold text-gray-100">
-                                ${asset.total_value?.toFixed(2) || '0.00'}
-                            </p>
-                        </div>
-
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">P&L</p>
-                            <p className={`text-sm font-medium ${(asset.pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ${asset.pnl?.toFixed(2) || '0.00'}
-                            </p>
-                            <p className={`text-xs ${(asset.pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                {asset.pnl_percentage?.toFixed(2) || '0.00'}%
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Realized P&L</p>
-                            <p className={`text-sm font-medium ${(asset.pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ${asset.realized_pnl?.toFixed(2) || '0.00'}
-                            </p>
-                            <p className={`text-xs ${(asset.pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                {asset.realized_pnl_percentage?.toFixed(2) || '0.00'}%
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm text-gray-400">Today's P&L</p>
-                            <p className={`text-sm font-medium ${(asset.pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ${asset.today_pnl?.toFixed(2) || '0.00'}
-                            </p>
-                            <p className={`text-xs ${(asset.pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                {asset.today_pnl_percentage?.toFixed(2) || '0.00'}%
-                            </p>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                            <div className="relative">
-                                <button
-                                    onClick={handleMenuClick}
-                                    className="p-1 rounded-lg hover:bg-dark-700 transition-colors"
-                                >
-                                    <MoreVertical size={16} className="text-gray-400" />
-                                </button>
-                                {showMenu && (
-                                    <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
-                                        <button
-                                            onClick={handleTransaction}
-                                            className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
-                                        >
-                                            <Plus size={14} />
-                                            <span>Add Transaction</span>
-                                        </button>
-                                        <button
-                                            onClick={handleAnalytics}
-                                            className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
-                                        >
-                                            <Activity size={14} />
-                                            <span>Analytics</span>
-                                        </button>
-                                        <button
-                                            onClick={handleDelete}
-                                            className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-dark-700 flex items-center space-x-2"
-                                        >
-                                            <Trash2 size={14} />
-                                            <span>Delete</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div
-            className={`card p-6 hover:bg-dark-800/50 transition-all duration-200 cursor-pointer group relative ${showMenu ? 'z-10' : 'z-0'}`}
-            onClick={onClick}
-        >
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center group-hover:bg-primary-600/30 transition-colors">
-                        <BarChart3 size={24} className="text-primary-400" />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-100">{asset.symbol}</h3>
-                        <p className="text-sm text-gray-400 truncate max-w-32">{asset.name}</p>
-                        {asset.asset_type && (
-                            <p className="text-xs text-primary-400 capitalize">
-                                {asset.asset_type.toLowerCase().replace('_', ' ')}
-                            </p>
-                        )}
-                    </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <div className="relative">
-                        <button
-                            onClick={handleMenuClick}
-                            className="p-1 rounded-lg hover:bg-dark-700 transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                            <MoreVertical size={16} className="text-gray-400" />
-                        </button>
-                        {showMenu && (
-                            <div className="absolute right-0 top-8 bg-dark-800 border border-dark-700 rounded-lg shadow-lg z-10 min-w-40">
-                                <button
-                                    onClick={handleTransaction}
-                                    className="w-full px-3 py-2 text-left text-sm text-success-400 hover:bg-dark-700 flex items-center space-x-2"
-                                >
-                                    <Plus size={14} />
-                                    <span>Add Transaction</span>
-                                </button>
-                                <button
-                                    onClick={handleAnalytics}
-                                    className="w-full px-3 py-2 text-left text-sm text-primary-400 hover:bg-dark-700 flex items-center space-x-2"
-                                >
-                                    <Activity size={14} />
-                                    <span>Analytics</span>
-                                </button>
-                                <button
-                                    onClick={handleDelete}
-                                    className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-dark-700 flex items-center space-x-2"
-                                >
-                                    <Trash2 size={14} />
-                                    <span>Delete</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Quantity</span>
-                    <span className="text-lg font-bold text-gray-100">
-                        {asset.quantity?.toFixed(4) || '0'}
-                    </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Purchase Price</span>
-                    <span className="text-sm font-medium text-gray-100">
-                        ${asset.purchase_price?.toFixed(2) || '0.00'}
-                    </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Current Price</span>
-                    <span className="text-sm font-medium text-gray-100">
-                        ${asset.current_price?.toFixed(2) || '0.00'}
-                    </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Total Value</span>
-                    <span className="text-lg font-bold text-gray-100">
-                        ${asset.total_value?.toFixed(2) || '0.00'}
-                    </span>
-                </div>
-
-                {/* P&L Section */}
-                <div className="pt-3 border-t border-dark-700 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Unrealized P&L</span>
-                        <div className="text-right">
-                            <span className={`text-sm font-bold ${(asset.pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ${asset.pnl?.toFixed(2) || '0.00'}
-                            </span>
-                            <span className={`text-xs ml-2 ${(asset.pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ({asset.pnl_percentage?.toFixed(2) || '0.00'}%)
-                            </span>
-                        </div>
-                    </div>
-
-                    {asset.realized_pnl !== undefined && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-400">Realized P&L</span>
-                            <div className="text-right">
-                                <span className={`text-sm font-medium ${(asset.realized_pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                    ${asset.realized_pnl?.toFixed(2) || '0.00'}
-                                </span>
-                                <span className={`text-xs ml-2 ${(asset.realized_pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                    ({asset.realized_pnl_percentage?.toFixed(2) || '0.00'}%)
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    {asset.today_pnl !== undefined && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-400">Today's P&L</span>
-                            <div className="text-right">
-                                <span className={`text-sm font-medium ${(asset.today_pnl || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                    ${asset.today_pnl?.toFixed(2) || '0.00'}
-                                </span>
-                                <span className={`text-xs ml-2 ${(asset.today_pnl_percentage || 0) >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                    ({asset.today_pnl_percentage?.toFixed(2) || '0.00'}%)
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* P&L indicator bar */}
-            <div className="mt-4 pt-4 border-t border-dark-700">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                    <span>Position Performance</span>
-                    <span>{asset.pnl_percentage ? `${asset.pnl_percentage.toFixed(2)}%` : '0.00%'}</span>
-                </div>
-                <div className="w-full bg-dark-700 rounded-full h-1.5">
-                    <div
-                        className={`h-1.5 rounded-full transition-all duration-300 ${(asset.pnl_percentage || 0) > 0
-                            ? 'bg-success-400'
-                            : (asset.pnl_percentage || 0) < 0
-                                ? 'bg-danger-400'
-                                : 'bg-gray-500'
-                            }`}
-                        style={{
-                            width: `${Math.min(Math.abs(asset.pnl_percentage || 0) * 2, 100)}%`
-                        }}
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const PortfolioAssets = ({ portfolio, onRefresh }) => {
     const [assets, setAssets] = useState([]);
@@ -375,7 +75,7 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                     asset_type: holding.asset_type || 'EQUITY',
                     quantity: holding.quantity,
                     purchase_price: holding.cost_basis,
-                    current_price: holding.current_value / holding.quantity,
+                    current_price: holding.current_value && holding.quantity ? holding.current_value / holding.quantity : 0,
                     total_value: holding.current_value,
                     purchase_date: holding.purchase_date,
                     // Calculate P&L
@@ -622,43 +322,52 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
             throw error; // Re-throw so the modal can handle it
         }
     };
+    const getPortfolioHighlights = () => {
+        const defaultAsset = { symbol: 'N/A', name: 'Not Available', value: 0 };
+        if (filteredAssets.length === 0) {
+            return {
+                bestPerformer: defaultAsset,
+                largestHolding: defaultAsset,
+                topContributor: defaultAsset,
+                dailyMover: defaultAsset
+            };
+        }
 
-    const getTotalStats = () => {
-        const totalValue = filteredAssets.reduce((sum, asset) => {
-            return sum + (asset.total_value || 0);
-        }, 0);
+        const highlights = filteredAssets.reduce((acc, asset) => {
+            // Best Performer (%)
+            if ((asset.pnl_percentage || -Infinity) > acc.bestPerformer.value) {
+                acc.bestPerformer = { symbol: asset.symbol, name: asset.name, value: asset.pnl_percentage };
+            }
+            // Largest Holding ($)
+            if ((asset.total_value || -Infinity) > acc.largestHolding.value) {
+                acc.largestHolding = { symbol: asset.symbol, name: asset.name, value: asset.total_value };
+            }
+            // Top Contributor ($)
+            if ((asset.pnl || -Infinity) > acc.topContributor.value) {
+                acc.topContributor = { symbol: asset.symbol, name: asset.name, value: asset.pnl };
+            }
+            // Portfolio's Daily Mover (absolute $)
+            if (Math.abs(asset.today_pnl || 0) > Math.abs(acc.dailyMover.value)) {
+                acc.dailyMover = { symbol: asset.symbol, name: asset.name, value: asset.today_pnl };
+            }
+            return acc;
+        }, {
+            bestPerformer: { ...defaultAsset, value: -Infinity },
+            largestHolding: { ...defaultAsset, value: -Infinity },
+            topContributor: { ...defaultAsset, value: -Infinity },
+            dailyMover: { ...defaultAsset, value: 0 },
+        });
 
-        const totalInvested = filteredAssets.reduce((sum, asset) => {
-            const invested = (asset.quantity || 0) * (asset.purchase_price || 0);
-            return sum + invested;
-        }, 0);
+        // Clean up initial values if no valid asset was found
+        if (highlights.bestPerformer.value === -Infinity) highlights.bestPerformer.value = 0;
+        if (highlights.largestHolding.value === -Infinity) highlights.largestHolding.value = 0;
+        if (highlights.topContributor.value === -Infinity) highlights.topContributor.value = 0;
 
-        const totalPnL = totalValue - totalInvested;
-        const totalPnLPercentage = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
-
-        const positiveAssets = filteredAssets.filter(asset => {
-            const pnl = asset.pnl_percentage || 0;
-            return pnl > 0;
-        }).length;
-
-        const negativeAssets = filteredAssets.filter(asset => {
-            const pnl = asset.pnl_percentage || 0;
-            return pnl < 0;
-        }).length;
-
-        return {
-            totalValue,
-            totalInvested,
-            totalPnL,
-            totalPnLPercentage,
-            positiveAssets,
-            negativeAssets,
-            totalAssets: filteredAssets.length
-        };
+        return highlights;
     };
 
-    const stats = getTotalStats();
-
+    const highlights = getPortfolioHighlights();
+    const totalPortfolioValue = filteredAssets.reduce((sum, asset) => sum + (asset.total_value || 0), 0);
     if (loading) {
         return (
             <div className="space-y-6">
@@ -713,21 +422,41 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                 <div className="card p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-400">Total Assets</p>
-                            <p className="text-2xl font-bold text-gray-100">{stats.totalAssets}</p>
+                            <p className="text-sm text-gray-400">Best Performer</p>
+                            <p className="text-xl font-bold text-gray-100 truncate" title={highlights.bestPerformer.name}>{highlights.bestPerformer.symbol}</p>
+                            <p className="text-xs text-gray-500">{highlights.bestPerformer.name}</p>
+                            <p className="text-sm font-semibold text-success-400">
+                                +{highlights.bestPerformer.value.toFixed(2)}%
+                            </p>
                         </div>
-                        <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                            <BarChart3 size={24} className="text-primary-400" />
+                        <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
+                            <Award size={24} className="text-success-400" />
                         </div>
                     </div>
                 </div>
-
                 <div className="card p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-400">Total Value</p>
-                            <p className="text-2xl font-bold text-gray-100">
-                                ${(stats.totalValue / 1000).toFixed(2)}K
+                            <p className="text-sm text-gray-400">Largest Holding</p>
+                            <p className="text-xl font-bold text-gray-100 truncate" title={highlights.largestHolding.name}>{highlights.largestHolding.symbol}</p>
+                            <p className="text-xs text-gray-500">{highlights.largestHolding.name}</p>
+                            <p className="text-sm font-semibold text-primary-400">
+                                ${highlights.largestHolding.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                        </div>
+                        <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
+                            <Gem size={24} className="text-primary-400" />
+                        </div>
+                    </div>
+                </div>
+                <div className="card p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-400">Top Contributor</p>
+                            <p className="text-xl font-bold text-gray-100 truncate" title={highlights.topContributor.name}>{highlights.topContributor.symbol}</p>
+                            <p className="text-xs text-gray-500">{highlights.topContributor.name}</p>
+                            <p className="text-sm font-semibold text-success-400">
+                                +${highlights.topContributor.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                         </div>
                         <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
@@ -735,39 +464,22 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                         </div>
                     </div>
                 </div>
-
                 <div className="card p-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-400">Total Invested</p>
-                            <p className="text-2xl font-bold text-gray-100">
-                                ${(stats.totalInvested / 1000).toFixed(2)}K
+                            <p className="text-sm text-gray-400">Daily Mover</p>
+                            <p className="text-xl font-bold text-gray-100 truncate" title={highlights.dailyMover.name}>{highlights.dailyMover.symbol}</p>
+                            <p className="text-xs text-gray-500">{highlights.dailyMover.name}</p>
+                            <p className={`text-sm font-semibold ${highlights.dailyMover.value >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
+                                {highlights.dailyMover.value >= 0 ? '+' : ''}${highlights.dailyMover.value.toFixed(2)}
                             </p>
                         </div>
-                        <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                            <BarChart3 size={24} className="text-warning-400" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-400">P&L</p>
-                            <p className={`text-2xl font-bold ${stats.totalPnL >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                ${(stats.totalPnL / 1000).toFixed(2)}K
-                            </p>
-                            <p className={`text-xs ${stats.totalPnLPercentage >= 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                {stats.totalPnLPercentage.toFixed(2)}%
-                            </p>
-                        </div>
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stats.totalPnL >= 0 ? 'bg-success-600/20' : 'bg-danger-600/20'}`}>
-                            {stats.totalPnL >= 0 ? <TrendingUp size={24} className="text-success-400" /> : <TrendingDown size={24} className="text-danger-400" />}
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${highlights.dailyMover.value >= 0 ? 'bg-success-600/20' : 'bg-danger-600/20'}`}>
+                            <Activity size={24} className={highlights.dailyMover.value >= 0 ? 'text-success-400' : 'text-danger-400'} />
                         </div>
                     </div>
                 </div>
             </div>
-
             {/* Filters */}
             {showFilters && (
                 <div className="card p-6">
@@ -825,6 +537,7 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
                             key={asset.id}
                             asset={asset}
                             viewMode={viewMode}
+                            portfolioTotalValue={totalPortfolioValue}
                             onClick={() => handleAssetClick(asset)}
                             onTransaction={() => handleTransactionClick(asset)}
                             onAnalytics={() => handleAnalyticsClick(asset)}

@@ -2,7 +2,6 @@ import {
   Activity,
   ArrowLeft,
   BarChart3,
-  DollarSign,
   PieChart,
   Plus,
   RefreshCw,
@@ -205,8 +204,7 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to create portfolio: ${
-            error.response?.data?.detail || error.message
+          `Failed to create portfolio: ${error.response?.data?.detail || error.message
           }`
         );
       }
@@ -262,8 +260,7 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to update portfolio: ${
-            error.response?.data?.detail || error.message
+          `Failed to update portfolio: ${error.response?.data?.detail || error.message
           }`
         );
       }
@@ -306,8 +303,7 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to delete portfolio: ${
-            error.response?.data?.detail || error.message
+          `Failed to delete portfolio: ${error.response?.data?.detail || error.message
           }`
         );
       }
@@ -521,166 +517,56 @@ const Portfolio = () => {
             </div>
           ) : (
             <>
-              {/* Portfolio Stats */}
-              {stats && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Total Value</p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          ${stats.totalValue.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                        <DollarSign size={24} className="text-primary-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span
-                        className={
-                          stats.totalGainLoss >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }
-                      >
-                        {stats.totalGainLoss >= 0 ? "+" : ""}$
-                        {stats.totalGainLoss.toLocaleString()}
-                      </span>
-                      <span className="text-gray-400 ml-2">
-                        ({stats.totalGainLossPercent.toFixed(2)}%)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Day Change</p>
-                        <p
-                          className={`text-2xl font-bold ${
-                            stats.dayChange >= 0
-                              ? "text-success-400"
-                              : "text-danger-400"
-                          }`}
-                        >
-                          {stats.dayChange >= 0 ? "+" : ""}$
-                          {stats.dayChange.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-success-600/20 rounded-lg flex items-center justify-center">
-                        {stats.dayChange >= 0 ? (
-                          <TrendingUp size={24} className="text-success-400" />
-                        ) : (
-                          <TrendingDown size={24} className="text-danger-400" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span
-                        className={
-                          stats.dayChangePercent >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }
-                      >
-                        {stats.dayChangePercent >= 0 ? "+" : ""}
-                        {stats.dayChangePercent.toFixed(2)}%
-                      </span>
-                      <span className="text-gray-400 ml-2">today</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Holdings</p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {stats.totalHoldings}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-warning-600/20 rounded-lg flex items-center justify-center">
-                        <BarChart3 size={24} className="text-warning-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">Active positions</span>
-                    </div>
-                  </div>
-
-                  <div className="card p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-400">Transactions</p>
-                        <p className="text-2xl font-bold text-gray-100">
-                          {stats.totalTransactions}
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 bg-gray-600/20 rounded-lg flex items-center justify-center">
-                        <Activity size={24} className="text-gray-400" />
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center text-sm">
-                      <span className="text-gray-400">Total trades</span>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* View Mode Toggle */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setViewMode("overview")}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === "overview"
+                    className={`p-2 rounded-lg transition-colors ${viewMode === "overview"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                    }`}
+                      }`}
                     title="Overview"
                   >
                     <BarChart3 size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("detail")}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === "detail"
+                    className={`p-2 rounded-lg transition-colors ${viewMode === "detail"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                    }`}
+                      }`}
                     title="Holdings Detail"
                   >
                     <PieChart size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("assets")}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === "assets"
+                    className={`p-2 rounded-lg transition-colors ${viewMode === "assets"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                    }`}
+                      }`}
                     title="Portfolio Assets"
                   >
                     <Wallet size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("chart")}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === "chart"
+                    className={`p-2 rounded-lg transition-colors ${viewMode === "chart"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                    }`}
+                      }`}
                     title="Performance Chart"
                   >
                     <Activity size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("performance")}
-                    className={`p-2 rounded-lg transition-colors ${
-                      viewMode === "performance"
+                    className={`p-2 rounded-lg transition-colors ${viewMode === "performance"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                    }`}
+                      }`}
                     title="Performance Metrics"
                   >
                     <BarChart3 size={16} />
@@ -719,11 +605,10 @@ const Portfolio = () => {
                               >
                                 <div className="flex items-center space-x-3">
                                   <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                      transaction.transaction_type === "buy"
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
                                         ? "bg-success-400/20"
                                         : "bg-danger-400/20"
-                                    }`}
+                                      }`}
                                   >
                                     {transaction.transaction_type === "buy" ? (
                                       <TrendingUp
@@ -756,11 +641,10 @@ const Portfolio = () => {
                                 </div>
                                 <div className="text-right">
                                   <p
-                                    className={`text-sm font-medium ${
-                                      transaction.transaction_type === "buy"
+                                    className={`text-sm font-medium ${transaction.transaction_type === "buy"
                                         ? "text-success-400"
                                         : "text-danger-400"
-                                    }`}
+                                      }`}
                                   >
                                     {transaction.transaction_type === "buy"
                                       ? "-"

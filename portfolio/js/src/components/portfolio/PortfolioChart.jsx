@@ -46,9 +46,46 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const [timeRange, setTimeRange] = useState("30d");
   const [chartType, setChartType] = useState("line");
   const [metricsData, setMetricsData] = useState(null);
+  const [advancedMetrics, setAdvancedMetrics] = useState(null);
   const [showMetricsPanel, setShowMetricsPanel] = useState(true);
 
-  // Add this new function inside your PortfolioChart component
+
+  const calculateAdvancedMetrics = (performanceData) => {
+    if (!performanceData || performanceData.length < 2) {
+      setAdvancedMetrics(null);
+      return;
+    }
+
+    const sortedData = [...performanceData].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Daily returns for other calculations
+    const dailyReturns = sortedData.slice(1).map((day, i) => {
+      const yesterday = sortedData[i];
+      return yesterday.value !== 0 ? (day.value - yesterday.value) / yesterday.value : 0;
+    });
+
+    if (dailyReturns.length === 0) {
+      setAdvancedMetrics({ sortinoRatio: 0, winRate: 0 });
+      return;
+    }
+
+    // Sortino Ratio
+    const negativeReturns = dailyReturns.filter(r => r < 0);
+    const avgReturn = dailyReturns.reduce((sum, val) => sum + val, 0) / dailyReturns.length;
+    const negVariance = negativeReturns.reduce((sum, val) => sum + Math.pow(val, 2), 0) / dailyReturns.length;
+    const downsideDeviation = Math.sqrt(negVariance);
+    const sortinoRatio = downsideDeviation > 0 ? (avgReturn / downsideDeviation) * Math.sqrt(252) : Infinity; // Annualized
+
+    // Win Rate
+    const winRate = (dailyReturns.filter(r => r > 0).length / dailyReturns.length) * 100;
+
+    setAdvancedMetrics({
+      sortinoRatio,
+      winRate,
+    });
+  };
   const calculatePerformanceMetrics = (historyData) => {
     if (!historyData || historyData.length < 2) {
       setMetricsData(null);
@@ -137,7 +174,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         const historyResponse =
           await analyticsAPI.getPortfolioPerformanceHistory(portfolio.id, days);
         if (historyResponse?.history && historyResponse.history.length > 0) {
-          const processedData = processHistoryData(historyResponse.history);
+          const processedData = processHistoryData([...historyResponse.history].reverse());
           setChartData(processedData);
         }
       } catch (historyError) {
@@ -186,6 +223,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const processHistoryData = (historyData) => {
     if (!historyData || historyData.length === 0) {
       setMetricsData(null);
+      setAdvancedMetrics(null); 
       return null;
     }
 
@@ -196,6 +234,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
     }));
 
     // Call our new calculation function here
+    calculateAdvancedMetrics(performanceData);
     calculatePerformanceMetrics(performanceData);
 
     // The rest of the function remains the same
@@ -425,42 +464,18 @@ const PortfolioChart = ({ portfolio, stats }) => {
           })}
         </div>
 
-
         {showMetricsPanel && metricsData && (
-          <div className="card p-4 my-4">
-            <h3 className="text-lg font-semibold text-gray-100 flex items-center mb-3">
+          <div className="card p-4 my-4 border border-dark-700">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center mb-4">
               <Activity className="w-5 h-5 mr-2 text-primary-400" />
               Performance Metrics
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {/* Row 1 */}
               <div className="text-center">
                 <p className="text-sm text-gray-400">Total Return</p>
-                <p
-                  className={`text-lg font-bold ${metricsData.totalReturn >= 0
-                      ? "text-success-400"
-                      : "text-danger-400"
-                    }`}
-                >
+                <p className={`text-lg font-bold ${metricsData.totalReturn >= 0 ? "text-success-400" : "text-danger-400"}`}>
                   {formatPercentage(metricsData.totalReturn || 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-400">Max Gain</p>
-                <p className="text-lg font-bold text-success-400">
-                  {formatPercentage(metricsData.maxGain || 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-400">Max Loss vs Start</p>
-                <p className="text-lg font-bold text-danger-400">
-                  {formatPercentage(metricsData.maxLoss || 0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-gray-400">Value Range</p>
-                <p className="text-sm font-medium text-gray-200">
-                  {formatCurrency(metricsData.lowValue || 0)} -{" "}
-                  {formatCurrency(metricsData.highValue || 0)}
                 </p>
               </div>
               <div className="text-center">
@@ -472,13 +487,37 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <div className="text-center">
                 <p className="text-sm text-gray-400">Max Drawdown</p>
                 <p className="text-lg font-bold text-danger-400">
-                  -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
+                  {formatPercentage(metricsData.maxDrawdown || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Sortino Ratio</p>
+                <p className="text-lg font-bold text-gray-200">
+                  {formatMetricValue(advancedMetrics?.sortinoRatio || 0)}
+                </p>
+              </div>
+              {/* Row 2 */}
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Win Rate</p>
+                <p className="text-lg font-bold text-gray-200">
+                  {formatPercentage(advancedMetrics?.winRate || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Max Loss vs Start</p>
+                <p className={`text-lg font-bold ${metricsData.maxLoss < 0 ? "text-danger-400" : "text-gray-200"}`}>
+                  {formatPercentage(metricsData.maxLoss || 0)}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-400">Value Range</p>
+                <p className="text-sm font-medium text-gray-200">
+                  {formatCurrency(metricsData.lowValue || 0)} - {formatCurrency(metricsData.highValue || 0)}
                 </p>
               </div>
             </div>
           </div>
         )}
-
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (
             <div className="flex items-center justify-center h-80">

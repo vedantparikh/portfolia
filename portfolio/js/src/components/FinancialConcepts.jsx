@@ -184,6 +184,56 @@ const FinancialConcepts = () => {
     () => [
       // Core Performance Metrics
       {
+        name: "Total Return (Modified Dietz)",
+        category: "performance",
+        icon: TrendingUp,
+        description:
+          "An accurate measure of investment performance that accounts for the distorting effects of cash flows by using the average capital invested.",
+        formula:
+          "Return = (Gain/Loss) / Average Capital, where Gain = End Value - Start Value - Net Cash Flow",
+        example:
+          "A portfolio starts at $10k, receives a $2k deposit, and ends at $12.5k. The investment gain is $500. The total return is ($500 / $11,000) = 4.55%.",
+        interpretation: {
+          good: "A high positive return, especially one that beats a relevant benchmark (like the S&P 500).",
+          bad: "A negative return or one that significantly underperforms its benchmark.",
+          decision:
+            "The primary metric for judging investment strategy effectiveness, independent of your savings habits.",
+        },
+      },
+      {
+        name: "Net Contributions",
+        category: "performance",
+        icon: DollarSign,
+        description:
+          "The net amount of money an investor has added to or withdrawn from their portfolio over a specific period.",
+        formula: "Ending Cost Basis - Beginning Cost Basis",
+        example:
+          "If your cost basis was $50k at the start of the month and is now $55k, your net contribution for the month is +$5k.",
+        interpretation: {
+          good: "Positive contributions show consistent saving, which is key to long-term growth.",
+          bad: "Large withdrawals can hinder growth but may be necessary for financial goals.",
+          decision:
+            "Helps you understand how much of your portfolio's growth is from savings versus market returns.",
+        },
+      },
+      {
+        name: "Win Rate",
+        category: "performance",
+        icon: CheckCircle,
+        description:
+          "The percentage of time periods (usually days) in which an investment or portfolio generated a positive return.",
+        formula: "(Number of Winning Periods / Total Number of Periods) * 100",
+        example:
+          "If a portfolio was up on 15 out of 22 trading days in a month, its win rate is (15 / 22) * 100 = 68.2%.",
+        interpretation: {
+          good: "A rate consistently above 50% indicates a strategy that generates positive returns more often than not.",
+          bad: "A rate below 50% suggests the strategy is losing value on more days than it is winning.",
+          decision:
+            "Provides insight into the consistency of returns. A high win rate can be psychologically comforting.",
+        },
+      },
+
+      {
         name: "Cost Basis",
         category: "performance",
         icon: Calculator,
@@ -322,7 +372,24 @@ const FinancialConcepts = () => {
           "XIRR of 12% means your investments grew at 12% annually considering all transaction timing",
       },
 
+
       // Risk Metrics
+      {
+        name: "Sortino Ratio",
+        category: "risk",
+        icon: Shield,
+        description:
+          "A variation of the Sharpe Ratio that measures risk-adjusted return, but only penalizes for harmful, downside volatility.",
+        formula: "(Portfolio Return - Risk-Free Rate) / Downside Deviation",
+        example:
+          "If two funds have the same return, the one with a higher Sortino Ratio is better as it has less 'bad' risk.",
+        interpretation: {
+          good: "A higher ratio is always better. A ratio > 2 is considered very good; 1-2 is good.",
+          bad: "A ratio < 1 suggests you are not being adequately compensated for the downside risk taken.",
+          decision:
+            "Excellent for comparing investments, especially for conservative investors concerned with protecting against losses.",
+        },
+      },
       {
         name: "Volatility (Standard Deviation)",
         category: "risk",
@@ -430,6 +497,38 @@ const FinancialConcepts = () => {
       },
 
       // Portfolio Management Concepts
+      {
+        name: "Largest Holding",
+        category: "portfolio",
+        icon: Target,
+        description:
+          "The single asset that represents the highest percentage of the total portfolio's value.",
+        formula: "Asset with max(Asset Value / Total Portfolio Value)",
+        example:
+          "In a $100k portfolio, if Apple stock is worth $20k (a 20% holding), it's the largest holding.",
+        interpretation: {
+          good: "Often a top performer that has grown significantly, contributing to gains.",
+          bad: "If one holding becomes too large (>20%), it can introduce concentration risk.",
+          decision:
+            "Monitor to ensure you are not overly exposed to a single company. May be a candidate for trimming during rebalancing.",
+        },
+      },
+      {
+        name: "Smallest Holding",
+        category: "portfolio",
+        icon: TrendingDown,
+        description:
+          "The single asset that represents the lowest percentage of the total portfolio's value.",
+        formula: "Asset with min(Asset Value / Total Portfolio Value)",
+        example:
+          "In a $100k portfolio, a stock worth $500 is only a 0.5% holding.",
+        interpretation: {
+          good: "Could be a new position you are building or a speculative play with limited risk.",
+          bad: "If a holding is too small, its performance will have a negligible impact on the portfolio.",
+          decision:
+            "Consider if the position is still worth holding or if the capital could be better consolidated elsewhere.",
+        },
+      },
       {
         name: "Asset Allocation",
         category: "portfolio",
@@ -675,8 +774,8 @@ const FinancialConcepts = () => {
       <Sidebar
         currentView="concepts"
         portfolios={[]}
-        onRefresh={() => {}}
-        onQuickAction={() => {}}
+        onRefresh={() => { }}
+        onQuickAction={() => { }}
         isMobile={isMobile}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}

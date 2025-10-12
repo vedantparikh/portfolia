@@ -535,7 +535,7 @@ const Assets = () => {
                                     <p className="text-sm text-gray-400">Most Stable</p>
                                     <div className="my-1">
                                         <p title={stats.mostStable.symbol} className="text-xl font-bold text-gray-100">{stats.mostStable.symbol}</p>
-                                        <p className="text-sm text-gray-500">{stats.mostStable.symbol}</p>
+                                        <p className="text-sm text-gray-500">{stats.mostStable.name}</p>
                                     </div>
                                     <p className="text-sm font-semibold text-success-400">{stats.mostStable.value.toFixed(2)} Beta</p>
                                 </div>

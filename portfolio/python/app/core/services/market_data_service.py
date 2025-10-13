@@ -286,8 +286,8 @@ class MarketDataService:
 
     async def get_yesterdays_closes(self, symbols: List[str]) -> Dict[str, Decimal]:
         """
-        ADAPTED: Fetches previous day's closing prices with caching,
-        using the custom RedisClient.
+        ADAPTED & OPTIMIZED: Fetches previous day's closing prices with caching,
+        using a true batch operation for API calls.
         """
         if not symbols:
             return {}
@@ -296,7 +296,7 @@ class MarketDataService:
         symbols_upper = [s.upper() for s in symbols]
         symbols_to_fetch = set(symbols_upper)
 
-        # 1. Check Redis cache
+        # 1. Check Redis cache (this part is already good)
         cache_keys = [self._get_yesterdays_close_cache_key(s) for s in symbols_upper]
         cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
 
@@ -306,33 +306,53 @@ class MarketDataService:
                 closes[symbol] = Decimal(str(cached_data[cache_key]))
                 symbols_to_fetch.remove(symbol)
 
-        # 2. Fetch missing symbols
+        # 2. Fetch all missing symbols in a SINGLE API call
         if symbols_to_fetch:
-            new_closes_to_cache: Dict[str, str] = {}
-            logger.info("Fetching yesterday's close for %d symbols from API.", len(symbols_to_fetch))
-            tickers = yf.Tickers(" ".join(symbols_to_fetch))
+            logger.info(
+                "Fetching yesterday's close for %d symbols from API in a single batch.",
+                len(symbols_to_fetch)
+            )
+            try:
+                # Use yf.download for a true batch request. Get last 2 days.
+                data = yf.download(
+                    tickers=list(symbols_to_fetch),
+                    period="2d",
+                    interval="1d",
+                    progress=False,
+                )
 
-            for ticker in tickers.tickers.values():
-                symbol = ticker.ticker.upper()
-                try:
-                    # The specific key for the previous day's close is 'previousClose'
-                    close_price = ticker.info.get("previousClose")
-                    if close_price is not None:
-                        closes[symbol] = Decimal(str(close_price))
-                        cache_key = self._get_yesterdays_close_cache_key(symbol)
-                        new_closes_to_cache[cache_key] = str(close_price)
-                except Exception:
-                    logger.warning("Could not retrieve yesterday's close for %s", symbol)
+                if not data.empty:
+                    # Group by symbol for easy processing
+                    grouped = data.groupby(axis=1, level=0)
+                    new_closes_to_cache: Dict[str, str] = {}
 
-            # 3. Cache new data by calling `set` in a loop
-            if new_closes_to_cache:
-                for key, price_str in new_closes_to_cache.items():
-                    await asyncio.to_thread(
-                        self.redis_client.set,
-                        key,
-                        price_str,
-                        ex_seconds=self.close_cache_ttl
-                    )
+                    for symbol, group_df in grouped:
+                        symbol_upper = symbol.upper()
+                        # Sort by date to ensure the latest is last
+                        group_df = group_df.sort_index()
+                        if len(group_df) > 1:
+                            # The previous close is the 'Close' of the first row
+                            previous_close = group_df['Close'].iloc[0]
+                            if pd.notna(previous_close):
+                                closes[symbol_upper] = Decimal(str(previous_close))
+                                cache_key = self._get_yesterdays_close_cache_key(symbol_upper)
+                                new_closes_to_cache[cache_key] = str(previous_close)
+
+                    # 3. Cache new data (your logic is fine, just now truly batched)
+                    if new_closes_to_cache:
+                        for key, price_str in new_closes_to_cache.items():
+                            await asyncio.to_thread(
+                                self.redis_client.set,
+                                key,
+                                price_str,
+                                ex_seconds=self.close_cache_ttl
+                            )
+
+            except Exception as e:
+                logger.error(
+                    "Failed to fetch historical data for yesterdays's closes: %s", e
+                )
+
         return closes
 
     async def get_historical_data(self, symbols: List[str], period: str = "1y", interval: str = "1d") -> Dict[

@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { ClientSideAssetSearch } from "../shared";
 import transactionTypes from "../../utils/transactionTypes";
+import assetCache from "../../services/assetCache";
 
 const ParsedDataTable = ({
   parsedData,
@@ -22,276 +23,283 @@ const ParsedDataTable = ({
   allAssets = [],
 }) => {
   const [transactions, setTransactions] = useState([]);
-  const [editingRowId, setEditingRowId] = useState(null); // Changed from index to ID for stability
-  const [frozenTransactions, setFrozenTransactions] = useState([]); // Holds the sorted list when editing to "freeze" it
-  const [originalTransaction, setOriginalTransaction] = useState(null); // Holds the state of a row before editing to allow for cancellation
-  const [scrollToId, setScrollToId] = useState(null); // Stores the ID of the row to scroll to after saving
+  const [transactionsToRender, setTransactionsToRender] = useState([]);
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [originalRowData, setOriginalRowData] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [selectedPortfolio, setSelectedPortfolio] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [saveErrors, setSaveErrors] = useState({});
-
-  const rowRefs = useRef({}); // To store DOM references for each table row for scrolling
-
-  const allAssetsJson = JSON.stringify(allAssets);
+  const rowRefs = useRef({});
 
   const assetSymbolMap = useMemo(() => {
-    if (allAssets.length === 0) {
-      return new Map();
-    }
+    if (!allAssets || allAssets.length === 0) return new Map();
     return new Map(allAssets.map((asset) => [asset.symbol.toUpperCase(), asset]));
-  }, [allAssetsJson]);
+  }, [allAssets]);
 
-  const transactionsJson = JSON.stringify(parsedData?.transactions);
+  // Sync allAssets with assetCache
+  useEffect(() => {
+    if (allAssets && allAssets.length > 0) {
+      assetCache.assets = allAssets;
+      assetCache.lastFetched = Date.now();
+      assetCache.notifySubscribers();
+    }
+  }, [allAssets]);
 
   useEffect(() => {
+    return () => {
+      setTransactions([]);
+      setTransactionsToRender([]);
+      setEditingRowId(null);
+      setOriginalRowData(null);
+      setSearchQuery("");
+      setFilterType("all");
+    };
+  }, []);
 
-    // Guard clause: Wait until the asset list is loaded before processing transactions.
-    // This prevents the race condition where transactions are mapped with an empty symbol map.
-    if (allAssets.length === 0 && parsedData?.transactions?.length > 0) {
-      return;
-    }
-
-    const parsedTransactions = transactionsJson ? JSON.parse(transactionsJson) : [];
-    if (!parsedTransactions || parsedTransactions.length === 0) {
+  // Initial processing of parsed data
+  useEffect(() => {
+    if (!parsedData?.transactions) {
       setTransactions([]);
       return;
     }
-    const initialTransactions = parsedTransactions.map((t, index) => {
+    const processedTransactions = parsedData.transactions.map((t, index) => {
       const cleanSymbol = t.symbol?.trim().toUpperCase();
       const matchedAsset = assetSymbolMap.get(cleanSymbol);
       return {
         ...t,
-        symbol: t.symbol?.trim(),
-        id: t.id || `initial_${index}`, // Ensure every transaction has a unique ID
-        asset_id: matchedAsset ? matchedAsset.id : null,
-        name: matchedAsset ? matchedAsset.name : t.name,
+        symbol: t.symbol?.trim() || "",
+        id: t.id || `initial_${index}`,
+        asset_id: matchedAsset?.id || null,
+        name: matchedAsset?.name || t.name || "",
+        quantity: parseFloat(t.quantity) || 0,
+        price: parseFloat(t.price) || 0,
+        fees: parseFloat(t.fees) || 0,
+        total_amount: parseFloat(t.total_amount) || 0,
+        notes: t.notes || "",
       };
     });
-    setTransactions(initialTransactions);
-  }, [transactionsJson, assetSymbolMap]);
+    setTransactions(processedTransactions);
+  }, [parsedData, assetSymbolMap]);
 
-  // Helper function to identify incomplete transactions
-  const isTransactionIncomplete = (txn) => {
-    if (!txn.asset_id && txn.symbol) {
-      return true; // Unmatched symbol
-    }
-    if (["buy", "sell"].includes(txn.transaction_type?.toLowerCase())) {
-      const quantity = parseFloat(txn.quantity);
-      const price = parseFloat(txn.price);
-      if (isNaN(quantity) || quantity === 0 || isNaN(price) || price === 0) {
-        return true; // Zero quantity or price for buy/sell
+  // Reconciliation step to catch matches after initial load
+  useEffect(() => {
+    if (transactions.length === 0) return;
+    let didUpdate = false;
+    const reconciledTransactions = transactions.map((txn) => {
+      if (txn.symbol && !txn.asset_id) {
+        const matchedAsset = assetSymbolMap.get(txn.symbol.trim().toUpperCase());
+        if (matchedAsset) {
+          didUpdate = true;
+          return {
+            ...txn,
+            asset_id: matchedAsset.id,
+            name: matchedAsset.name,
+          };
+        }
       }
+      return txn;
+    });
+
+    if (didUpdate) {
+      setTransactions(reconciledTransactions);
+    }
+  }, [transactions, assetSymbolMap]);
+
+  const isTransactionIncomplete = (txn) => {
+    if (!txn.asset_id && txn.symbol) return true;
+    if (["buy", "sell"].includes(txn.transaction_type?.toLowerCase())) {
+      if (txn.quantity === 0 || txn.price === 0) return true;
     }
     return false;
   };
 
-  // Memoized sorting logic
   const sortedTransactions = useMemo(() => {
     return [...transactions].sort((a, b) => {
       const aIsIncomplete = isTransactionIncomplete(a);
       const bIsIncomplete = isTransactionIncomplete(b);
-      if (aIsIncomplete !== bIsIncomplete) {
-        return aIsIncomplete ? -1 : 1; // Incomplete rows are always pushed to the top
-      }
-      // For rows of the same status (both complete or both incomplete), sort by date
+      if (aIsIncomplete !== bIsIncomplete) return aIsIncomplete ? -1 : 1;
       return new Date(b.transaction_date) - new Date(a.transaction_date);
     });
   }, [transactions]);
-  
-  // Decide whether to show the live sorted list or the "frozen" list during editing
-  const transactionsToRender = editingRowId ? frozenTransactions : sortedTransactions;
 
-  // Effect to handle scrolling to the saved row
+  const filteredTransactions = useMemo(() => {
+    return sortedTransactions.filter((txn) => {
+      const search = searchQuery.toLowerCase();
+      const matchesSearch = !search || txn.name?.toLowerCase().includes(search) || txn.symbol?.toLowerCase().includes(search);
+      const matchesFilter = filterType === "all" || txn.transaction_type === filterType;
+      return matchesSearch && matchesFilter;
+    });
+  }, [sortedTransactions, searchQuery, filterType]);
+
   useEffect(() => {
-    if (scrollToId && rowRefs.current[scrollToId]) {
-      rowRefs.current[scrollToId].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      setScrollToId(null); // Reset after scrolling
+    if (!editingRowId) {
+      setTransactionsToRender(filteredTransactions);
     }
-  }, [scrollToId, transactionsToRender]);
+  }, [filteredTransactions, editingRowId]);
 
   const handleEdit = (id) => {
-    const txToEdit = transactions.find(t => t.id === id);
-    setOriginalTransaction(txToEdit); // Save state for potential cancellation
-    setFrozenTransactions(sortedTransactions); // "Freeze" the current sort order
+    const rowToEdit = transactions.find((t) => t.id === id);
+    setOriginalRowData(rowToEdit);
+    setTransactionsToRender(filteredTransactions);
     setEditingRowId(id);
+  };
+
+  const handleCancel = (id) => {
+    const newMasterList = transactions.map(t => t.id === id ? originalRowData : t);
+    setTransactions(newMasterList);
+    setEditingRowId(null);
+    setOriginalRowData(null);
   };
 
   const handleSave = (id) => {
     setEditingRowId(null);
-    setOriginalTransaction(null);
-    setScrollToId(id); // Set the ID to scroll to after the list re-sorts
-  };
-
-  const handleCancel = (id) => {
-    // Revert the transaction to its original state before editing began
-    setTransactions((current) =>
-      current.map((t) => (t.id === id ? originalTransaction : t))
-    );
-    setEditingRowId(null);
-    setOriginalTransaction(null);
+    setOriginalRowData(null);
+    setTimeout(() => {
+      rowRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   const handleDelete = (id) => {
-    setTransactions(transactions.filter((t) => t.id !== id));
+    setTransactions((current) => current.filter((t) => t.id !== id));
     toast.success("Transaction removed");
   };
 
   const handleAddNew = () => {
+    const newId = `temp_${Date.now()}`;
     const newTransaction = {
-      id: `temp_${Date.now()}`,
-      transaction_date: new Date().toISOString().split("T")[0],
-      transaction_type: "buy",
-      name: "",
-      symbol: "",
-      asset_id: null,
-      total_amount: 0,
-      quantity: 0,
-      price: 0,
-      fees: 0,
-      notes: "",
+      id: newId, transaction_date: new Date().toISOString().split("T")[0],
+      transaction_type: "buy", name: "", symbol: "", asset_id: null,
+      quantity: 0, price: 0, fees: 0, total_amount: 0, notes: "",
     };
     const newMasterList = [newTransaction, ...transactions];
     setTransactions(newMasterList);
-
-    // Freeze the view with the new transaction at the top for immediate editing
-    const newFrozenList = [newTransaction, ...sortedTransactions];
-    setFrozenTransactions(newFrozenList);
-    setEditingRowId(newTransaction.id);
-    setOriginalTransaction(newTransaction);
+    setTransactionsToRender([newTransaction, ...filteredTransactions]);
+    setOriginalRowData(newTransaction);
+    setEditingRowId(newId);
+    setTimeout(() => {
+      rowRefs.current[newId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   };
 
   const handleFieldChange = (id, field, value) => {
-    const updateFunction = (prev) =>
-      prev.map(t => {
-        if (t.id === id) {
-          const updated = { ...t, [field]: value };
-          if (["quantity", "price", "fees"].includes(field)) {
-            const quantity = parseFloat(updated.quantity) || 0;
-            const price = parseFloat(updated.price) || 0;
-            const fees = parseFloat(updated.fees) || 0;
-            updated.total_amount = quantity * price + fees;
+    const applyChanges = (t) => {
+      if (t.id === id) {
+        // Create a mutable copy for calculations
+        const updated = { ...t, [field]: value };
+
+        // --- Automatic Calculation Logic ---
+        const qty = parseFloat(updated.quantity) || 0;
+        const prc = parseFloat(updated.price) || 0;
+        const total = parseFloat(updated.total_amount) || 0;
+        const fees = parseFloat(updated.fees) || 0;
+
+        // PRIORITY 1: Calculate Quantity from Total and Price.
+        if (
+          (field === "total_amount" || field === "price" || field === "fees") &&
+          total > 0 &&
+          prc > 0
+        ) {
+          const newQuantity = (total - fees) / prc;
+          if (isFinite(newQuantity) && newQuantity >= 0) {
+            updated.quantity = newQuantity;
           }
-          return updated;
         }
-        return t;
-      });
+        // PRIORITY 2: Calculate Price from Total and Quantity.
+        else if (
+          (field === "total_amount" || field === "quantity" || field === "fees") &&
+          total > 0 &&
+          qty > 0
+        ) {
+          const newPrice = (total - fees) / qty;
+          if (isFinite(newPrice) && newPrice >= 0) {
+            updated.price = newPrice;
+          }
+        }
+        // PRIORITY 3 (Fallback): Calculate Total from Quantity and Price.
+        else if (
+          (field === "quantity" || field === "price" || field === "fees") &&
+          qty > 0 &&
+          prc > 0
+        ) {
+           updated.total_amount = qty * prc + fees;
+        } else if (field === "quantity" || field === "price" || field === "fees") {
+          updated.total_amount = fees;
+        }
 
-    // Update both the master list and the frozen list to keep the UI in sync
-    setTransactions(updateFunction);
-    if (editingRowId) {
-      setFrozenTransactions(updateFunction);
-    }
-  };
-
-  const handleSymbolSelect = (asset, id) => {
-    const changes = { symbol: asset.symbol, name: asset.name, asset_id: asset.id };
-    const updateFunction = (prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...changes } : t));
-    
-    setTransactions(updateFunction);
-    if (editingRowId) {
-      setFrozenTransactions(updateFunction);
-    }
-  };
-
-  const handleSymbolChange = (value, id) => {
-    const matchedAsset = assetSymbolMap.get(value?.trim().toUpperCase());
-    const changes = {
-      symbol: value,
-      asset_id: matchedAsset ? matchedAsset.id : null,
-      name: matchedAsset ? matchedAsset.name : (value ? transactions.find(t => t.id === id)?.name : ''),
+        return updated;
+      }
+      return t;
     };
-    const updateFunction = (prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...changes } : t));
+    setTransactions(prev => prev.map(applyChanges));
+    setTransactionsToRender(prev => prev.map(applyChanges));
+  };
 
-    setTransactions(updateFunction);
-    if (editingRowId) {
-        setFrozenTransactions(updateFunction);
-    }
+  const handleSymbolChange = (id, symbolValue) => {
+    const matchedAsset = assetSymbolMap.get(symbolValue?.trim().toUpperCase());
+    const applyChanges = t => {
+      if (t.id === id) {
+        return {
+          ...t,
+          symbol: symbolValue,
+          asset_id: matchedAsset?.id || null,
+          name: matchedAsset?.name || "",
+        };
+      }
+      return t;
+    };
+    setTransactions(prev => prev.map(applyChanges));
+    setTransactionsToRender(prev => prev.map(applyChanges));
+  };
+
+  const handleSymbolSelect = (id, asset) => {
+    const applyChanges = t => t.id === id ? { ...t, symbol: asset.symbol, name: asset.name, asset_id: asset.id } : t;
+    setTransactions(prev => prev.map(applyChanges));
+    setTransactionsToRender(prev => prev.map(applyChanges));
   };
 
   const handleBulkSave = async () => {
-    if (!selectedPortfolio) return toast.error("Please select a portfolio");
-    if (transactions.length === 0) return toast.error("No transactions to save");
-
-    const incompleteTransactions = transactions.filter(isTransactionIncomplete);
-    if (incompleteTransactions.length > 0) {
-      return toast.error(
-        `Error: ${incompleteTransactions.length} transaction(s) have incomplete data. Please correct them before importing.`
-      );
+    if (!selectedPortfolio) return toast.error("Please select a portfolio.");
+    const incompleteCount = transactions.filter(isTransactionIncomplete).length;
+    if (incompleteCount > 0) {
+      return toast.error(`${incompleteCount} transaction(s) have incomplete data and require attention.`);
     }
 
-    setSaveErrors({});
     setIsSaving(true);
+    const payload = transactions.map((txn) => ({
+      transaction_date: txn.transaction_date,
+      transaction_type: txn.transaction_type,
+      asset_id: txn.asset_id,
+      quantity: txn.quantity,
+      price: txn.price,
+      fees: txn.fees,
+      total_amount: txn.total_amount,
+      notes: txn.notes || `Imported from ${parsedData?.provider ?? 'unknown source'} statement`,
+    }));
 
     try {
-      const transactionData = transactions.map((txn) => ({
-        temp_id: txn.id,
-        transaction_date: txn.transaction_date,
-        transaction_type: txn.transaction_type,
-        symbol: txn.symbol,
-        asset_id: txn.asset_id,
-        quantity: parseFloat(txn.quantity) || 0,
-        price: parseFloat(txn.price) || 0,
-        fees: parseFloat(txn.fees) || 0,
-        total_amount: parseFloat(txn.total_amount) || 0,
-        notes: txn.notes || `Imported from ${parsedData.provider} statement`,
-      }));
+      const response = await onSave(parseInt(selectedPortfolio, 10), payload);
+      if (!response?.summary) throw new Error("Invalid server response.");
 
-      const response = await onSave(selectedPortfolio, transactionData);
+      const { total_created = 0, total_failed = 0, errors = [] } = response.summary;
 
-      const totalSucceeded = response?.summary?.total_created ?? 0;
-      const totalFailed = response?.summary?.total_failed ?? 0;
-      const errors = response?.summary?.errors || [];
-
-      if (!response?.summary) {
-        toast.error("Received an invalid response from the server.");
-        setIsSaving(false);
-        return;
-      }
-      
-      const newSaveErrors = {};
-      errors.forEach(err => {
-        if (err.temp_id) {
-          newSaveErrors[err.temp_id] = err.error || 'An unknown error occurred.';
-        }
-      });
-      setSaveErrors(newSaveErrors);
-
-      if (totalSucceeded > 0) {
-        toast.success(`${totalSucceeded} transaction(s) imported successfully.`);
-      }
-      if (totalFailed > 0) {
-        toast.error(`${totalFailed} transaction(s) failed. Please review the highlighted rows.`);
+      if (errors.length > 0) {
+        errors.forEach(errorMsg => toast.error(errorMsg, { duration: 5000 }));
       }
 
-      if (totalSucceeded > 0 && totalFailed === 0) {
-        onCancel();
-      } else if (totalSucceeded === 0 && totalFailed === 0) {
-        toast.success("Import process finished. No new transactions were added.");
+      if (total_created > 0) toast.success(`${total_created} transaction(s) imported.`);
+      if (total_failed > 0 && errors.length === 0) {
+        toast.error(`${total_failed} transaction(s) failed to import.`);
       }
+      if (total_created > 0 && total_failed === 0) onCancel();
 
     } catch (error) {
-      console.error("Failed to save transactions:", error);
-      toast.error("A critical error occurred while saving. Please try again.");
+      console.error("Bulk save failed:", error);
+      toast.error("A critical error occurred while saving.");
     } finally {
       setIsSaving(false);
     }
   };
-
-  // Apply search and type filters to the list being rendered
-  const filteredTransactions = transactionsToRender.filter((txn) => {
-    const matchesSearch = !searchQuery ||
-      txn.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      txn.symbol?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterType === "all" || txn.transaction_type === filterType;
-    return matchesSearch && matchesFilter;
-  });
 
   if (!parsedData) return null;
 
@@ -308,6 +316,7 @@ const ParsedDataTable = ({
           </div>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-300 transition-colors"><X className="w-6 h-6" /></button>
         </div>
+
         <div className="p-6 border-b border-gray-700 space-y-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="relative flex-1 min-w-64">
@@ -322,97 +331,97 @@ const ParsedDataTable = ({
               <option value="">Select Portfolio</option>
               {portfolios.map((portfolio) => (<option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>))}
             </select>
-            <button
-              onClick={handleAddNew}
-              className="btn-outline flex items-center space-x-2"
-            >
-              <Plus size={16} />
-              <span>Add Transaction</span>
-            </button>
-          </div>
-          <div className="flex items-center space-x-6 text-sm text-gray-400">
-            <div className="flex items-center space-x-2">
-              <span>Period:</span>
-              <span className="font-medium">
-                {parsedData.statement_period?.start_date} -{" "}
-                {parsedData.statement_period?.end_date}
-              </span>
-            </div>
+            <button onClick={handleAddNew} className="btn-outline flex items-center space-x-2"><Plus size={16} /><span>Add Transaction</span></button>
           </div>
         </div>
-        <div className="overflow-auto flex-1">
-          {parsedData.metadata?.warnings &&
-            parsedData.metadata.warnings.length > 0 && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5" />
-                  <div className="text-sm text-yellow-200">
-                    <div className="font-medium mb-1">Parsing Warnings:</div>
-                    <ul className="space-y-1">
-                      {parsedData.metadata.warnings.map((warning, index) => (
-                        <li key={index} className="text-yellow-300/80">
-                          • {warning}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+
+        <div className="overflow-auto flex-1 p-6">
+          {parsedData.metadata?.warnings && parsedData.metadata.warnings.length > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5" />
+                <div className="text-sm text-yellow-200">
+                  <div className="font-medium mb-1">Parsing Warnings:</div>
+                  <ul className="space-y-1">
+                    {parsedData.metadata.warnings.map((warning, index) => (
+                      <li key={index} className="text-yellow-300/80">• {warning}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
           <table className="w-full">
             <thead className="bg-gray-700 sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Symbol</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Quantity</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Price</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Fees</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Notes</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                {["Date", "Type", "Name", "Symbol", "Quantity", "Price", "Fees", "Total", "Notes", "Actions"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {filteredTransactions.map((transaction) => {
-                const saveError = saveErrors[transaction.id];
-                const isIncomplete = isTransactionIncomplete(transaction);
-                const isEditing = editingRowId === transaction.id;
-
+              {transactionsToRender.map((txn) => {
+                const isEditing = editingRowId === txn.id;
+                const isIncomplete = isTransactionIncomplete(txn);
                 let rowClassName = "transition-colors";
-                if (isEditing) {
-                    rowClassName += " bg-primary-900/40";
-                } else {
-                    rowClassName += " hover:bg-gray-700/50";
-                }
-
-                if (saveError) {
-                  rowClassName += " bg-danger-900/40 border-l-2 border-danger-400";
-                } else if (isIncomplete) {
-                  rowClassName += " bg-danger-900/20";
-                }
+                if (isEditing) rowClassName += " bg-primary-900/40";
+                else rowClassName += " hover:bg-gray-700/50";
+                if (isIncomplete) rowClassName += " bg-danger-900/20";
 
                 return (
-                  <tr key={transaction.id} ref={el => (rowRefs.current[transaction.id] = el)} className={rowClassName} title={saveError ? `Error: ${saveError}` : (isIncomplete ? "This transaction has incomplete data and requires attention." : "This transaction is ready to be imported.")}>
-                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="date" value={transaction.transaction_date} onChange={(e) => handleFieldChange(transaction.id, "transaction_date", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.transaction_date}</td>
-                    <td className="px-4 py-3 text-sm">{isEditing ? <select value={transaction.transaction_type} onChange={(e) => handleFieldChange(transaction.id, "transaction_type", e.target.value)} className="input-field py-1 px-2 text-sm w-full">{transactionTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}</select> : <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.transaction_type === "buy" ? "bg-success-500/20 text-success-400" : transaction.transaction_type === "sell" ? "bg-danger-500/20 text-danger-400" : "bg-primary-500/20 text-primary-400"}`}>{transactionTypes.find((t) => t.value === transaction.transaction_type)?.label || transaction.transaction_type}</span>}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="text" value={transaction.name} onChange={(e) => handleFieldChange(transaction.id, "name", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Company name" /> : transaction.name}</td>
+                  <tr key={txn.id} ref={el => (rowRefs.current[txn.id] = el)} className={rowClassName}>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="date" value={txn.transaction_date} onChange={(e) => handleFieldChange(txn.id, "transaction_date", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : txn.transaction_date}</td>
+                    <td className="px-4 py-3 text-sm">{isEditing ? <select value={txn.transaction_type} onChange={(e) => handleFieldChange(txn.id, "transaction_type", e.target.value)} className="input-field py-1 px-2 text-sm w-full">{transactionTypes.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}</select> : <span className={`px-2 py-1 rounded-full text-xs font-medium ${txn.transaction_type === "buy" ? "bg-success-500/20 text-success-400" : txn.transaction_type === "sell" ? "bg-danger-500/20 text-danger-400" : "bg-primary-500/20 text-primary-400"}`}>{transactionTypes.find((t) => t.value === txn.transaction_type)?.label || txn.transaction_type}</span>}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="text" value={txn.name} onChange={(e) => handleFieldChange(txn.id, "name", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Company name" /> : txn.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">
-                      {isEditing ? (<div className="relative flex items-center"><ClientSideAssetSearch value={transaction.symbol || ""} onChange={(value) => handleSymbolChange(value, transaction.id)} onSelect={(asset) => handleSymbolSelect(asset, transaction.id)} placeholder="Search symbol..." showSuggestions={true} preloadAssets={true} /><div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">{transaction.symbol && (transaction.asset_id ? (<CheckCircle className="text-success-400" size={16} />) : (<AlertTriangle className="text-danger-400" size={16} />))}</div></div>) : !transaction.asset_id && transaction.symbol ? (<div className="flex items-center space-x-2 text-danger-400" title="Symbol not found. Please edit and select a valid asset."><span>{transaction.symbol}</span><AlertTriangle size={14} /></div>) : (transaction.symbol || "-")}
+                      {isEditing ? (
+                        <div className="relative flex items-center">
+                          <ClientSideAssetSearch
+                            key={`search-${txn.id}`}
+                            value={txn.symbol}
+                            onChange={(value) => handleSymbolChange(txn.id, value)}
+                            onSelect={(asset) => handleSymbolSelect(txn.id, asset)}
+                            preloadAssets={false}
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                            {txn.symbol && (txn.asset_id ? <CheckCircle className="text-success-400" size={16} /> : <AlertTriangle className="text-danger-400" size={16} />)}
+                          </div>
+                        </div>
+                      ) : (
+                        !txn.asset_id && txn.symbol ? (<div className="flex items-center space-x-2 text-danger-400" title="Symbol not found."><span>{txn.symbol}</span><AlertTriangle size={14} /></div>) : (txn.symbol || "-")
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.quantity} onChange={(e) => handleFieldChange(transaction.id, "quantity", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.quantity}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.price} onChange={(e) => handleFieldChange(transaction.id, "price", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.price?.toLocaleString() || "0.00"}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.fees} onChange={(e) => handleFieldChange(transaction.id, "fees", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.fees?.toLocaleString() || "0.00"}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 font-medium">${transaction.total_amount?.toLocaleString() || "0.00"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{isEditing ? <input type="text" value={transaction.notes} onChange={(e) => handleFieldChange(transaction.id, "notes", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Add a note..." /> : transaction.notes || "-"}</td>
-                    <td className="px-4 py-3 text-sm"><div className="flex items-center space-x-2">{isEditing ? (<><button onClick={() => handleSave(transaction.id)} className="text-success-400 hover:text-success-300"><Save size={16} /></button><button onClick={() => handleCancel(transaction.id)} className="text-gray-400 hover:text-gray-300"><X size={16} /></button></>) : (<><button onClick={() => handleEdit(transaction.id)} className="text-primary-400 hover:text-primary-300"><Edit2 size={16} /></button><button onClick={() => handleDelete(transaction.id)} className="text-danger-400 hover:text-danger-300"><Trash2 size={16} /></button></>)}</div></td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.quantity} onChange={(e) => handleFieldChange(txn.id, "quantity", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : txn.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.price} onChange={(e) => handleFieldChange(txn.id, "price", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${txn.price?.toLocaleString() || "0.00"}`}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.fees} onChange={(e) => handleFieldChange(txn.id, "fees", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${txn.fees?.toLocaleString() || "0.00"}`}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300 font-medium">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="any"
+                          value={txn.total_amount}
+                          onChange={(e) =>
+                            handleFieldChange(txn.id, "total_amount", e.target.value)
+                          }
+                          className="input-field py-1 px-2 text-sm w-full"
+                        />
+                      ) : (
+                        `$${
+                          txn.total_amount?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }) || "0.00"
+                        }`
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{isEditing ? <input type="text" value={txn.notes} onChange={(e) => handleFieldChange(txn.id, "notes", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Add a note..." /> : txn.notes || "-"}</td>
+                    <td className="px-4 py-3 text-sm"><div className="flex items-center space-x-2">{isEditing ? (<><button onClick={() => handleSave(txn.id)} className="text-success-400 hover:text-success-300"><Save size={16} /></button><button onClick={() => handleCancel(txn.id)} className="text-gray-400 hover:text-gray-300"><X size={16} /></button></>) : (<><button onClick={() => handleEdit(txn.id)} className="text-primary-400 hover:text-primary-300"><Edit2 size={16} /></button><button onClick={() => handleDelete(txn.id)} className="text-danger-400 hover:text-danger-300"><Trash2 size={16} /></button></>)}</div></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+
         <div className="flex items-center justify-between p-6 border-t border-gray-700">
           <div className="text-sm text-gray-400">{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""} shown</div>
           <div className="flex items-center space-x-3">

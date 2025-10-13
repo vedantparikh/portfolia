@@ -1,9 +1,6 @@
 FROM redis:7-alpine
 
-# Copy environment file
-COPY .env.docker /tmp/.env.docker
-
-# Install additional tools if needed
+# Install additional tools for health checks
 RUN apk add --no-cache \
     bash \
     curl

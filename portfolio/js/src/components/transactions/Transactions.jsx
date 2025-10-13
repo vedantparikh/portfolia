@@ -213,6 +213,7 @@ const Transactions = () => {
   const handleCancelParsedData = () => {
     setShowParsedData(false);
     setParsedData(null);
+    assetCache.assets = []; 
   };
 
   const handleBulkCreate = async (portfolioId, transactionData, options = {}) => {

@@ -1,15 +1,17 @@
-"""Add user_id to assets table
+"""initial_schema
 
-Revision ID: 9a24d533141c
-Revises: 426497007c5e
-Create Date: 2025-09-07 22:39:27.692668
+Revision ID: f9322944f1cd
+Revises: 
+Create Date: 2025-10-13 16:50:50.964076
 
 """
+from alembic import op
+import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9a24d533141c'
-down_revision = '426497007c5e'
+revision = 'f9322944f1cd'
+down_revision = None
 branch_labels = None
 depends_on = None
 

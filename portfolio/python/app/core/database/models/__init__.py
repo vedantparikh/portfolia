@@ -1,3 +1,4 @@
+from .base import Base
 from .analysis_configuration import AnalysisConfiguration
 from .asset import Asset, MarketIndex
 from .portfolio import Portfolio, PortfolioAsset
@@ -17,6 +18,7 @@ from .watchlist import Watchlist, WatchlistAlert, WatchlistItem, WatchlistPerfor
 
 __all__ = [
     # Database Models
+    "Base",
     "User",
     "UserProfile",
     "UserSession",

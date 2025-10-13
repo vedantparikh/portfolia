@@ -531,7 +531,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (
             <div className="flex items-center justify-center h-80">
-              <LoadingSpinner type="ticker" size="lg" text="Loading chart data..." />
+              <LoadingSpinner type="candlestick" size="lg" text="Loading chart data..." />
             </div>
           ) : chartData ? (
             renderChart()

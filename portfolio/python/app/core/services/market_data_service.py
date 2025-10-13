@@ -319,24 +319,26 @@ class MarketDataService:
                     period="2d",
                     interval="1d",
                     progress=False,
+                    group_by='ticker'
                 )
 
                 if not data.empty:
-                    # Group by symbol for easy processing
-                    grouped = data.groupby(axis=1, level=0)
                     new_closes_to_cache: Dict[str, str] = {}
 
-                    for symbol, group_df in grouped:
+                    for symbol in symbols_to_fetch:
                         symbol_upper = symbol.upper()
-                        # Sort by date to ensure the latest is last
-                        group_df = group_df.sort_index()
-                        if len(group_df) > 1:
-                            # The previous close is the 'Close' of the first row
-                            previous_close = group_df['Close'].iloc[0]
-                            if pd.notna(previous_close):
-                                closes[symbol_upper] = Decimal(str(previous_close))
-                                cache_key = self._get_yesterdays_close_cache_key(symbol_upper)
-                                new_closes_to_cache[cache_key] = str(previous_close)
+                        # Check if the symbol's data is in the DataFrame and is valid
+                        if symbol_upper in data and not data[symbol_upper].empty:
+                            symbol_df = data[symbol_upper].sort_index()
+
+                            # Ensure we have at least two days and a 'Close' column
+                            if len(symbol_df) > 1 and 'Close' in symbol_df.columns:
+                                # The previous close is the 'Close' of the first row
+                                previous_close = symbol_df['Close'].iloc[0]
+                                if pd.notna(previous_close):
+                                    closes[symbol_upper] = Decimal(str(previous_close))
+                                    cache_key = self._get_yesterdays_close_cache_key(symbol_upper)
+                                    new_closes_to_cache[cache_key] = str(previous_close)
 
                     # 3. Cache new data (your logic is fine, just now truly batched)
                     if new_closes_to_cache:

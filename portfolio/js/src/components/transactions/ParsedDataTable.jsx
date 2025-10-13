@@ -185,13 +185,48 @@ const ParsedDataTable = ({
   const handleFieldChange = (id, field, value) => {
     const applyChanges = (t) => {
       if (t.id === id) {
+        // Create a mutable copy for calculations
         const updated = { ...t, [field]: value };
-        if (["quantity", "price", "fees"].includes(field)) {
-          const quantity = parseFloat(updated.quantity) || 0;
-          const price = parseFloat(updated.price) || 0;
-          const fees = parseFloat(updated.fees) || 0;
-          updated.total_amount = quantity * price + fees;
+
+        // --- Automatic Calculation Logic ---
+        const qty = parseFloat(updated.quantity) || 0;
+        const prc = parseFloat(updated.price) || 0;
+        const total = parseFloat(updated.total_amount) || 0;
+        const fees = parseFloat(updated.fees) || 0;
+
+        // PRIORITY 1: Calculate Quantity from Total and Price.
+        if (
+          (field === "total_amount" || field === "price" || field === "fees") &&
+          total > 0 &&
+          prc > 0
+        ) {
+          const newQuantity = (total - fees) / prc;
+          if (isFinite(newQuantity) && newQuantity >= 0) {
+            updated.quantity = newQuantity;
+          }
         }
+        // PRIORITY 2: Calculate Price from Total and Quantity.
+        else if (
+          (field === "total_amount" || field === "quantity" || field === "fees") &&
+          total > 0 &&
+          qty > 0
+        ) {
+          const newPrice = (total - fees) / qty;
+          if (isFinite(newPrice) && newPrice >= 0) {
+            updated.price = newPrice;
+          }
+        }
+        // PRIORITY 3 (Fallback): Calculate Total from Quantity and Price.
+        else if (
+          (field === "quantity" || field === "price" || field === "fees") &&
+          qty > 0 &&
+          prc > 0
+        ) {
+           updated.total_amount = qty * prc + fees;
+        } else if (field === "quantity" || field === "price" || field === "fees") {
+          updated.total_amount = fees;
+        }
+
         return updated;
       }
       return t;
@@ -358,7 +393,26 @@ const ParsedDataTable = ({
                     <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.quantity} onChange={(e) => handleFieldChange(txn.id, "quantity", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : txn.quantity}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.price} onChange={(e) => handleFieldChange(txn.id, "price", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${txn.price?.toLocaleString() || "0.00"}`}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={txn.fees} onChange={(e) => handleFieldChange(txn.id, "fees", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${txn.fees?.toLocaleString() || "0.00"}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 font-medium">${txn.total_amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300 font-medium">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="any"
+                          value={txn.total_amount}
+                          onChange={(e) =>
+                            handleFieldChange(txn.id, "total_amount", e.target.value)
+                          }
+                          className="input-field py-1 px-2 text-sm w-full"
+                        />
+                      ) : (
+                        `$${
+                          txn.total_amount?.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }) || "0.00"
+                        }`
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{isEditing ? <input type="text" value={txn.notes} onChange={(e) => handleFieldChange(txn.id, "notes", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Add a note..." /> : txn.notes || "-"}</td>
                     <td className="px-4 py-3 text-sm"><div className="flex items-center space-x-2">{isEditing ? (<><button onClick={() => handleSave(txn.id)} className="text-success-400 hover:text-success-300"><Save size={16} /></button><button onClick={() => handleCancel(txn.id)} className="text-gray-400 hover:text-gray-300"><X size={16} /></button></>) : (<><button onClick={() => handleEdit(txn.id)} className="text-primary-400 hover:text-primary-300"><Edit2 size={16} /></button><button onClick={() => handleDelete(txn.id)} className="text-danger-400 hover:text-danger-300"><Trash2 size={16} /></button></>)}</div></td>
                   </tr>

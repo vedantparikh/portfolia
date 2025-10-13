@@ -1,51 +1,26 @@
-import { Loader2, Plus, Search, Tags, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Loader2, Plus, Tags, X } from 'lucide-react';
+import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { assetAPI, marketAPI } from '../../services/api';
-
-export const useDebounce = (value, delay) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const handler = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(handler);
-    }, [value, delay]);
-    return debouncedValue;
-};
+import { assetAPI } from '../../services/api';
+import { SymbolSearch } from '../shared'; // Make sure this path is correct
 
 const BulkAssetModal = ({ onClose, onSuccess }) => {
+    // State is now much simpler!
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
     const [selectedAssets, setSelectedAssets] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-    useEffect(() => {
-        const searchAssets = async () => {
-            if (!debouncedSearchQuery || debouncedSearchQuery.length < 2) {
-                setSearchResults([]);
-                return;
-            }
-            setIsSearching(true);
-            try {
-                const response = await marketAPI.searchSymbols(debouncedSearchQuery);
-                const responseData = response.data || response;
-                const selectedSymbols = selectedAssets.map(a => a.symbol);
-                setSearchResults(responseData.filter(r => !selectedSymbols.includes(r.symbol)));
-            } catch (error) {
-                console.error('Failed to search assets:', error);
-                setSearchResults([]);
-            } finally {
-                setIsSearching(false);
-            }
-        };
-        searchAssets();
-    }, [debouncedSearchQuery]);
-
+    // This function is called when a user selects an asset from the SymbolSearch dropdown.
     const handleSelectAsset = (asset) => {
+        // Prevent adding duplicates
+        if (selectedAssets.some(a => a.symbol === asset.symbol)) {
+            toast.error(`${asset.symbol} is already in the list.`);
+            return;
+        }
+
+        // Add the new asset and clear the search input
         setSelectedAssets(prev => [...prev, asset]);
         setSearchQuery('');
-        setSearchResults([]);
     };
 
     const handleRemoveAsset = (symbol) => {
@@ -63,29 +38,24 @@ const BulkAssetModal = ({ onClose, onSuccess }) => {
 
         try {
             const response = await assetAPI.createBulkAssets(symbols);
-            const responseData = response.data || response;
-            const { created = [], failed = [] } = responseData || {};
+            const { created = [], failed = [] } = response.data || response || {};
 
             if (failed.length === 0 && created.length > 0) {
                 toast.success(`${created.length} asset(s) added successfully!`);
             } else if (failed.length > 0 && created.length > 0) {
-                const failedDetails = failed.map(f => `${f.symbol} (${f.reason})`).join(', ');
                 toast.success(
-                    `Partial success: ${created.length} added. Failed ${failed.length}: ${failedDetails}.`,
+                    `Partial success: ${created.length} added. ${failed.length} failed.`,
                     { duration: 4000 }
                 );
             } else if (failed.length > 0 && created.length === 0) {
-                const failedReasons = failed.map(f => `${f.symbol}: ${f.reason}`).join('\n');
                 toast.error(
-                    `Failed to add all ${failed.length} asset(s):\n${failedReasons}`,
+                    `Failed to add all ${failed.length} asset(s). They may already exist.`,
                     { duration: 4000 }
                 );
             }
 
             if (created.length > 0) {
                 onSuccess();
-            } else {
-                onClose();
             }
         } catch (error) {
             console.error('Failed to save assets in bulk:', error);
@@ -107,45 +77,16 @@ const BulkAssetModal = ({ onClose, onSuccess }) => {
                 </div>
 
                 <div className="p-6 space-y-6 overflow-y-auto">
+                    {/* UPDATED SEARCH SECTION */}
                     <div className="card p-6 relative z-10">
                         <h3 className="text-lg font-semibold text-gray-100 mb-4">Search Assets</h3>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search by symbol or name (e.g., AAPL, Bitcoin)..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="input-field w-full pl-10 pr-4 py-3"
-                            />
-                            {isSearching && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-primary-400 animate-spin" />}
-                        </div>
-                        
-                        {searchResults.length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-dark-700 border-x border-b border-dark-600 rounded-b-lg max-h-60 overflow-y-auto shadow-lg">
-                                <ul className="p-2">
-                                    {searchResults.map((asset) => (
-                                        <li
-                                            key={asset.symbol}
-                                            onClick={() => handleSelectAsset(asset)}
-                                            className="px-4 py-3 cursor-pointer hover:bg-primary-600/20 rounded-md transition-colors"
-                                        >
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-gray-100">{asset.symbol}</span>
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="text-sm text-gray-400 truncate">
-                                                        {asset.name || asset.short_name || 'N/A'}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500">
-                                                        {asset.exchange && `${asset.exchange} • `}{asset.asset_type}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        <SymbolSearch
+                            value={searchQuery}
+                            onChange={setSearchQuery}
+                            onSelect={handleSelectAsset}
+                            placeholder="Search by symbol or name (e.g., AAPL, Bitcoin)..."
+                            excludeSymbols={selectedAssets.map(a => a.symbol)}
+                        />
                     </div>
 
                     <div className="card p-6 min-h-[120px]">

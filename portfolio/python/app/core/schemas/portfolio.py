@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from core.database.models.asset import AssetType
 from core.database.models.transaction import TransactionStatus, TransactionType
@@ -155,10 +155,20 @@ class Asset(AssetBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    detail: Optional[AssetDetail] = {}
+    detail: Optional[AssetDetail] = None
 
     class Config:
         from_attributes = True
+
+    @field_validator("detail", mode="before")
+    @classmethod
+    def validate_detail(cls, v):
+        # This validator runs before Pydantic's own validation.
+        # If the incoming value 'v' is a dict, it creates an AssetDetail instance from it.
+        # If 'v' is already None or an AssetDetail instance, it passes it through unchanged.
+        if isinstance(v, dict):
+            return AssetDetail(**v)
+        return v
 
 
 class AssetBulkCreateRequest(BaseModel):

@@ -9,11 +9,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
-import assetCache from "../../services/assetCache";
-import transactionTypes from "../../utils/transactionTypes";
 import { ClientSideAssetSearch } from "../shared";
+import transactionTypes from "../../utils/transactionTypes";
+import assetCache from "../../services/assetCache";
 
 const ParsedDataTable = ({
   parsedData,
@@ -32,13 +32,12 @@ const ParsedDataTable = ({
   const [isSaving, setIsSaving] = useState(false);
   const rowRefs = useRef({});
 
-  // This is correct: memoize the asset map from the allAssets prop.
   const assetSymbolMap = useMemo(() => {
     if (!allAssets || allAssets.length === 0) return new Map();
     return new Map(allAssets.map((asset) => [asset.symbol.toUpperCase(), asset]));
   }, [allAssets]);
 
-  // This is correct: sync assets to the cache.
+  // Sync allAssets with assetCache
   useEffect(() => {
     if (allAssets && allAssets.length > 0) {
       assetCache.assets = allAssets;
@@ -47,35 +46,23 @@ const ParsedDataTable = ({
     }
   }, [allAssets]);
 
-
-  // FIX: Replace the two conflicting useEffects with this single, robust one.
   useEffect(() => {
-    // 1. If there's no data, clear the table and exit.
+    return () => {
+      setTransactions([]);
+      setTransactionsToRender([]);
+      setEditingRowId(null);
+      setOriginalRowData(null);
+      setSearchQuery("");
+      setFilterType("all");
+    };
+  }, []);
+
+  // Initial processing of parsed data
+  useEffect(() => {
     if (!parsedData?.transactions) {
       setTransactions([]);
       return;
     }
-
-    // 2. If the asset map is empty, it means `allAssets` hasn't loaded yet.
-    //    Display the raw, un-matched data for now.
-    if (assetSymbolMap.size === 0) {
-      const rawTransactions = parsedData.transactions.map((t, index) => ({
-        ...t,
-        symbol: t.symbol?.trim() || "",
-        id: t.id || `initial_${index}`,
-        asset_id: null,
-        name: t.name || "",
-        quantity: parseFloat(t.quantity) || 0,
-        price: parseFloat(t.price) || 0,
-        fees: parseFloat(t.fees) || 0,
-        total_amount: parseFloat(t.total_amount) || 0,
-        notes: t.notes || "",
-      }));
-      setTransactions(rawTransactions);
-      return; // Wait for assetSymbolMap to be populated on the next render.
-    }
-
-    // 3. This code only runs when BOTH `parsedData` and `assetSymbolMap` are ready.
     const processedTransactions = parsedData.transactions.map((t, index) => {
       const cleanSymbol = t.symbol?.trim().toUpperCase();
       const matchedAsset = assetSymbolMap.get(cleanSymbol);
@@ -93,9 +80,31 @@ const ParsedDataTable = ({
       };
     });
     setTransactions(processedTransactions);
+  }, [parsedData, assetSymbolMap]);
 
-  }, [parsedData, assetSymbolMap]); // This dependency array is key to the fix.
+  // Reconciliation step to catch matches after initial load
+  useEffect(() => {
+    if (transactions.length === 0) return;
+    let didUpdate = false;
+    const reconciledTransactions = transactions.map((txn) => {
+      if (txn.symbol && !txn.asset_id) {
+        const matchedAsset = assetSymbolMap.get(txn.symbol.trim().toUpperCase());
+        if (matchedAsset) {
+          didUpdate = true;
+          return {
+            ...txn,
+            asset_id: matchedAsset.id,
+            name: matchedAsset.name,
+          };
+        }
+      }
+      return txn;
+    });
 
+    if (didUpdate) {
+      setTransactions(reconciledTransactions);
+    }
+  }, [transactions, assetSymbolMap]);
 
   const isTransactionIncomplete = (txn) => {
     if (!txn.asset_id && txn.symbol) return true;
@@ -191,7 +200,6 @@ const ParsedDataTable = ({
     setTransactionsToRender(prev => prev.map(applyChanges));
   };
 
-  // This improved handler immediately checks for a match as you type.
   const handleSymbolChange = (id, symbolValue) => {
     const matchedAsset = assetSymbolMap.get(symbolValue?.trim().toUpperCase());
     const applyChanges = t => {
@@ -199,8 +207,8 @@ const ParsedDataTable = ({
         return {
           ...t,
           symbol: symbolValue,
-          asset_id: matchedAsset ? matchedAsset.id : null,
-          name: matchedAsset ? matchedAsset.name : "",
+          asset_id: matchedAsset?.id || null,
+          name: matchedAsset?.name || "",
         };
       }
       return t;

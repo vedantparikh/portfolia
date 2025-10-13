@@ -60,16 +60,43 @@ const QuantumVisual = () => {
 };
 
 const TickerVisual = () => {
+    // The base list of tickers
     const tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'JPM', 'V', 'SPY', 'QQQ'];
-    const repeatedTickers = [...tickers, ...tickers];
+
+    // Helper function to generate random data for our tickers
+    const generateRandomTickerData = () =>
+        tickers.map(ticker => ({
+            name: ticker,
+            // Store the random direction in state
+            isUp: Math.random() > 0.5,
+        }));
+
+    // 1. Use state to store the ticker data that will change over time
+    const [tickerData, setTickerData] = useState(generateRandomTickerData());
+
+    // 2. Use an effect to set up an interval that updates the state
+    useEffect(() => {
+        // Set an interval to generate new random data every 2 seconds (2000ms)
+        const interval = setInterval(() => {
+            setTickerData(generateRandomTickerData());
+        }, 2000);
+
+        // 3. IMPORTANT: Clean up the interval when the component is removed
+        return () => clearInterval(interval);
+    }, []); // The empty array [] ensures this effect runs only once on mount
+
+    // To make the scroll seamless, we duplicate the state-driven data
+    const repeatedTickers = [...tickerData, ...tickerData];
+
     return (
-         <div className="w-full max-w-[280px] bg-gray-800/50 rounded-md h-10 overflow-hidden relative">
+        <div className="w-full max-w-[280px] bg-gray-800/50 rounded-md h-10 overflow-hidden relative">
             <div className="absolute top-0 left-0 flex items-center h-full animate-[scroll_25s_linear_infinite]">
                 {repeatedTickers.map((ticker, index) => (
                     <div key={index} className="flex items-center mx-4">
-                        <span className="text-gray-200 font-semibold">{ticker}</span>
-                        <span className={`ml-2 text-sm ${Math.random() > 0.5 ? 'text-green-500' : 'text-red-500'}`}>
-                            {Math.random() > 0.5 ? '▲' : '▼'}
+                        <span className="text-gray-200 font-semibold">{ticker.name}</span>
+                        {/* 4. Use the value from state instead of Math.random() */}
+                        <span className={`ml-2 text-sm ${ticker.isUp ? 'text-green-500' : 'text-red-500'}`}>
+                            {ticker.isUp ? '▲' : '▼'}
                         </span>
                     </div>
                 ))}

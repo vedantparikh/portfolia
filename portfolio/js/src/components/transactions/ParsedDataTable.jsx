@@ -45,32 +45,32 @@ const ParsedDataTable = ({
 
   const transactionsJson = JSON.stringify(parsedData?.transactions);
 
-    useEffect(() => {
-      // Guard clause: still useful to prevent running with incomplete data
-      if (!parsedData?.transactions || allAssets.length === 0) {
-        setTransactions([]); // Clear transactions if data is missing
-        return;
-      }
+  useEffect(() => {
+    // Guard clause: still useful to prevent running with incomplete data
+    if (!parsedData?.transactions || allAssets.length === 0) {
+      setTransactions([]); // Clear transactions if data is missing
+      return;
+    }
 
-      // The asset map is now calculated inside the effect, as it depends on `allAssets`
-      const assetSymbolMap = new Map(
-        allAssets.map((asset) => [asset.symbol.toUpperCase(), asset])
-      );
+    // The asset map is now calculated inside the effect, as it depends on `allAssets`
+    const assetSymbolMap = new Map(
+      allAssets.map((asset) => [asset.symbol.toUpperCase(), asset])
+    );
 
-      const initialTransactions = parsedData.transactions.map((t, index) => {
-        const cleanSymbol = t.symbol?.trim().toUpperCase();
-        const matchedAsset = assetSymbolMap.get(cleanSymbol);
-        return {
-          ...t,
-          symbol: t.symbol?.trim(),
-          id: t.id || `initial_${index}`,
-          asset_id: matchedAsset ? matchedAsset.id : null,
-          name: matchedAsset ? matchedAsset.name : t.name,
-        };
-      });
+    const initialTransactions = parsedData.transactions.map((t, index) => {
+      const cleanSymbol = t.symbol?.trim().toUpperCase();
+      const matchedAsset = assetSymbolMap.get(cleanSymbol);
+      return {
+        ...t,
+        symbol: t.symbol?.trim(),
+        id: t.id || `initial_${index}`,
+        asset_id: matchedAsset ? matchedAsset.id : null,
+        name: matchedAsset ? matchedAsset.name : t.name,
+      };
+    });
 
-      setTransactions(initialTransactions);
-    }, [parsedData, allAssets]);
+    setTransactions(initialTransactions);
+  }, [parsedData, allAssets]);
 
   // Helper function to identify incomplete transactions
   const isTransactionIncomplete = (txn) => {
@@ -99,7 +99,7 @@ const ParsedDataTable = ({
       return new Date(b.transaction_date) - new Date(a.transaction_date);
     });
   }, [transactions]);
-  
+
   // Decide whether to show the live sorted list or the "frozen" list during editing
   const transactionsToRender = editingRowId ? frozenTransactions : sortedTransactions;
 
@@ -192,7 +192,7 @@ const ParsedDataTable = ({
     const changes = { symbol: asset.symbol, name: asset.name, asset_id: asset.id };
     const updateFunction = (prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...changes } : t));
-    
+
     setTransactions(updateFunction);
     if (editingRowId) {
       setFrozenTransactions(updateFunction);
@@ -211,7 +211,7 @@ const ParsedDataTable = ({
 
     setTransactions(updateFunction);
     if (editingRowId) {
-        setFrozenTransactions(updateFunction);
+      setFrozenTransactions(updateFunction);
     }
   };
 
@@ -254,7 +254,7 @@ const ParsedDataTable = ({
         setIsSaving(false);
         return;
       }
-      
+
       const newSaveErrors = {};
       errors.forEach(err => {
         if (err.temp_id) {
@@ -382,9 +382,9 @@ const ParsedDataTable = ({
 
                 let rowClassName = "transition-colors";
                 if (isEditing) {
-                    rowClassName += " bg-primary-900/40";
+                  rowClassName += " bg-primary-900/40";
                 } else {
-                    rowClassName += " hover:bg-gray-700/50";
+                  rowClassName += " hover:bg-gray-700/50";
                 }
 
                 if (saveError) {

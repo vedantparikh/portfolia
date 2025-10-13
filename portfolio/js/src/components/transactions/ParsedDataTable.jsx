@@ -12,6 +12,7 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { ClientSideAssetSearch } from "../shared";
+import transactionTypes from "../../utils/transactionTypes";
 
 const ParsedDataTable = ({
   parsedData,
@@ -28,20 +29,6 @@ const ParsedDataTable = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveErrors, setSaveErrors] = useState({}); // e.g., { 'temp_id_123': 'Invalid symbol' }
 
-  const transactionTypes = [
-    { value: "buy", label: "Buy" },
-    { value: "sell", label: "Sell" },
-    { value: "dividend", label: "Dividend" },
-    { value: "split", label: "Stock Split" },
-    { value: "merger", label: "Merger" },
-    { value: "spin_off", label: "Spin-off" },
-    { value: "rights_issue", label: "Rights Issue" },
-    { value: "stock_option_exercise", label: "Option Exercise" },
-    { value: "transfer_in", label: "Transfer In" },
-    { value: "transfer_out", label: "Transfer Out" },
-    { value: "fee", label: "Fee" },
-    { value: "other", label: "Other" },
-  ];
 
   const allAssetsJson = JSON.stringify(allAssets);
 

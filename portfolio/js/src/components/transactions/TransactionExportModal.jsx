@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { transactionPDFExportAPI } from "../../services/api";
+import transactionTypes from "../../utils/transactionTypes";  
 
 const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   const [selectedPortfolios, setSelectedPortfolios] = useState([]);
@@ -10,7 +11,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
     startDate: "",
     endDate: "",
   });
-  const [transactionTypes, setTransactionTypes] = useState([]);
+  const [transactionTypes, setTransactionTypes] = useState(transactionTypes);
   const [assetSymbols, setAssetSymbols] = useState([]);
   const [amountRange, setAmountRange] = useState({
     minAmount: "",
@@ -31,20 +32,6 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
-  const transactionTypeOptions = [
-    { value: "buy", label: "Buy" },
-    { value: "sell", label: "Sell" },
-    { value: "dividend", label: "Dividend" },
-    { value: "split", label: "Stock Split" },
-    { value: "merger", label: "Merger" },
-    { value: "spin_off", label: "Spin-off" },
-    { value: "rights_issue", label: "Rights Issue" },
-    { value: "stock_option_exercise", label: "Option Exercise" },
-    { value: "transfer_in", label: "Transfer In" },
-    { value: "transfer_out", label: "Transfer Out" },
-    { value: "fee", label: "Fee" },
-    { value: "other", label: "Other" },
-  ];
 
   const sortByOptions = [
     { value: "transaction_date", label: "Transaction Date" },
@@ -320,7 +307,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
                   Transaction Types
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                  {transactionTypeOptions.map((type) => (
+                  {transactionTypes.map((type) => (
                     <label
                       key={type.value}
                       className="flex items-center space-x-2"

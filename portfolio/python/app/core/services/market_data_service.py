@@ -309,6 +309,20 @@ class MarketDataService:
         # 2. Fetch missing symbols
         if symbols_to_fetch:
             new_closes_to_cache: Dict[str, str] = {}
+            logger.info("Fetching yesterday's close for %d symbols from API.", len(symbols_to_fetch))
+            tickers = yf.Tickers(" ".join(symbols_to_fetch))
+
+            for ticker in tickers.tickers.values():
+                symbol = ticker.ticker.upper()
+                try:
+                    # The specific key for the previous day's close is 'previousClose'
+                    close_price = ticker.info.get("previousClose")
+                    if close_price is not None:
+                        closes[symbol] = Decimal(str(close_price))
+                        cache_key = self._get_yesterdays_close_cache_key(symbol)
+                        new_closes_to_cache[cache_key] = str(close_price)
+                except Exception:
+                    logger.warning("Could not retrieve yesterday's close for %s", symbol)
 
             # 3. Cache new data by calling `set` in a loop
             if new_closes_to_cache:

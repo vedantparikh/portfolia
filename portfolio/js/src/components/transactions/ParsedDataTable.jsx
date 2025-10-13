@@ -45,32 +45,32 @@ const ParsedDataTable = ({
 
   const transactionsJson = JSON.stringify(parsedData?.transactions);
 
-  useEffect(() => {
+    useEffect(() => {
+      // Guard clause: still useful to prevent running with incomplete data
+      if (!parsedData?.transactions || allAssets.length === 0) {
+        setTransactions([]); // Clear transactions if data is missing
+        return;
+      }
 
-    // Guard clause: Wait until the asset list is loaded before processing transactions.
-    // This prevents the race condition where transactions are mapped with an empty symbol map.
-    if (allAssets.length === 0 && parsedData?.transactions?.length > 0) {
-      return;
-    }
+      // The asset map is now calculated inside the effect, as it depends on `allAssets`
+      const assetSymbolMap = new Map(
+        allAssets.map((asset) => [asset.symbol.toUpperCase(), asset])
+      );
 
-    const parsedTransactions = transactionsJson ? JSON.parse(transactionsJson) : [];
-    if (!parsedTransactions || parsedTransactions.length === 0) {
-      setTransactions([]);
-      return;
-    }
-    const initialTransactions = parsedTransactions.map((t, index) => {
-      const cleanSymbol = t.symbol?.trim().toUpperCase();
-      const matchedAsset = assetSymbolMap.get(cleanSymbol);
-      return {
-        ...t,
-        symbol: t.symbol?.trim(),
-        id: t.id || `initial_${index}`, // Ensure every transaction has a unique ID
-        asset_id: matchedAsset ? matchedAsset.id : null,
-        name: matchedAsset ? matchedAsset.name : t.name,
-      };
-    });
-    setTransactions(initialTransactions);
-  }, [transactionsJson, assetSymbolMap]);
+      const initialTransactions = parsedData.transactions.map((t, index) => {
+        const cleanSymbol = t.symbol?.trim().toUpperCase();
+        const matchedAsset = assetSymbolMap.get(cleanSymbol);
+        return {
+          ...t,
+          symbol: t.symbol?.trim(),
+          id: t.id || `initial_${index}`,
+          asset_id: matchedAsset ? matchedAsset.id : null,
+          name: matchedAsset ? matchedAsset.name : t.name,
+        };
+      });
+
+      setTransactions(initialTransactions);
+    }, [parsedData, allAssets]);
 
   // Helper function to identify incomplete transactions
   const isTransactionIncomplete = (txn) => {

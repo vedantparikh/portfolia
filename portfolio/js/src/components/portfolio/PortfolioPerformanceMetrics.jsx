@@ -5,9 +5,8 @@ import {
   ChevronUp,
   Lightbulb,
   RefreshCw,
-  TrendingDown,
   TrendingUp,
-  X,
+  X
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useCallback, useEffect, useState } from "react";
@@ -15,11 +14,11 @@ import toast from "react-hot-toast";
 import { marketAPI, portfolioCalculationsAPI } from "../../services/api";
 import {
   formatCurrency,
-  formatPercentage,
   formatMetricValue,
   getMetricColor,
-  getMetricIcon,
+  getMetricIcon
 } from "../../utils/formatters.jsx";
+import LoadingSpinner from "../shared/LoadingSpinner";
 import SymbolSearch from "../shared/SymbolSearch";
 
 const PortfolioPerformanceMetrics = ({ portfolio }) => {
@@ -261,13 +260,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
         {/* Calculation Status for Main Performance */}
         {calculationStatus && !showBenchmarkComparison && (
           <div
-            className={`p-4 rounded-lg mb-4 ${
-              calculationStatus === "calculating"
-                ? "bg-warning-600/20 border border-warning-600/30"
-                : calculationStatus === "completed"
+            className={`p-4 rounded-lg mb-4 ${calculationStatus === "calculating"
+              ? "bg-warning-600/20 border border-warning-600/30"
+              : calculationStatus === "completed"
                 ? "bg-success-600/20 border border-success-600/30"
                 : "bg-danger-600/20 border border-danger-600/30"
-            }`}
+              }`}
           >
             <div className="flex items-center space-x-3">
               {calculationStatus === "calculating" && (
@@ -281,13 +279,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
               )}
               <div>
                 <p
-                  className={`text-sm font-medium ${
-                    calculationStatus === "calculating"
-                      ? "text-warning-400"
-                      : calculationStatus === "completed"
+                  className={`text-sm font-medium ${calculationStatus === "calculating"
+                    ? "text-warning-400"
+                    : calculationStatus === "completed"
                       ? "text-success-400"
                       : "text-danger-400"
-                  }`}
+                    }`}
                 >
                   {calculationStatus === "calculating" &&
                     "Calculating Performance Metrics"}
@@ -459,11 +456,10 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
           </div>
 
           <div
-            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 ${
-              expandedMetrics
-                ? "max-h-96 opacity-100"
-                : "max-h-0 opacity-0 overflow-hidden"
-            }`}
+            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-300 ${expandedMetrics
+              ? "max-h-96 opacity-100"
+              : "max-h-0 opacity-0 overflow-hidden"
+              }`}
           >
             {/* Volatility */}
             <div className="space-y-1">
@@ -538,9 +534,8 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
               <>
                 <ChevronDown
                   size={16}
-                  className={`transition-transform ${
-                    showMultiPeriod ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform ${showMultiPeriod ? "rotate-180" : ""
+                    }`}
                 />
                 <span>{showMultiPeriod ? "Hide Details" : "Show Details"}</span>
               </>
@@ -554,13 +549,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {/* Multi-Period Calculation Status */}
             {multiPeriodCalculationStatus && (
               <div
-                className={`p-4 rounded-lg ${
-                  multiPeriodCalculationStatus === "calculating"
-                    ? "bg-warning-600/20 border border-warning-600/30"
-                    : multiPeriodCalculationStatus === "completed"
+                className={`p-4 rounded-lg ${multiPeriodCalculationStatus === "calculating"
+                  ? "bg-warning-600/20 border border-warning-600/30"
+                  : multiPeriodCalculationStatus === "completed"
                     ? "bg-success-600/20 border border-success-600/30"
                     : "bg-danger-600/20 border border-danger-600/30"
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   {multiPeriodCalculationStatus === "calculating" && (
@@ -574,13 +568,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                   )}
                   <div>
                     <p
-                      className={`text-sm font-medium ${
-                        multiPeriodCalculationStatus === "calculating"
-                          ? "text-warning-400"
-                          : multiPeriodCalculationStatus === "completed"
+                      className={`text-sm font-medium ${multiPeriodCalculationStatus === "calculating"
+                        ? "text-warning-400"
+                        : multiPeriodCalculationStatus === "completed"
                           ? "text-success-400"
                           : "text-danger-400"
-                      }`}
+                        }`}
                     >
                       {multiPeriodCalculationStatus === "calculating" &&
                         "Calculating Multi-Period Metrics"}
@@ -601,8 +594,8 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {multiPeriodLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
-                  <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                  <p className="text-gray-400">
+                  <LoadingSpinner size="lg" centered />
+                  <p className="text-gray-400 mt-4">
                     Calculating multi-period performance metrics...
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
@@ -882,13 +875,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {/* Calculation Status */}
             {calculationStatus && (
               <div
-                className={`p-4 rounded-lg ${
-                  calculationStatus === "calculating"
-                    ? "bg-warning-600/20 border border-warning-600/30"
-                    : calculationStatus === "completed"
+                className={`p-4 rounded-lg ${calculationStatus === "calculating"
+                  ? "bg-warning-600/20 border border-warning-600/30"
+                  : calculationStatus === "completed"
                     ? "bg-success-600/20 border border-success-600/30"
                     : "bg-danger-600/20 border border-danger-600/30"
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   {calculationStatus === "calculating" && (
@@ -902,13 +894,12 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                   )}
                   <div>
                     <p
-                      className={`text-sm font-medium ${
-                        calculationStatus === "calculating"
-                          ? "text-warning-400"
-                          : calculationStatus === "completed"
+                      className={`text-sm font-medium ${calculationStatus === "calculating"
+                        ? "text-warning-400"
+                        : calculationStatus === "completed"
                           ? "text-success-400"
                           : "text-danger-400"
-                      }`}
+                        }`}
                     >
                       {calculationStatus === "calculating" &&
                         "Calculation in Progress"}
@@ -1126,19 +1117,18 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
                     </div>
                     <div className="text-center mt-4">
                       <p
-                        className={`text-lg font-semibold ${
-                          benchmarkData.comparison?.outperforming == null
-                            ? "text-gray-400"
-                            : benchmarkData.comparison?.outperforming
+                        className={`text-lg font-semibold ${benchmarkData.comparison?.outperforming == null
+                          ? "text-gray-400"
+                          : benchmarkData.comparison?.outperforming
                             ? "text-success-400"
                             : "text-danger-400"
-                        }`}
+                          }`}
                       >
                         {benchmarkData.comparison?.outperforming == null
                           ? "Can not Compare"
                           : benchmarkData.comparison?.outperforming
-                          ? "Portfolio is Outperforming"
-                          : "Portfolio is Underperforming"}
+                            ? "Portfolio is Outperforming"
+                            : "Portfolio is Underperforming"}
                       </p>
                     </div>
                   </div>
@@ -1152,10 +1142,7 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
       {/* Loading State */}
       {loading && (
         <div className="min-h-screen gradient-bg flex items-center justify-center">
-          <div className="text-center">
-            <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Loading performance metrics...</p>
-          </div>
+          <LoadingSpinner size="lg" text="Loading performance metrics..." centered />
         </div>
       )}
     </div>

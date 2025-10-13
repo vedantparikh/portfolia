@@ -19,6 +19,7 @@ import {
   PortfolioAnalytics,
   RebalancingRecommendations,
 } from "../analytics";
+import LoadingSpinner from "../shared/LoadingSpinner";
 
 const PortfolioDetail = ({ portfolio }) => {
   const [holdings, setHoldings] = useState([]);
@@ -199,11 +200,10 @@ const PortfolioDetail = ({ portfolio }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? "border-primary-500 text-primary-400"
-                    : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
-                }`}
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                  ? "border-primary-500 text-primary-400"
+                  : "border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300"
+                  }`}
               >
                 <Icon size={16} />
                 <span>{tab.label}</span>
@@ -317,10 +317,7 @@ const PortfolioDetail = ({ portfolio }) => {
                   {loadingHoldings ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-400" />
-                        <span className="text-gray-400">
-                          Loading holdings...
-                        </span>
+                        <LoadingSpinner size="md" text="Loading holdings..." centered />
                       </td>
                     </tr>
                   ) : holdings.length === 0 ? (
@@ -367,21 +364,19 @@ const PortfolioDetail = ({ portfolio }) => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${
-                              (holding.gainLoss || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.gainLoss || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.gainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.gainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${
-                              (holding.change || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.change || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.change || 0) >= 0 ? "+" : ""}
                             {(holding.change || 0).toFixed(2)}%
@@ -390,21 +385,19 @@ const PortfolioDetail = ({ portfolio }) => {
 
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${
-                              (holding.todayGainLoss || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.todayGainLoss || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.todayGainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.todayGainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${
-                              (holding.todayGainLossPercent || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.todayGainLossPercent || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.todayGainLossPercent || 0) >= 0
                               ? "+"
@@ -415,21 +408,19 @@ const PortfolioDetail = ({ portfolio }) => {
 
                         <td className="py-3 px-4 text-right">
                           <span
-                            className={`font-medium ${
-                              (holding.realizedGainLoss || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.realizedGainLoss || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.realizedGainLoss || 0) >= 0 ? "+" : ""}
                             {formatCurrency(holding.realizedGainLoss || 0)}
                           </span>
                           <p
-                            className={`font-medium ${
-                              (holding.realizedGainLossPercent || 0) >= 0
-                                ? "text-success-400"
-                                : "text-danger-400"
-                            }`}
+                            className={`font-medium ${(holding.realizedGainLossPercent || 0) >= 0
+                              ? "text-success-400"
+                              : "text-danger-400"
+                              }`}
                           >
                             {(holding.realizedGainLossPercent || 0) >= 0
                               ? "+"
@@ -457,21 +448,19 @@ const PortfolioDetail = ({ portfolio }) => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${
-                          totalGainLoss >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalGainLoss >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${
-                          totalGainLossPercent >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalGainLossPercent >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalGainLossPercent >= 0 ? "+" : ""}
                         {totalGainLossPercent.toFixed(2)}%
@@ -480,21 +469,19 @@ const PortfolioDetail = ({ portfolio }) => {
 
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${
-                          totalTodayGainLoss >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalTodayGainLoss >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalTodayGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalTodayGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${
-                          totalTodayGainLossPercent >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalTodayGainLossPercent >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalTodayGainLossPercent >= 0 ? "+" : ""}
                         {totalTodayGainLossPercent.toFixed(2)}%
@@ -503,21 +490,19 @@ const PortfolioDetail = ({ portfolio }) => {
 
                     <td className="py-3 px-4 text-right">
                       <span
-                        className={`text-lg font-bold ${
-                          totalRealizedGainLoss >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalRealizedGainLoss >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalRealizedGainLoss >= 0 ? "+" : ""}
                         {formatCurrency(totalRealizedGainLoss)}
                       </span>
                       <p
-                        className={`text-lg font-bold ${
-                          totalRealizedGainLossPercent >= 0
-                            ? "text-success-400"
-                            : "text-danger-400"
-                        }`}
+                        className={`text-lg font-bold ${totalRealizedGainLossPercent >= 0
+                          ? "text-success-400"
+                          : "text-danger-400"
+                          }`}
                       >
                         {totalRealizedGainLossPercent >= 0 ? "+" : ""}
                         {totalRealizedGainLossPercent.toFixed(2)}%
@@ -594,11 +579,10 @@ const PortfolioDetail = ({ portfolio }) => {
                     Total Gain/Loss
                   </span>
                   <span
-                    className={`text-sm font-medium ${
-                      totalGainLoss >= 0
-                        ? "text-success-400"
-                        : "text-danger-400"
-                    }`}
+                    className={`text-sm font-medium ${totalGainLoss >= 0
+                      ? "text-success-400"
+                      : "text-danger-400"
+                      }`}
                   >
                     {totalGainLoss >= 0 ? "+" : ""}
                     {formatCurrency(totalGainLoss)}
@@ -607,11 +591,10 @@ const PortfolioDetail = ({ portfolio }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-400">Total Return</span>
                   <span
-                    className={`text-sm font-medium ${
-                      totalGainLossPercent >= 0
-                        ? "text-success-400"
-                        : "text-danger-400"
-                    }`}
+                    className={`text-sm font-medium ${totalGainLossPercent >= 0
+                      ? "text-success-400"
+                      : "text-danger-400"
+                      }`}
                   >
                     {totalGainLossPercent >= 0 ? "+" : ""}
                     {totalGainLossPercent.toFixed(2)}%

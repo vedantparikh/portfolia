@@ -1,63 +1,62 @@
+import { cva } from 'class-variance-authority';
 import React from 'react';
 
+// Define component variants using cva
+const spinnerVariants = cva(
+    'animate-spin rounded-full border-solid border-t-transparent',
+    {
+        variants: {
+            size: {
+                sm: 'h-4 w-4 border-2',
+                md: 'h-8 w-8 border-4',
+                lg: 'h-12 w-12 border-4',
+                xl: 'h-16 w-16 border-4',
+            },
+            color: {
+                primary: 'border-primary-500',
+                white: 'border-white',
+                gray: 'border-gray-400',
+                success: 'border-green-500',
+                danger: 'border-red-500',
+            },
+        },
+        defaultVariants: {
+            size: 'md',
+            color: 'primary',
+        },
+    }
+);
+
+const textVariants = cva('mt-2 text-sm', {
+    variants: {
+        color: {
+            primary: 'text-primary-400',
+            white: 'text-white',
+            gray: 'text-gray-400',
+            success: 'text-green-400',
+            danger: 'text-red-400',
+        },
+    },
+    defaultVariants: {
+        color: 'gray',
+    },
+});
+
+
 const LoadingSpinner = ({
-    size = 'md',
-    color = 'primary',
+    size,
+    color,
     text = '',
     className = '',
     centered = false
 }) => {
-    const getSizeClasses = () => {
-        switch (size) {
-            case 'sm':
-                return 'h-4 w-4';
-            case 'md':
-                return 'h-8 w-8';
-            case 'lg':
-                return 'h-12 w-12';
-            case 'xl':
-                return 'h-16 w-16';
-            default:
-                return 'h-8 w-8';
-        }
-    };
-
-    const getColorClasses = () => {
-        switch (color) {
-            case 'primary':
-                return 'border-primary-500';
-            case 'white':
-                return 'border-white';
-            case 'gray':
-                return 'border-gray-400';
-            case 'success':
-                return 'border-green-500';
-            case 'danger':
-                return 'border-red-500';
-            default:
-                return 'border-primary-500';
-        }
-    };
-
-    const getTextColorClasses = () => {
-        switch (color) {
-            case 'primary':
-                return 'text-primary-400';
-            case 'white':
-                return 'text-white';
-            case 'gray':
-                return 'text-gray-400';
-            case 'success':
-                return 'text-green-400';
-            case 'danger':
-                return 'text-red-400';
-            default:
-                return 'text-gray-400';
-        }
-    };
-
     const spinner = (
-        <div className={`animate-spin rounded-full border-b-2 ${getSizeClasses()} ${getColorClasses()} ${className}`} />
+        <div
+            role="status" // Accessibility: Informs screen readers this element is a live status update.
+            className={spinnerVariants({ size, color, className })}
+        >
+            <span className="sr-only">Loading...</span> {/* Accessibility: Text for screen readers */}
+        </div>
     );
 
     if (centered) {
@@ -65,11 +64,7 @@ const LoadingSpinner = ({
             <div className="flex items-center justify-center">
                 <div className="text-center">
                     {spinner}
-                    {text && (
-                        <p className={`mt-2 text-sm ${getTextColorClasses()}`}>
-                            {text}
-                        </p>
-                    )}
+                    {text && <p className={textVariants({ color })}>{text}</p>}
                 </div>
             </div>
         );
@@ -79,7 +74,7 @@ const LoadingSpinner = ({
         return (
             <div className="flex items-center space-x-2">
                 {spinner}
-                <span className={`text-sm ${getTextColorClasses()}`}>
+                <span className={textVariants({ color, className: 'mt-0' })}>
                     {text}
                 </span>
             </div>

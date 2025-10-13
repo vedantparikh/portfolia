@@ -17,7 +17,7 @@ import {
   formatDateTime,
   formatQuantity,
 } from "../../utils/formatters";
-import { Sidebar } from "../shared";
+import { LoadingSpinner, Sidebar } from "../shared";
 import CreatePortfolioModal from "./CreatePortfolioModal";
 import EditPortfolioModal from "./EditPortfolioModal";
 import PortfolioAssets from "./PortfolioAssets";
@@ -365,8 +365,7 @@ const Portfolio = () => {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading portfolios...</p>
+          <LoadingSpinner size="lg" text="Loading portfolios..." centered />
         </div>
       </div>
     );
@@ -524,8 +523,8 @@ const Portfolio = () => {
                   <button
                     onClick={() => setViewMode("overview")}
                     className={`p-2 rounded-lg transition-colors ${viewMode === "overview"
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                      ? "bg-primary-600 text-white"
+                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
                       }`}
                     title="Overview"
                   >
@@ -534,8 +533,8 @@ const Portfolio = () => {
                   <button
                     onClick={() => setViewMode("detail")}
                     className={`p-2 rounded-lg transition-colors ${viewMode === "detail"
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                      ? "bg-primary-600 text-white"
+                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
                       }`}
                     title="Holdings Detail"
                   >
@@ -544,8 +543,8 @@ const Portfolio = () => {
                   <button
                     onClick={() => setViewMode("assets")}
                     className={`p-2 rounded-lg transition-colors ${viewMode === "assets"
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                      ? "bg-primary-600 text-white"
+                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
                       }`}
                     title="Portfolio Assets"
                   >
@@ -554,8 +553,8 @@ const Portfolio = () => {
                   <button
                     onClick={() => setViewMode("chart")}
                     className={`p-2 rounded-lg transition-colors ${viewMode === "chart"
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                      ? "bg-primary-600 text-white"
+                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
                       }`}
                     title="Performance Chart"
                   >
@@ -564,8 +563,8 @@ const Portfolio = () => {
                   <button
                     onClick={() => setViewMode("performance")}
                     className={`p-2 rounded-lg transition-colors ${viewMode === "performance"
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                      ? "bg-primary-600 text-white"
+                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
                       }`}
                     title="Performance Metrics"
                   >
@@ -606,8 +605,8 @@ const Portfolio = () => {
                                 <div className="flex items-center space-x-3">
                                   <div
                                     className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
-                                        ? "bg-success-400/20"
-                                        : "bg-danger-400/20"
+                                      ? "bg-success-400/20"
+                                      : "bg-danger-400/20"
                                       }`}
                                   >
                                     {transaction.transaction_type === "buy" ? (
@@ -642,8 +641,8 @@ const Portfolio = () => {
                                 <div className="text-right">
                                   <p
                                     className={`text-sm font-medium ${transaction.transaction_type === "buy"
-                                        ? "text-success-400"
-                                        : "text-danger-400"
+                                      ? "text-success-400"
+                                      : "text-danger-400"
                                       }`}
                                   >
                                     {transaction.transaction_type === "buy"

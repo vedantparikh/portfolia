@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { transactionPDFExportAPI } from "../../services/api";
-import transactionTypes from "../../utils/transactionTypes";  
+import transactionTypesList from "../../utils/transactionTypes";
 
 const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   const [selectedPortfolios, setSelectedPortfolios] = useState([]);
@@ -11,7 +11,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
     startDate: "",
     endDate: "",
   });
-  const [transactionTypes, setTransactionTypes] = useState(transactionTypes);
+  const [transactionTypes, setTransactionTypes] = useState(transactionTypesList.map(t => t.value));
   const [assetSymbols, setAssetSymbols] = useState([]);
   const [amountRange, setAmountRange] = useState({
     minAmount: "",
@@ -307,7 +307,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
                   Transaction Types
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                  {transactionTypes.map((type) => (
+                  {transactionTypesList.map((type) => (
                     <label
                       key={type.value}
                       className="flex items-center space-x-2"

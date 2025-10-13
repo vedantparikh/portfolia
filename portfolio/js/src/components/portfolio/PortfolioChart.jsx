@@ -15,6 +15,7 @@ import {
   formatPercentage,
 } from "../../utils/formatters.jsx";
 import Chart from "../shared/Chart";
+import LoadingSpinner from "../shared/LoadingSpinner";
 
 const getYtdDays = () => {
   const today = new Date();
@@ -101,7 +102,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
 
     const endingMarketValue = lastRecord.value;
     const beginningMarketValue = firstRecord.value;
-    
+
     // Net Cash Flow: The total amount of money added or removed during the period.
     const cashFlow = lastRecord.cost_basis - firstRecord.cost_basis;
 
@@ -109,12 +110,12 @@ const PortfolioChart = ({ portfolio, stats }) => {
     const averageCapital = beginningMarketValue + (0.5 * cashFlow);
 
     let totalReturn = averageCapital !== 0 ? (gainLoss / averageCapital) * 100 : 0;
-    
+
     const isUnstable = Math.abs(averageCapital) < (Math.abs(beginningMarketValue) * 0.05);
     if (isUnstable) {
       totalReturn = beginningMarketValue !== 0 ? ((endingMarketValue - beginningMarketValue) / beginningMarketValue) * 100 : 0;
     }
-    
+
     const highValue = Math.max(...sortedData.map((d) => d.value));
     const lowValue = Math.min(...sortedData.map((d) => d.value));
 
@@ -213,7 +214,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
           if (meaningfulAllocations.length > 0) {
             let largestHolding = meaningfulAllocations[0];
             let smallestHolding = meaningfulAllocations[0];
-            
+
             for (const holding of meaningfulAllocations) {
               if (holding.current_percentage > largestHolding.current_percentage) {
                 largestHolding = holding;
@@ -242,7 +243,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
   const processHistoryData = (historyData) => {
     if (!historyData || historyData.length === 0) {
       setMetricsData(null);
-      setAdvancedMetrics(null); 
+      setAdvancedMetrics(null);
       return null;
     }
 
@@ -489,7 +490,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
               <div className="text-center">
                 <p className="text-sm text-gray-400">Max Drawdown</p>
                 <p className="text-lg font-bold text-danger-400">
-                  -{formatPercentage(metricsData.maxDrawdown || 0, {showSign: false})}
+                  -{formatPercentage(metricsData.maxDrawdown || 0, { showSign: false })}
                 </p>
               </div>
               <div className="text-center">
@@ -530,8 +531,7 @@ const PortfolioChart = ({ portfolio, stats }) => {
         <div className="bg-dark-800 rounded-lg p-4">
           {loading ? (
             <div className="flex items-center justify-center h-80">
-              <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-              <span className="ml-2 text-gray-400">Loading chart data...</span>
+              <LoadingSpinner size="lg" text="Loading chart data..." />
             </div>
           ) : chartData ? (
             renderChart()

@@ -11,6 +11,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { statisticalIndicatorsAPI } from '../../services/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const IndicatorConfigurationManager = ({
     onConfigurationSelect,
@@ -280,7 +281,7 @@ const IndicatorConfigurationManager = ({
             <div className="space-y-3">
                 {loading ? (
                     <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-400"></div>
+                        <LoadingSpinner size="md" />
                     </div>
                 ) : filteredConfigurations.length === 0 ? (
                     <div className="text-center py-8 text-gray-400">

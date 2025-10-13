@@ -1,7 +1,9 @@
 import {
+    AlertTriangle,
     ArrowLeft,
     Award,
     BarChart3,
+    ChevronsUp,
     Filter,
     Gem,
     Landmark,
@@ -10,11 +12,9 @@ import {
     RefreshCw,
     Search,
     Settings,
-    X,
     Shield,
     TrendingUp,
-    ChevronsUp,
-    AlertTriangle,
+    X,
     Zap
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ import assetCache from '../../services/assetCache';
 import { formatVolume } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
-import { Sidebar } from '../shared';
+import { LoadingSpinner, Sidebar } from '../shared';
 import CreateTransactionModal from '../transactions/CreateTransactionModal';
 import AssetCard from './AssetCard';
 import AssetFilters from './AssetFilters';
@@ -668,8 +668,7 @@ const Assets = () => {
                         <>
                             {loading && assets.length === 0 ? (
                                 <div className="flex justify-center items-center p-12">
-                                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-                                    <p className="ml-3 text-gray-400">Loading assets...</p>
+                                    <LoadingSpinner size="lg" text="Loading assets..." />
                                 </div>
                             ) : assets.length === 0 ? (
                                 <div className="card p-12 text-center">
@@ -712,8 +711,7 @@ const Assets = () => {
                                     >
                                         {loadingMore && (
                                             <div className="flex justify-center items-center p-4 mt-4">
-                                                <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
-                                                <p className="ml-2 text-gray-400">Loading more assets...</p>
+                                                <LoadingSpinner size="md" text="Loading more assets..." />
                                             </div>
                                         )}
                                     </InView>

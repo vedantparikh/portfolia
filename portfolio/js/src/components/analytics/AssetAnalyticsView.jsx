@@ -10,6 +10,7 @@ import PropTypes from "prop-types";
 import { useCallback, useEffect, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../services/api";
 import EnhancedChart from "../shared/EnhancedChart";
+import LoadingSpinner from "../shared/LoadingSpinner";
 
 const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
   const [period, setPeriod] = useState("30d");
@@ -104,8 +105,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
   if (loading && chartData.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-        <span className="ml-3 text-gray-400">Loading analysis...</span>
+        <LoadingSpinner size="lg" text="Loading analysis..." />
       </div>
     );
   }
@@ -241,13 +241,12 @@ const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
                               .toUpperCase()}
                           </h4>
                           <span
-                            className={`text-sm font-semibold ${
-                              isOverbought
-                                ? "text-danger-400"
-                                : isOversold
+                            className={`text-sm font-semibold ${isOverbought
+                              ? "text-danger-400"
+                              : isOversold
                                 ? "text-success-400"
                                 : "text-gray-400"
-                            }`}
+                              }`}
                           >
                             {value?.toFixed(2) || "N/A"}
                           </span>
@@ -275,7 +274,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
 
                         {indicatorSeries.parameters &&
                           Object.keys(indicatorSeries.parameters).length >
-                            0 && (
+                          0 && (
                             <div className="text-xs text-gray-500 mt-1">
                               Parameters:{" "}
                               {Object.entries(indicatorSeries.parameters)

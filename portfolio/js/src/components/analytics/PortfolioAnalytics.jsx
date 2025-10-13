@@ -10,6 +10,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { analyticsAPI } from '../../services/api';
 import { formatCurrency, formatPercentage } from '../../utils/formatters.jsx';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const PortfolioAnalytics = ({ portfolioId }) => {
     const [analyticsData, setAnalyticsData] = useState(null);
@@ -61,8 +62,7 @@ const PortfolioAnalytics = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-                <span className="ml-3 text-gray-400">Loading analytics...</span>
+                <LoadingSpinner size="lg" text="Loading analytics..." />
             </div>
         );
     }

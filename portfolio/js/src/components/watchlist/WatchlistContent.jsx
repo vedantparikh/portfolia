@@ -1,3 +1,4 @@
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import {
     AlertTriangle,
     Edit3,
@@ -12,7 +13,6 @@ import {
     X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import toast from 'react-hot-toast';
 import { watchlistAPI } from '../../services/api';
 import {
@@ -256,10 +256,7 @@ const WatchlistContent = ({
     if (loadingItems) {
         return (
             <div className="min-h-screen gradient-bg flex items-center justify-center">
-                <div className="text-center">
-                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-400">Loading watchlist items...</p>
-                </div>
+                <LoadingSpinner size="lg" text="Loading watchlist items..." centered />
             </div>
         );
     }

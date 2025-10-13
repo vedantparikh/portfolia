@@ -32,7 +32,13 @@ const ParsedDataTable = ({
   const [isSaving, setIsSaving] = useState(false);
   const rowRefs = useRef({});
 
-  // Sync allAssets with assetCache so ClientSideAssetSearch can use them
+  // This is correct: memoize the asset map from the allAssets prop.
+  const assetSymbolMap = useMemo(() => {
+    if (!allAssets || allAssets.length === 0) return new Map();
+    return new Map(allAssets.map((asset) => [asset.symbol.toUpperCase(), asset]));
+  }, [allAssets]);
+
+  // This is correct: sync assets to the cache.
   useEffect(() => {
     if (allAssets && allAssets.length > 0) {
       assetCache.assets = allAssets;
@@ -41,18 +47,35 @@ const ParsedDataTable = ({
     }
   }, [allAssets]);
 
-  // Process and match transactions against assets
+
+  // FIX: Replace the two conflicting useEffects with this single, robust one.
   useEffect(() => {
+    // 1. If there's no data, clear the table and exit.
     if (!parsedData?.transactions) {
       setTransactions([]);
       return;
     }
 
-    // Build asset map inside the effect to ensure we have latest allAssets
-    const assetSymbolMap = new Map(
-      allAssets.map((asset) => [asset.symbol.toUpperCase(), asset])
-    );
+    // 2. If the asset map is empty, it means `allAssets` hasn't loaded yet.
+    //    Display the raw, un-matched data for now.
+    if (assetSymbolMap.size === 0) {
+      const rawTransactions = parsedData.transactions.map((t, index) => ({
+        ...t,
+        symbol: t.symbol?.trim() || "",
+        id: t.id || `initial_${index}`,
+        asset_id: null,
+        name: t.name || "",
+        quantity: parseFloat(t.quantity) || 0,
+        price: parseFloat(t.price) || 0,
+        fees: parseFloat(t.fees) || 0,
+        total_amount: parseFloat(t.total_amount) || 0,
+        notes: t.notes || "",
+      }));
+      setTransactions(rawTransactions);
+      return; // Wait for assetSymbolMap to be populated on the next render.
+    }
 
+    // 3. This code only runs when BOTH `parsedData` and `assetSymbolMap` are ready.
     const processedTransactions = parsedData.transactions.map((t, index) => {
       const cleanSymbol = t.symbol?.trim().toUpperCase();
       const matchedAsset = assetSymbolMap.get(cleanSymbol);
@@ -70,13 +93,9 @@ const ParsedDataTable = ({
       };
     });
     setTransactions(processedTransactions);
-  }, [parsedData, allAssets]);
 
-  // Build asset symbol map for handlers
-  const assetSymbolMap = useMemo(() => {
-    if (!allAssets || allAssets.length === 0) return new Map();
-    return new Map(allAssets.map((asset) => [asset.symbol.toUpperCase(), asset]));
-  }, [allAssets]);
+  }, [parsedData, assetSymbolMap]); // This dependency array is key to the fix.
+
 
   const isTransactionIncomplete = (txn) => {
     if (!txn.asset_id && txn.symbol) return true;
@@ -172,6 +191,7 @@ const ParsedDataTable = ({
     setTransactionsToRender(prev => prev.map(applyChanges));
   };
 
+  // This improved handler immediately checks for a match as you type.
   const handleSymbolChange = (id, symbolValue) => {
     const matchedAsset = assetSymbolMap.get(symbolValue?.trim().toUpperCase());
     const applyChanges = t => {
@@ -180,7 +200,7 @@ const ParsedDataTable = ({
           ...t,
           symbol: symbolValue,
           asset_id: matchedAsset ? matchedAsset.id : null,
-          name: matchedAsset ? matchedAsset.name : (symbolValue ? t.name : ''),
+          name: matchedAsset ? matchedAsset.name : "",
         };
       }
       return t;
@@ -203,7 +223,6 @@ const ParsedDataTable = ({
     }
 
     setIsSaving(true);
-    setSaveErrors({});
     const payload = transactions.map((txn) => ({
       transaction_date: txn.transaction_date,
       transaction_type: txn.transaction_type,
@@ -221,7 +240,6 @@ const ParsedDataTable = ({
 
       const { total_created = 0, total_failed = 0, errors = [] } = response.summary;
 
-      // Display errors as toasts since backend returns error strings, not per-transaction errors
       if (errors.length > 0) {
         errors.forEach(errorMsg => toast.error(errorMsg, { duration: 5000 }));
       }

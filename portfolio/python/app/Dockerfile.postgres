@@ -1,17 +1,12 @@
 FROM postgres:16
 
-# Copy environment file
-COPY .env.docker /tmp/.env.docker
-
 # Install additional tools if needed
 RUN apt-get update && apt-get install -y \
     postgresql-contrib \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables from the copied file
-ENV POSTGRES_USER=username
-ENV POSTGRES_PASSWORD=password
-ENV POSTGRES_DB=portfolio
+# Environment variables will be passed from docker-compose.yml
+# No need to hardcode them here
 
 # Expose port
 EXPOSE 5432

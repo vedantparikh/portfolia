@@ -3,12 +3,16 @@ services:
     build: ./js
     volumes:
       - ./js/src:/app/src
+    env_file:
+      - ./js/.env.docker
     ports:
       - 3000:3000
-    env_file:
-      - ./python/app/.env.docker
+    depends_on:
+      api:
+        condition: service_healthy
     networks:
       - portfolio_network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
@@ -36,10 +40,13 @@ services:
       - ./python/app/utils:/app/utils:delegated
       - ./python/app/api:/app/api:delegated
       - ./python/app/alembic:/app/alembic:delegated
-      - ./python/app/services:/app/services:delegated
+      - ./python/app/alembic.ini:/app/alembic.ini:delegated
+      - ./python/app/core:/app/core:delegated
+      - ./python/app/config.py:/app/config.py:delegated
       - ./python/app/start_api.py:/app/start_api.py:delegated
       - ./python/app/start_api.sh:/app/start_api.sh:delegated
       - ./python/app/requirements.txt:/app/requirements.txt:delegated
+      - ./python/app/health_check.py:/app/health_check.py:delegated
     networks:
       - portfolio_network
     restart: unless-stopped
@@ -50,45 +57,22 @@ services:
       retries: 3
       start_period: 40s
 
-  data-service:
-    build: 
-      context: ./python/app
-      dockerfile: Dockerfile
-    command: ["python", "start_data_service.py"]
-    env_file:
-      - ./python/app/.env.docker
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      # Mount source code for live reload
-      - ./python/app/app:/app/app:delegated
-      - ./python/app/schemas:/app/schemas:delegated
-      - ./python/app/services:/app/services:delegated
-      - ./python/app/start_data_service.py:/app/start_data_service.py:delegated
-      - ./python/app/requirements.txt:/app/requirements.txt:delegated
-    networks:
-      - portfolio_network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import psycopg2; print('OK')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
   postgres:
     build:
       context: ./python/app
       dockerfile: Dockerfile.postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - portfolio_network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -106,6 +90,7 @@ services:
       - redis_data:/data
     networks:
       - portfolio_network
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

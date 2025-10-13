@@ -373,7 +373,7 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
         return (
             <div className="space-y-6">
                 <div className="text-center py-12">
-                    <LoadingSpinner size="lg" text="Loading portfolio assets..." centered />
+                    <LoadingSpinner type="analyst" size="lg" text="Loading portfolio assets..." centered />
                 </div>
             </div>
         );

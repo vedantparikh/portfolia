@@ -105,7 +105,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, height = 500 }) => {
   if (loading && chartData.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <LoadingSpinner size="lg" text="Loading analysis..." />
+        <LoadingSpinner type="analyst" size="lg" text="Loading analysis..." />
       </div>
     );
   }

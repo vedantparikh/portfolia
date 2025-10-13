@@ -281,7 +281,7 @@ const IndicatorConfigurationManager = ({
             <div className="space-y-3">
                 {loading ? (
                     <div className="flex items-center justify-center py-8">
-                        <LoadingSpinner size="md" />
+                        <LoadingSpinner type="analyst" size="md" />
                     </div>
                 ) : filteredConfigurations.length === 0 ? (
                     <div className="text-center py-8 text-gray-400">

@@ -594,7 +594,7 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
             {multiPeriodLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
-                  <LoadingSpinner size="lg" centered />
+                  <LoadingSpinner type="quantum" size="lg" centered />
                   <p className="text-gray-400 mt-4">
                     Calculating multi-period performance metrics...
                   </p>
@@ -1142,7 +1142,7 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
       {/* Loading State */}
       {loading && (
         <div className="min-h-screen gradient-bg flex items-center justify-center">
-          <LoadingSpinner size="lg" text="Loading performance metrics..." centered />
+          <LoadingSpinner type="quantum" size="lg" text="Loading performance metrics..." centered />
         </div>
       )}
     </div>

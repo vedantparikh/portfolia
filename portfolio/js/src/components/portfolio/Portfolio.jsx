@@ -365,7 +365,7 @@ const Portfolio = () => {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
-          <LoadingSpinner size="lg" text="Loading portfolios..." centered />
+          <LoadingSpinner type="analyst" size="lg" text="Loading portfolios..." centered />
         </div>
       </div>
     );

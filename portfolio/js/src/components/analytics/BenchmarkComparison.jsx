@@ -76,7 +76,7 @@ const BenchmarkComparison = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" text="Loading benchmarks..." />
+                <LoadingSpinner type="analyst" size="lg" text="Loading benchmarks..." />
             </div>
         );
     }

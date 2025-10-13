@@ -668,7 +668,7 @@ const Assets = () => {
                         <>
                             {loading && assets.length === 0 ? (
                                 <div className="flex justify-center items-center p-12">
-                                    <LoadingSpinner size="lg" text="Loading assets..." />
+                                    <LoadingSpinner type="ticker" size="lg" text="Loading assets..." />
                                 </div>
                             ) : assets.length === 0 ? (
                                 <div className="card p-12 text-center">
@@ -711,7 +711,7 @@ const Assets = () => {
                                     >
                                         {loadingMore && (
                                             <div className="flex justify-center items-center p-4 mt-4">
-                                                <LoadingSpinner size="md" text="Loading more assets..." />
+                                                <LoadingSpinner type="ticker" size="md" text="Loading more assets..." />
                                             </div>
                                         )}
                                     </InView>

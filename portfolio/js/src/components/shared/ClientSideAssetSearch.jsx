@@ -256,7 +256,7 @@ const ClientSideAssetSearch = ({
                 />
                 {searching && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <LoadingSpinner size="sm" />
+                        <LoadingSpinner type="ticker" size="sm" />
                     </div>
                 )}
             </div>
@@ -319,7 +319,7 @@ const ClientSideAssetSearch = ({
             {loading && (
                 <div className="absolute z-50 w-full mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-lg">
                     <div className="px-4 py-6 text-center">
-                        <LoadingSpinner size="sm" className="mx-auto mb-3" />
+                        <LoadingSpinner type="ticker" size="sm" className="mx-auto mb-3" />
                         <p className="text-gray-400 text-sm">Loading assets...</p>
                     </div>
                 </div>

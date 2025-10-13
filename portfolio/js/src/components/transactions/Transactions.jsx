@@ -240,7 +240,7 @@ const Transactions = () => {
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <LoadingSpinner size="lg" text="Loading transactions..." centered />
+        <LoadingSpinner type="transaction" size="lg" text="Loading transactions..." centered />
       </div>
     );
   }
@@ -355,7 +355,7 @@ const Transactions = () => {
               return true;
             }).length && (
                 <div className="flex justify-center items-center p-4 mt-4">
-                  <LoadingSpinner size="md" text="Loading more transactions..." />
+                  <LoadingSpinner type="transaction" size="md" text="Loading more transactions..." />
                 </div>
               )}
           </InView>

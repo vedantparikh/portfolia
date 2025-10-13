@@ -27,7 +27,7 @@ import { LoadingSpinner, Sidebar } from "../shared";
 
 const CardLoader = ({ text = "Loading..." }) => (
   <div className="flex items-center justify-center py-8">
-    <LoadingSpinner size="md" text={text} />
+    <LoadingSpinner type="analyst" size="md" text={text} />
   </div>
 );
 

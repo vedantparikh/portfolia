@@ -73,7 +73,7 @@ const RebalancingRecommendations = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" text="Loading recommendations..." />
+                <LoadingSpinner type="donut" size="lg" text="Loading recommendations..." />
             </div>
         );
     }

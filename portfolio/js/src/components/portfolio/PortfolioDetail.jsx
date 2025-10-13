@@ -317,7 +317,7 @@ const PortfolioDetail = ({ portfolio }) => {
                   {loadingHoldings ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center">
-                        <LoadingSpinner size="md" text="Loading holdings..." centered />
+                        <LoadingSpinner type="analyst" size="md" text="Loading holdings..." centered />
                       </td>
                     </tr>
                   ) : holdings.length === 0 ? (

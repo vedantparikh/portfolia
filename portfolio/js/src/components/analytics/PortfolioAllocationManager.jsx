@@ -10,6 +10,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { analyticsAPI } from '../../services/api';
 import { formatCurrency, formatPercentage } from '../../utils/formatters.jsx';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const PortfolioAllocationManager = ({ portfolioId }) => {
     const [allocations, setAllocations] = useState([]);
@@ -82,8 +83,7 @@ const PortfolioAllocationManager = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-                <span className="ml-3 text-gray-400">Loading allocations...</span>
+                <LoadingSpinner type="donut" size="lg" text="Loading allocations..." />
             </div>
         );
     }

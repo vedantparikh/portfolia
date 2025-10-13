@@ -12,6 +12,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import { analyticsAPI } from '../../services/api';
 import { formatCurrency, formatPercentage } from '../../utils/formatters.jsx';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const RebalancingRecommendations = ({ portfolioId }) => {
     const [recommendations, setRecommendations] = useState(null);
@@ -72,8 +73,7 @@ const RebalancingRecommendations = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-                <span className="ml-3 text-gray-400">Loading recommendations...</span>
+                <LoadingSpinner type="donut" size="lg" text="Loading recommendations..." />
             </div>
         );
     }
@@ -182,10 +182,10 @@ const RebalancingRecommendations = ({ portfolioId }) => {
                             <div key={index} className="flex items-center justify-between p-4 bg-dark-800 rounded-lg">
                                 <div className="flex items-center space-x-4">
                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${action.action_type === 'buy'
-                                            ? 'bg-success-600/20'
-                                            : action.action_type === 'sell'
-                                                ? 'bg-danger-600/20'
-                                                : 'bg-primary-600/20'
+                                        ? 'bg-success-600/20'
+                                        : action.action_type === 'sell'
+                                            ? 'bg-danger-600/20'
+                                            : 'bg-primary-600/20'
                                         }`}>
                                         {action.action_type === 'buy' ? (
                                             <TrendingUp size={20} className="text-success-400" />
@@ -206,10 +206,10 @@ const RebalancingRecommendations = ({ portfolioId }) => {
                                 </div>
                                 <div className="text-right">
                                     <p className={`font-medium ${action.action_type === 'buy'
-                                            ? 'text-success-400'
-                                            : action.action_type === 'sell'
-                                                ? 'text-danger-400'
-                                                : 'text-gray-100'
+                                        ? 'text-success-400'
+                                        : action.action_type === 'sell'
+                                            ? 'text-danger-400'
+                                            : 'text-gray-100'
                                         }`}>
                                         {action.action_type === 'buy' ? '+' : action.action_type === 'sell' ? '-' : ''}
                                         {formatCurrency(action.total_value)}

@@ -1,28 +1,16 @@
 import {
-    ArrowDownLeft,
-    ArrowUpRight,
     Calculator,
-    CircleDollarSign,
-    Copy,
     Edit,
-    Gift,
-    GitBranch,
-    Merge,
-    Repeat,
-    TrendingDown,
-    TrendingUp,
     X,
-    Zap
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ClientSideAssetSearch } from '../shared';
+import { formatQuantity } from '../../utils/formatters';
+import transactionTypes, { colorSchemes } from '../../utils/transactionTypes';
 
 const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpdate }) => {
     const [formData, setFormData] = useState({
-        portfolio_id: '',
         transaction_type: 'buy',
-        symbol: '',
         asset_id: '',
         quantity: '',
         price: '',
@@ -32,148 +20,7 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
         date: ''
     });
     const [loading, setLoading] = useState(false);
-    const [selectedAsset, setSelectedAsset] = useState(null);
     const [showAllTransactionTypes, setShowAllTransactionTypes] = useState(false);
-
-    // Transaction types configuration (same as CreateTransactionModal)
-    const transactionTypes = [
-        {
-            value: 'buy',
-            label: 'Buy',
-            description: 'Purchase assets',
-            icon: TrendingUp,
-            color: 'success',
-            category: 'trading'
-        },
-        {
-            value: 'sell',
-            label: 'Sell',
-            description: 'Sell assets',
-            icon: TrendingDown,
-            color: 'danger',
-            category: 'trading'
-        },
-        {
-            value: 'dividend',
-            label: 'Dividend',
-            description: 'Dividend payment',
-            icon: CircleDollarSign,
-            color: 'primary',
-            category: 'income'
-        },
-        {
-            value: 'split',
-            label: 'Stock Split',
-            description: 'Stock split event',
-            icon: Copy,
-            color: 'info',
-            category: 'corporate'
-        },
-        {
-            value: 'merger',
-            label: 'Merger',
-            description: 'Company merger',
-            icon: Merge,
-            color: 'warning',
-            category: 'corporate'
-        },
-        {
-            value: 'spin_off',
-            label: 'Spin-off',
-            description: 'Corporate spin-off',
-            icon: GitBranch,
-            color: 'info',
-            category: 'corporate'
-        },
-        {
-            value: 'rights_issue',
-            label: 'Rights Issue',
-            description: 'Rights offering',
-            icon: Gift,
-            color: 'primary',
-            category: 'corporate'
-        },
-        {
-            value: 'stock_option_exercise',
-            label: 'Option Exercise',
-            description: 'Stock option exercise',
-            icon: Zap,
-            color: 'warning',
-            category: 'options'
-        },
-        {
-            value: 'transfer_in',
-            label: 'Transfer In',
-            description: 'Asset transfer in',
-            icon: ArrowDownLeft,
-            color: 'success',
-            category: 'transfer'
-        },
-        {
-            value: 'transfer_out',
-            label: 'Transfer Out',
-            description: 'Asset transfer out',
-            icon: ArrowUpRight,
-            color: 'danger',
-            category: 'transfer'
-        },
-        {
-            value: 'fee',
-            label: 'Fee',
-            description: 'Management fee',
-            icon: Calculator,
-            color: 'gray',
-            category: 'other'
-        },
-        {
-            value: 'other',
-            label: 'Other',
-            description: 'Other transaction',
-            icon: Repeat,
-            color: 'gray',
-            category: 'other'
-        }
-    ];
-
-    // Color schemes for transaction types
-    const colorSchemes = {
-        success: {
-            border: 'border-success-400',
-            bg: 'bg-success-400/10',
-            text: 'text-success-400',
-            hover: 'hover:border-success-300'
-        },
-        danger: {
-            border: 'border-danger-400',
-            bg: 'bg-danger-400/10',
-            text: 'text-danger-400',
-            hover: 'hover:border-danger-300'
-        },
-        primary: {
-            border: 'border-primary-400',
-            bg: 'bg-primary-400/10',
-            text: 'text-primary-400',
-            hover: 'hover:border-primary-300'
-        },
-        warning: {
-            border: 'border-warning-400',
-            bg: 'bg-warning-400/10',
-            text: 'text-warning-400',
-            hover: 'hover:border-warning-300'
-        },
-        info: {
-            border: 'border-info-400',
-            bg: 'bg-info-400/10',
-            text: 'text-info-400',
-            hover: 'hover:border-info-300'
-        },
-        gray: {
-            border: 'border-gray-400',
-            bg: 'bg-gray-400/10',
-            text: 'text-gray-400',
-            hover: 'hover:border-gray-300'
-        }
-    };
 
     // Helper function to get the selected transaction type details
     const getSelectedTransactionType = () => {
@@ -191,20 +38,10 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
         return transactionTypes;
     };
 
-    // Helper function to format quantity with max 4 decimal places
-    const formatQuantity = (quantity) => {
-        if (!quantity) return '';
-        const num = parseFloat(quantity);
-        if (isNaN(num)) return '';
-        return num.toFixed(4).replace(/\.?0+$/, '');
-    };
-
     useEffect(() => {
         if (transaction) {
             setFormData({
-                portfolio_id: transaction.portfolio_id || '',
                 transaction_type: transaction.transaction_type || transaction.type || 'buy',
-                symbol: transaction.symbol || '',
                 asset_id: transaction.asset_id || '',
                 quantity: transaction.quantity || '',
                 price: transaction.price || '',
@@ -212,15 +49,6 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
                 notes: transaction.notes || '',
                 date: transaction.transaction_date ? transaction.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0]
             });
-
-            // Set selected asset if we have asset info
-            if (transaction.asset_id && transaction.symbol) {
-                setSelectedAsset({
-                    id: transaction.asset_id,
-                    symbol: transaction.symbol,
-                    type: 'existing_asset'
-                });
-            }
         }
     }, [transaction]);
 
@@ -256,35 +84,6 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
         }
     };
 
-    const handleSymbolSelect = (asset) => {
-        setSelectedAsset(asset);
-        setFormData(prev => ({
-            ...prev,
-            symbol: asset.symbol,
-            asset_id: asset.id
-        }));
-    };
-
-    const handleSymbolChange = (value) => {
-        setFormData(prev => ({
-            ...prev,
-            symbol: value
-        }));
-        // Clear selected asset when manually typing
-        if (!value) {
-            setSelectedAsset(null);
-        }
-    };
-
-    const handlePriceUpdate = (priceData) => {
-        if (priceData && priceData.price) {
-            setFormData(prev => ({
-                ...prev,
-                price: priceData.price.toString()
-            }));
-            toast.success(`Current price for ${priceData.symbol}: $${priceData.price} (${priceData.currency})`);
-        }
-    };
 
     const calculateTotal = () => {
         const quantity = parseFloat(formData.quantity) || 0;
@@ -304,16 +103,6 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (!formData.portfolio_id) {
-            toast.error('Please select a portfolio');
-            return;
-        }
-
-        if (!formData.symbol.trim()) {
-            toast.error('Symbol is required');
-            return;
-        }
 
         if (!formData.asset_id) {
             toast.error('Please select an asset from the search results. If the asset doesn\'t exist, add it first in the Assets section.');
@@ -339,7 +128,7 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
             setLoading(true);
 
             const transactionData = {
-                portfolio_id: parseInt(formData.portfolio_id),
+                portfolio_id: transaction.portfolio_id,
                 transaction_type: formData.transaction_type,
                 asset_id: parseInt(formData.asset_id),
                 quantity: parseFloat(formData.quantity) || 0,
@@ -450,76 +239,6 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
                                     </div>
                                 );
                             })()}
-                        </div>
-
-                        {/* Portfolio Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Portfolio *
-                            </label>
-                            <select
-                                name="portfolio_id"
-                                value={formData.portfolio_id}
-                                onChange={handleInputChange}
-                                className="input-field w-full"
-                                required
-                            >
-                                <option value="">Select a portfolio</option>
-                                {portfolios.map((portfolio) => (
-                                    <option key={portfolio.id} value={portfolio.id}>
-                                        {portfolio.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Symbol */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                Asset Symbol *
-                            </label>
-                            <ClientSideAssetSearch
-                                value={formData.symbol}
-                                onChange={handleSymbolChange}
-                                onSelect={handleSymbolSelect}
-                                onPriceUpdate={handlePriceUpdate}
-                                placeholder="Search your assets..."
-                                disabled={loading}
-                                showSuggestions={true}
-                                preloadAssets={true}
-                            />
-
-                            {/* Selected Asset Info */}
-                            {selectedAsset && (
-                                <div className="mt-2 p-3 bg-dark-800 rounded-lg border border-dark-600">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-8 h-8 bg-primary-600/20 rounded-lg flex items-center justify-center">
-                                                <TrendingUp size={16} className="text-primary-400" />
-                                            </div>
-                                            <div>
-                                                <div className="font-mono text-sm font-medium text-gray-100">
-                                                    {selectedAsset.symbol}
-                                                </div>
-                                                <div className="text-xs text-gray-400">
-                                                    {selectedAsset.name}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {selectedAsset.exchange} • {selectedAsset.asset_type}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-xs text-gray-400">
-                                            Your Asset
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Help Text */}
-                            <div className="mt-2 text-xs text-gray-500">
-                                If the asset doesn't exist, add it first in the Assets section.
-                            </div>
                         </div>
 
                         {/* Amount, Quantity and Price */}
@@ -743,7 +462,7 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, portfolios, onUpda
                     <button
                         type="submit"
                         onClick={handleSubmit}
-                        disabled={loading || !formData.portfolio_id || !formData.symbol || !formData.asset_id}
+                        disabled={loading || !formData.asset_id}
                         className="btn-primary flex items-center space-x-2"
                     >
                         {loading ? (

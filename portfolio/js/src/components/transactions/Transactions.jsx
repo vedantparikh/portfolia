@@ -9,7 +9,7 @@ import {
   Search,
   Zap,
 } from "lucide-react";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { InView } from "react-intersection-observer";
 
@@ -28,6 +28,7 @@ import ParsedDataTable from "./ParsedDataTable";
 import TransactionCard from "./TransactionCard";
 import TransactionExportModal from "./TransactionExportModal";
 import TransactionFilters from "./TransactionFilters";
+import LoadingSpinner from "../shared/LoadingSpinner";
 
 const RENDER_PAGE_SIZE = 50; // How many items to render at a time
 
@@ -111,16 +112,16 @@ const Transactions = () => {
       filtered = filtered.filter((t) => t.transaction_type === filters.type || t.type === filters.type);
     }
     if (filters.dateRange !== 'all') {
-        const now = new Date();
-        const filterDate = new Date();
-        switch (filters.dateRange) {
-            case "today": filterDate.setHours(0, 0, 0, 0); break;
-            case "week": filterDate.setDate(now.getDate() - 7); break;
-            case "month": filterDate.setMonth(now.getMonth() - 1); break;
-            case "quarter": filterDate.setMonth(now.getMonth() - 3); break;
-            case "year": filterDate.setFullYear(now.getFullYear() - 1); break;
-        }
-        filtered = filtered.filter(t => new Date(t.transaction_date) >= filterDate);
+      const now = new Date();
+      const filterDate = new Date();
+      switch (filters.dateRange) {
+        case "today": filterDate.setHours(0, 0, 0, 0); break;
+        case "week": filterDate.setDate(now.getDate() - 7); break;
+        case "month": filterDate.setMonth(now.getMonth() - 1); break;
+        case "quarter": filterDate.setMonth(now.getMonth() - 3); break;
+        case "year": filterDate.setFullYear(now.getFullYear() - 1); break;
+      }
+      filtered = filtered.filter(t => new Date(t.transaction_date) >= filterDate);
     }
 
 
@@ -142,7 +143,7 @@ const Transactions = () => {
 
   // Effect to reset visible count when filters change
   useEffect(() => {
-      setVisibleCount(RENDER_PAGE_SIZE);
+    setVisibleCount(RENDER_PAGE_SIZE);
   }, [filters, searchQuery]);
 
 
@@ -239,10 +240,7 @@ const Transactions = () => {
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading transactions...</p>
-        </div>
+        <LoadingSpinner type="transaction" size="lg" text="Loading transactions..." centered />
       </div>
     );
   }
@@ -343,7 +341,7 @@ const Transactions = () => {
               ))}
             </div>
           )}
-          
+
           <InView
             as="div"
             onChange={(inView) => {
@@ -353,14 +351,13 @@ const Transactions = () => {
             }}
           >
             {visibleTransactions.length < allTransactions.filter(t => { // A rough check to see if more can be loaded
-                if (searchQuery) return (t.asset.symbol || "").toLowerCase().includes(searchQuery.toLowerCase());
-                return true;
+              if (searchQuery) return (t.asset.symbol || "").toLowerCase().includes(searchQuery.toLowerCase());
+              return true;
             }).length && (
-              <div className="flex justify-center items-center p-4 mt-4">
-                <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
-                <p className="ml-2 text-gray-400">Loading more transactions...</p>
-              </div>
-            )}
+                <div className="flex justify-center items-center p-4 mt-4">
+                  <LoadingSpinner type="transaction" size="md" text="Loading more transactions..." />
+                </div>
+              )}
           </InView>
 
 

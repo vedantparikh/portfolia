@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { watchlistAPI } from '../../services/api';
 import EmailVerificationPrompt from '../auth/EmailVerificationPrompt';
-import { Sidebar } from '../shared';
+import { LoadingSpinner, Sidebar } from '../shared';
 import AddSymbolModal from './AddSymbolModal';
 import CreateWatchlistModal from './CreateWatchlistModal';
 import EditWatchlistModal from './EditWatchlistModal';
@@ -388,10 +388,7 @@ const Watchlist = () => {
     if (loading) {
         return (
             <div className="min-h-screen gradient-bg flex items-center justify-center">
-                <div className="text-center">
-                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-400">Loading watchlists...</p>
-                </div>
+                <LoadingSpinner size="lg" text="Loading watchlists..." centered />
             </div>
         );
     }

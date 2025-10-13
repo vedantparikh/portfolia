@@ -183,7 +183,7 @@ const AssetSymbolSearch = ({
                 />
                 {searching && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <LoadingSpinner size="sm" />
+                        <LoadingSpinner type="ticker" size="sm" />
                     </div>
                 )}
             </div>

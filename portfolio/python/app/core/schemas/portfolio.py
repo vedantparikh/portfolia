@@ -230,6 +230,7 @@ class TransactionCreate(TransactionBase):
 
 
 class TransactionUpdate(BaseModel):
+    transaction_type: Optional[TransactionType] = None
     quantity: Optional[Decimal] = Field(None)
     price: Optional[Decimal] = Field(None)
     total_amount: Optional[Decimal] = Field(None)

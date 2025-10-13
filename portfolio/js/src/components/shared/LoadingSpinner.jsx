@@ -1,73 +1,175 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { cva } from 'class-variance-authority';
+
+
+// 1. The ORIGINAL spinner, now as 'default', with full size/color variants
+const defaultSpinnerVariants = cva(
+    'animate-spin rounded-full border-solid border-t-transparent',
+    {
+        variants: {
+            size: {
+                sm: 'h-4 w-4 border-2',
+                md: 'h-8 w-8 border-4',
+                lg: 'h-12 w-12 border-4',
+                xl: 'h-16 w-16 border-4',
+            },
+            color: {
+                primary: 'border-blue-500',
+                white: 'border-white',
+                gray: 'border-gray-400',
+                success: 'border-green-500',
+                danger: 'border-red-500',
+            },
+        },
+        defaultVariants: {
+            size: 'md',
+            color: 'primary',
+        },
+    }
+);
+
+const DefaultVisual = ({ size, color }) => (
+    <div role="status" className={defaultSpinnerVariants({ size, color })}>
+        <span className="sr-only">Loading...</span>
+    </div>
+);
+
+
+// 2. The Portfolio Spinners
+const AnalystVisual = () => (
+    <div className="flex items-end justify-center space-x-1.5 h-12">
+        <div className="w-2.5 h-6 bg-green-500 rounded-t-full animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:-0.3s]"></div>
+        <div className="w-2.5 h-10 bg-green-500 rounded-t-full animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:-0.15s]"></div>
+        <div className="w-2.5 h-12 bg-green-500 rounded-t-full animate-[bounce_1.2s_ease-in-out_infinite]"></div>
+        <div className="w-2.5 h-8 bg-green-500 rounded-t-full animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:-0.15s]"></div>
+        <div className="w-2.5 h-10 bg-green-500 rounded-t-full animate-[bounce_1.2s_ease-in-out_infinite] [animation-delay:-0.3s]"></div>
+    </div>
+);
+
+const QuantumVisual = () => {
+    const [number, setNumber] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => setNumber(Math.floor(Math.random() * 900000) + 100000), 80);
+        return () => clearInterval(interval);
+    }, []);
+    return (
+        <p className="font-mono text-3xl font-bold text-green-400 tabular-nums h-12 flex items-center">
+            {number.toString().padStart(7, '0')}
+        </p>
+    );
+};
+
+const TickerVisual = () => {
+    // The base list of tickers
+    const tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'JPM', 'V', 'SPY', 'QQQ'];
+
+    // Helper function to generate random data for our tickers
+    const generateRandomTickerData = () =>
+        tickers.map(ticker => ({
+            name: ticker,
+            // Store the random direction in state
+            isUp: Math.random() > 0.5,
+        }));
+
+    // 1. Use state to store the ticker data that will change over time
+    const [tickerData, setTickerData] = useState(generateRandomTickerData());
+
+    // 2. Use an effect to set up an interval that updates the state
+    useEffect(() => {
+        // Set an interval to generate new random data every 2 seconds (2000ms)
+        const interval = setInterval(() => {
+            setTickerData(generateRandomTickerData());
+        }, 2000);
+
+        // 3. IMPORTANT: Clean up the interval when the component is removed
+        return () => clearInterval(interval);
+    }, []); // The empty array [] ensures this effect runs only once on mount
+
+    // To make the scroll seamless, we duplicate the state-driven data
+    const repeatedTickers = [...tickerData, ...tickerData];
+
+    return (
+        <div className="w-full max-w-[280px] bg-gray-800/50 rounded-md h-10 overflow-hidden relative">
+            <div className="absolute top-0 left-0 flex items-center h-full animate-[scroll_25s_linear_infinite]">
+                {repeatedTickers.map((ticker, index) => (
+                    <div key={index} className="flex items-center mx-4">
+                        <span className="text-gray-200 font-semibold">{ticker.name}</span>
+                        {/* 4. Use the value from state instead of Math.random() */}
+                        <span className={`ml-2 text-sm ${ticker.isUp ? 'text-green-500' : 'text-red-500'}`}>
+                            {ticker.isUp ? '▲' : '▼'}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const CandlestickVisual = () => (
+    <div className="flex items-center justify-center h-12 space-x-2">
+        <div className="flex flex-col items-center animate-[pulse_1.5s_ease-in-out_infinite] [animation-delay:-0.4s]">
+            <div className="w-0.5 h-2 bg-green-500"></div><div className="w-3 h-6 bg-green-500"></div><div className="w-0.5 h-1 bg-green-500"></div>
+        </div>
+        <div className="flex flex-col items-center animate-[pulse_1.5s_ease-in-out_infinite] [animation-delay:-0.2s]">
+            <div className="w-0.5 h-1 bg-red-500"></div><div className="w-3 h-8 bg-red-500"></div><div className="w-0.5 h-2 bg-red-500"></div>
+        </div>
+        <div className="flex flex-col items-center animate-[pulse_1.5s_ease-in-out_infinite]">
+            <div className="w-0.5 h-3 bg-green-500"></div><div className="w-3 h-5 bg-green-500"></div><div className="w-0.5 h-3 bg-green-500"></div>
+        </div>
+    </div>
+);
+
+const DonutVisual = () => (
+    <div className="relative w-12 h-12">
+        <div className="absolute inset-0 rounded-full animate-spin" style={{ background: 'conic-gradient(#4f46e5 0% 25%, #10b981 25% 60%, #3b82f6 60% 85%, #f59e0b 85% 100%)' }}></div>
+        <div className="absolute inset-2 bg-gray-800 rounded-full"></div>
+    </div>
+);
+
+const TransactionVisual = () => (
+    <div className="relative w-12 h-12 flex items-center justify-center">
+        <div className="absolute w-full h-full bg-sky-500 rounded-full animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
+        <div className="relative w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center shadow-lg">
+            <svg className="w-6 h-6 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        </div>
+    </div>
+);
+
+
+// --- Main Unified Spinner Component ---
+const spinnerMap = {
+    'default': { Component: DefaultVisual, defaultText: 'Loading...' },
+    analyst: { Component: AnalystVisual, defaultText: 'Analyzing Performance...' },
+    quantum: { Component: QuantumVisual, defaultText: 'Calculating Returns...' },
+    ticker: { Component: TickerVisual, defaultText: 'Fetching Market Data...' },
+    candlestick: { Component: CandlestickVisual, defaultText: 'Fetching Historical Data...' },
+    donut: { Component: DonutVisual, defaultText: 'Optimizing Allocation...' },
+    transaction: { Component: TransactionVisual, defaultText: 'Processing Transaction...' },
+};
 
 const LoadingSpinner = ({
-    size = 'md',
-    color = 'primary',
-    text = '',
+    type = 'default',
+    text,
+    size, // Used by 'default' type
+    color, // Used by 'default' type
     className = '',
     centered = false
 }) => {
-    const getSizeClasses = () => {
-        switch (size) {
-            case 'sm':
-                return 'h-4 w-4';
-            case 'md':
-                return 'h-8 w-8';
-            case 'lg':
-                return 'h-12 w-12';
-            case 'xl':
-                return 'h-16 w-16';
-            default:
-                return 'h-8 w-8';
-        }
-    };
+    const { Component: SpinnerVisual, defaultText } = spinnerMap[type] || spinnerMap.default;
+    const displayText = text === null ? null : text || defaultText;
 
-    const getColorClasses = () => {
-        switch (color) {
-            case 'primary':
-                return 'border-primary-500';
-            case 'white':
-                return 'border-white';
-            case 'gray':
-                return 'border-gray-400';
-            case 'success':
-                return 'border-green-500';
-            case 'danger':
-                return 'border-red-500';
-            default:
-                return 'border-primary-500';
-        }
-    };
-
-    const getTextColorClasses = () => {
-        switch (color) {
-            case 'primary':
-                return 'text-primary-400';
-            case 'white':
-                return 'text-white';
-            case 'gray':
-                return 'text-gray-400';
-            case 'success':
-                return 'text-green-400';
-            case 'danger':
-                return 'text-red-400';
-            default:
-                return 'text-gray-400';
-        }
-    };
-
-    const spinner = (
-        <div className={`animate-spin rounded-full border-b-2 ${getSizeClasses()} ${getColorClasses()} ${className}`} />
-    );
+    const spinner = <SpinnerVisual size={size} color={color} />;
 
     if (centered) {
         return (
-            <div className="flex items-center justify-center">
+            <div className={`flex items-center justify-center ${className}`}>
                 <div className="text-center">
                     {spinner}
-                    {text && (
-                        <p className={`mt-2 text-sm ${getTextColorClasses()}`}>
-                            {text}
+                    {displayText && (
+                        <p className="mt-4 text-sm font-medium text-gray-400 tracking-wide">
+                            {displayText}
                         </p>
                     )}
                 </div>
@@ -75,18 +177,18 @@ const LoadingSpinner = ({
         );
     }
 
-    if (text) {
+    if (displayText) {
         return (
-            <div className="flex items-center space-x-2">
+            <div className={`flex items-center space-x-4 ${className}`}>
                 {spinner}
-                <span className={`text-sm ${getTextColorClasses()}`}>
-                    {text}
+                <span className="text-sm font-medium text-gray-400 tracking-wide">
+                    {displayText}
                 </span>
             </div>
         );
     }
 
-    return spinner;
+    return <div className={className}>{spinner}</div>;
 };
 
 export default LoadingSpinner;

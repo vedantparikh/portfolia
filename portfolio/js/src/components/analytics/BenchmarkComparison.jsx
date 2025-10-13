@@ -1,12 +1,12 @@
 import {
     BarChart3,
     Plus,
-    RefreshCw,
     Target
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { analyticsAPI } from '../../services/api';
 import { formatCurrency, formatPercentage } from '../../utils/formatters.jsx';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const BenchmarkComparison = ({ portfolioId }) => {
     const [benchmarks, setBenchmarks] = useState([]);
@@ -76,8 +76,7 @@ const BenchmarkComparison = ({ portfolioId }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 text-primary-400 animate-spin" />
-                <span className="ml-3 text-gray-400">Loading benchmarks...</span>
+                <LoadingSpinner type="analyst" size="lg" text="Loading benchmarks..." />
             </div>
         );
     }
@@ -131,8 +130,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div
                                 key={benchmark.id}
                                 className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors ${selectedBenchmark?.id === benchmark.id
-                                        ? 'bg-primary-600/20 border border-primary-600/50'
-                                        : 'bg-dark-800 hover:bg-dark-700'
+                                    ? 'bg-primary-600/20 border border-primary-600/50'
+                                    : 'bg-dark-800 hover:bg-dark-700'
                                     }`}
                                 onClick={() => handleSelectBenchmark(benchmark)}
                             >
@@ -188,8 +187,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div className="text-center">
                                 <p className="text-sm text-gray-400">Outperformance</p>
                                 <p className={`text-2xl font-bold ${comparison.comparison?.outperforming
-                                        ? 'text-success-400'
-                                        : 'text-danger-400'
+                                    ? 'text-success-400'
+                                    : 'text-danger-400'
                                     }`}>
                                     {comparison.comparison?.outperforming ? '+' : ''}
                                     {comparison.comparison?.cagr_difference ?
@@ -291,8 +290,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div className="text-center p-4 bg-dark-800 rounded-lg">
                                 <p className="text-sm text-gray-400">CAGR Difference</p>
                                 <p className={`text-lg font-semibold ${comparison.comparison?.cagr_difference && comparison.comparison.cagr_difference >= 0
-                                        ? 'text-success-400'
-                                        : 'text-danger-400'
+                                    ? 'text-success-400'
+                                    : 'text-danger-400'
                                     }`}>
                                     {comparison.comparison?.cagr_difference ?
                                         `${comparison.comparison.cagr_difference >= 0 ? '+' : ''}${formatPercentage(comparison.comparison.cagr_difference)}` : 'N/A'}
@@ -302,8 +301,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div className="text-center p-4 bg-dark-800 rounded-lg">
                                 <p className="text-sm text-gray-400">XIRR Difference</p>
                                 <p className={`text-lg font-semibold ${comparison.comparison?.xirr_difference && comparison.comparison.xirr_difference >= 0
-                                        ? 'text-success-400'
-                                        : 'text-danger-400'
+                                    ? 'text-success-400'
+                                    : 'text-danger-400'
                                     }`}>
                                     {comparison.comparison?.xirr_difference ?
                                         `${comparison.comparison.xirr_difference >= 0 ? '+' : ''}${formatPercentage(comparison.comparison.xirr_difference)}` : 'N/A'}
@@ -313,8 +312,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div className="text-center p-4 bg-dark-800 rounded-lg">
                                 <p className="text-sm text-gray-400">TWR Difference</p>
                                 <p className={`text-lg font-semibold ${comparison.comparison?.twr_difference && comparison.comparison.twr_difference >= 0
-                                        ? 'text-success-400'
-                                        : 'text-danger-400'
+                                    ? 'text-success-400'
+                                    : 'text-danger-400'
                                     }`}>
                                     {comparison.comparison?.twr_difference ?
                                         `${comparison.comparison.twr_difference >= 0 ? '+' : ''}${formatPercentage(comparison.comparison.twr_difference)}` : 'N/A'}
@@ -324,8 +323,8 @@ const BenchmarkComparison = ({ portfolioId }) => {
                             <div className="text-center p-4 bg-dark-800 rounded-lg">
                                 <p className="text-sm text-gray-400">MWR Difference</p>
                                 <p className={`text-lg font-semibold ${comparison.comparison?.mwr_difference && comparison.comparison.mwr_difference >= 0
-                                        ? 'text-success-400'
-                                        : 'text-danger-400'
+                                    ? 'text-success-400'
+                                    : 'text-danger-400'
                                     }`}>
                                     {comparison.comparison?.mwr_difference ?
                                         `${comparison.comparison.mwr_difference >= 0 ? '+' : ''}${formatPercentage(comparison.comparison.mwr_difference)}` : 'N/A'}

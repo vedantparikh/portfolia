@@ -9,9 +9,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { ClientSideAssetSearch } from "../shared";
+import transactionTypes from "../../utils/transactionTypes";
 
 const ParsedDataTable = ({
   parsedData,
@@ -21,27 +22,17 @@ const ParsedDataTable = ({
   allAssets = [],
 }) => {
   const [transactions, setTransactions] = useState([]);
-  const [editingRow, setEditingRow] = useState(null);
+  const [editingRowId, setEditingRowId] = useState(null); // Changed from index to ID for stability
+  const [frozenTransactions, setFrozenTransactions] = useState([]); // Holds the sorted list when editing to "freeze" it
+  const [originalTransaction, setOriginalTransaction] = useState(null); // Holds the state of a row before editing to allow for cancellation
+  const [scrollToId, setScrollToId] = useState(null); // Stores the ID of the row to scroll to after saving
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [selectedPortfolio, setSelectedPortfolio] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [saveErrors, setSaveErrors] = useState({}); // e.g., { 'temp_id_123': 'Invalid symbol' }
+  const [saveErrors, setSaveErrors] = useState({});
 
-  const transactionTypes = [
-    { value: "buy", label: "Buy" },
-    { value: "sell", label: "Sell" },
-    { value: "dividend", label: "Dividend" },
-    { value: "split", label: "Stock Split" },
-    { value: "merger", label: "Merger" },
-    { value: "spin_off", label: "Spin-off" },
-    { value: "rights_issue", label: "Rights Issue" },
-    { value: "stock_option_exercise", label: "Option Exercise" },
-    { value: "transfer_in", label: "Transfer In" },
-    { value: "transfer_out", label: "Transfer Out" },
-    { value: "fee", label: "Fee" },
-    { value: "other", label: "Other" },
-  ];
+  const rowRefs = useRef({}); // To store DOM references for each table row for scrolling
 
   const allAssetsJson = JSON.stringify(allAssets);
 
@@ -55,6 +46,13 @@ const ParsedDataTable = ({
   const transactionsJson = JSON.stringify(parsedData?.transactions);
 
   useEffect(() => {
+
+    // Guard clause: Wait until the asset list is loaded before processing transactions.
+    // This prevents the race condition where transactions are mapped with an empty symbol map.
+    if (allAssets.length === 0 && parsedData?.transactions?.length > 0) {
+      return;
+    }
+
     const parsedTransactions = transactionsJson ? JSON.parse(transactionsJson) : [];
     if (!parsedTransactions || parsedTransactions.length === 0) {
       setTransactions([]);
@@ -66,7 +64,7 @@ const ParsedDataTable = ({
       return {
         ...t,
         symbol: t.symbol?.trim(),
-        id: t.id || `initial_${index}`,
+        id: t.id || `initial_${index}`, // Ensure every transaction has a unique ID
         asset_id: matchedAsset ? matchedAsset.id : null,
         name: matchedAsset ? matchedAsset.name : t.name,
       };
@@ -74,12 +72,72 @@ const ParsedDataTable = ({
     setTransactions(initialTransactions);
   }, [transactionsJson, assetSymbolMap]);
 
-  const handleEdit = (index) => setEditingRow(index);
-  const handleSave = (index) => setEditingRow(null);
-  const handleCancel = () => setEditingRow(null);
+  // Helper function to identify incomplete transactions
+  const isTransactionIncomplete = (txn) => {
+    if (!txn.asset_id && txn.symbol) {
+      return true; // Unmatched symbol
+    }
+    if (["buy", "sell"].includes(txn.transaction_type?.toLowerCase())) {
+      const quantity = parseFloat(txn.quantity);
+      const price = parseFloat(txn.price);
+      if (isNaN(quantity) || quantity === 0 || isNaN(price) || price === 0) {
+        return true; // Zero quantity or price for buy/sell
+      }
+    }
+    return false;
+  };
 
-  const handleDelete = (index) => {
-    setTransactions(transactions.filter((_, i) => i !== index));
+  // Memoized sorting logic
+  const sortedTransactions = useMemo(() => {
+    return [...transactions].sort((a, b) => {
+      const aIsIncomplete = isTransactionIncomplete(a);
+      const bIsIncomplete = isTransactionIncomplete(b);
+      if (aIsIncomplete !== bIsIncomplete) {
+        return aIsIncomplete ? -1 : 1; // Incomplete rows are always pushed to the top
+      }
+      // For rows of the same status (both complete or both incomplete), sort by date
+      return new Date(b.transaction_date) - new Date(a.transaction_date);
+    });
+  }, [transactions]);
+  
+  // Decide whether to show the live sorted list or the "frozen" list during editing
+  const transactionsToRender = editingRowId ? frozenTransactions : sortedTransactions;
+
+  // Effect to handle scrolling to the saved row
+  useEffect(() => {
+    if (scrollToId && rowRefs.current[scrollToId]) {
+      rowRefs.current[scrollToId].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setScrollToId(null); // Reset after scrolling
+    }
+  }, [scrollToId, transactionsToRender]);
+
+  const handleEdit = (id) => {
+    const txToEdit = transactions.find(t => t.id === id);
+    setOriginalTransaction(txToEdit); // Save state for potential cancellation
+    setFrozenTransactions(sortedTransactions); // "Freeze" the current sort order
+    setEditingRowId(id);
+  };
+
+  const handleSave = (id) => {
+    setEditingRowId(null);
+    setOriginalTransaction(null);
+    setScrollToId(id); // Set the ID to scroll to after the list re-sorts
+  };
+
+  const handleCancel = (id) => {
+    // Revert the transaction to its original state before editing began
+    setTransactions((current) =>
+      current.map((t) => (t.id === id ? originalTransaction : t))
+    );
+    setEditingRowId(null);
+    setOriginalTransaction(null);
+  };
+
+  const handleDelete = (id) => {
+    setTransactions(transactions.filter((t) => t.id !== id));
     toast.success("Transaction removed");
   };
 
@@ -97,57 +155,74 @@ const ParsedDataTable = ({
       fees: 0,
       notes: "",
     };
-    setTransactions([newTransaction, ...transactions]);
-    setEditingRow(0);
+    const newMasterList = [newTransaction, ...transactions];
+    setTransactions(newMasterList);
+
+    // Freeze the view with the new transaction at the top for immediate editing
+    const newFrozenList = [newTransaction, ...sortedTransactions];
+    setFrozenTransactions(newFrozenList);
+    setEditingRowId(newTransaction.id);
+    setOriginalTransaction(newTransaction);
   };
 
-  const handleFieldChange = (index, field, value) => {
-    const newTransactions = [...transactions];
-    const updatedTransaction = { ...newTransactions[index], [field]: value };
+  const handleFieldChange = (id, field, value) => {
+    const updateFunction = (prev) =>
+      prev.map(t => {
+        if (t.id === id) {
+          const updated = { ...t, [field]: value };
+          if (["quantity", "price", "fees"].includes(field)) {
+            const quantity = parseFloat(updated.quantity) || 0;
+            const price = parseFloat(updated.price) || 0;
+            const fees = parseFloat(updated.fees) || 0;
+            updated.total_amount = quantity * price + fees;
+          }
+          return updated;
+        }
+        return t;
+      });
 
-    if (["quantity", "price", "fees"].includes(field)) {
-      const quantity = parseFloat(updatedTransaction.quantity) || 0;
-      const price = parseFloat(updatedTransaction.price) || 0;
-      const fees = parseFloat(updatedTransaction.fees) || 0;
-      updatedTransaction.total_amount = quantity * price + fees;
+    // Update both the master list and the frozen list to keep the UI in sync
+    setTransactions(updateFunction);
+    if (editingRowId) {
+      setFrozenTransactions(updateFunction);
     }
-    newTransactions[index] = updatedTransaction;
-    setTransactions(newTransactions);
   };
 
-  const handleSymbolSelect = (asset, index) => {
-    handleFieldChange(index, "symbol", asset.symbol);
-    handleFieldChange(index, "name", asset.name);
-    handleFieldChange(index, "asset_id", asset.id);
+  const handleSymbolSelect = (asset, id) => {
+    const changes = { symbol: asset.symbol, name: asset.name, asset_id: asset.id };
+    const updateFunction = (prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...changes } : t));
+    
+    setTransactions(updateFunction);
+    if (editingRowId) {
+      setFrozenTransactions(updateFunction);
+    }
   };
 
-  const handleSymbolChange = (value, index) => {
-    const newTransactions = [...transactions];
-    const updatedTransaction = { ...newTransactions[index], symbol: value };
+  const handleSymbolChange = (value, id) => {
     const matchedAsset = assetSymbolMap.get(value?.trim().toUpperCase());
-    if (matchedAsset) {
-      updatedTransaction.asset_id = matchedAsset.id;
-      updatedTransaction.name = matchedAsset.name;
-    } else {
-      updatedTransaction.asset_id = null;
-      if (!value) updatedTransaction.name = "";
+    const changes = {
+      symbol: value,
+      asset_id: matchedAsset ? matchedAsset.id : null,
+      name: matchedAsset ? matchedAsset.name : (value ? transactions.find(t => t.id === id)?.name : ''),
+    };
+    const updateFunction = (prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...changes } : t));
+
+    setTransactions(updateFunction);
+    if (editingRowId) {
+        setFrozenTransactions(updateFunction);
     }
-    newTransactions[index] = updatedTransaction;
-    setTransactions(newTransactions);
   };
 
   const handleBulkSave = async () => {
     if (!selectedPortfolio) return toast.error("Please select a portfolio");
     if (transactions.length === 0) return toast.error("No transactions to save");
 
-    // This pre-save validation is good to keep.
-    const transactionsWithUnmatchedSymbol = transactions.filter(
-      (txn) => txn.symbol && !txn.asset_id
-    );
-
-    if (transactionsWithUnmatchedSymbol.length > 0) {
+    const incompleteTransactions = transactions.filter(isTransactionIncomplete);
+    if (incompleteTransactions.length > 0) {
       return toast.error(
-        `Error: ${transactionsWithUnmatchedSymbol.length} transaction(s) have an unmatched symbol. Please correct them before importing.`
+        `Error: ${incompleteTransactions.length} transaction(s) have incomplete data. Please correct them before importing.`
       );
     }
 
@@ -168,25 +243,18 @@ const ParsedDataTable = ({
         notes: txn.notes || `Imported from ${parsedData.provider} statement`,
       }));
 
-      // The 'onSave' call now receives the actual API response.
       const response = await onSave(selectedPortfolio, transactionData);
 
-      // --- NEW LOGIC STARTS HERE ---
-
-      // 1. Use the ACTUAL keys from your API response, defaulting to 0 for safety.
       const totalSucceeded = response?.summary?.total_created ?? 0;
       const totalFailed = response?.summary?.total_failed ?? 0;
       const errors = response?.summary?.errors || [];
 
-      // 2. Check if the response format is what we expect.
       if (!response?.summary) {
         toast.error("Received an invalid response from the server.");
-        setIsSaving(false); // Stop the spinner
+        setIsSaving(false);
         return;
       }
       
-      // 3. Process and display errors on the failed rows.
-      // This assumes your `errors` array contains objects like { temp_id: '...', error: '...' }
       const newSaveErrors = {};
       errors.forEach(err => {
         if (err.temp_id) {
@@ -195,7 +263,6 @@ const ParsedDataTable = ({
       });
       setSaveErrors(newSaveErrors);
 
-      // 4. Display toast messages based on the outcome.
       if (totalSucceeded > 0) {
         toast.success(`${totalSucceeded} transaction(s) imported successfully.`);
       }
@@ -203,10 +270,8 @@ const ParsedDataTable = ({
         toast.error(`${totalFailed} transaction(s) failed. Please review the highlighted rows.`);
       }
 
-      // 5. IMPORTANT: Only close the modal on a FULL success.
-      // If any transactions failed, the modal stays open for the user to review.
       if (totalSucceeded > 0 && totalFailed === 0) {
-        onCancel(); // Close the modal
+        onCancel();
       } else if (totalSucceeded === 0 && totalFailed === 0) {
         toast.success("Import process finished. No new transactions were added.");
       }
@@ -219,7 +284,8 @@ const ParsedDataTable = ({
     }
   };
 
-  const filteredTransactions = transactions.filter((txn) => {
+  // Apply search and type filters to the list being rendered
+  const filteredTransactions = transactionsToRender.filter((txn) => {
     const matchesSearch = !searchQuery ||
       txn.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       txn.symbol?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -294,7 +360,7 @@ const ParsedDataTable = ({
               </div>
             )}
           <table className="w-full">
-            <thead className="bg-gray-700 sticky top-0">
+            <thead className="bg-gray-700 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Type</th>
@@ -309,31 +375,38 @@ const ParsedDataTable = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
-              {filteredTransactions.map((transaction, index) => {
+              {filteredTransactions.map((transaction) => {
                 const saveError = saveErrors[transaction.id];
-                const needsAsset = !transaction.asset_id;
+                const isIncomplete = isTransactionIncomplete(transaction);
+                const isEditing = editingRowId === transaction.id;
 
-                let rowClassName = "hover:bg-gray-700/50 transition-colors";
+                let rowClassName = "transition-colors";
+                if (isEditing) {
+                    rowClassName += " bg-primary-900/40";
+                } else {
+                    rowClassName += " hover:bg-gray-700/50";
+                }
+
                 if (saveError) {
                   rowClassName += " bg-danger-900/40 border-l-2 border-danger-400";
-                } else if (needsAsset) {
+                } else if (isIncomplete) {
                   rowClassName += " bg-danger-900/20";
                 }
 
                 return (
-                  <tr key={transaction.id} className={rowClassName} title={saveError ? `Error: ${saveError}` : "This transaction is ready to be imported."}>
-                    <td className="px-4 py-3 text-sm text-gray-300">{editingRow === index ? <input type="date" value={transaction.transaction_date} onChange={(e) => handleFieldChange(index, "transaction_date", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.transaction_date}</td>
-                    <td className="px-4 py-3 text-sm">{editingRow === index ? <select value={transaction.transaction_type} onChange={(e) => handleFieldChange(index, "transaction_type", e.target.value)} className="input-field py-1 px-2 text-sm w-full">{transactionTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}</select> : <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.transaction_type === "buy" ? "bg-success-500/20 text-success-400" : transaction.transaction_type === "sell" ? "bg-danger-500/20 text-danger-400" : "bg-primary-500/20 text-primary-400"}`}>{transactionTypes.find((t) => t.value === transaction.transaction_type)?.label || transaction.transaction_type}</span>}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{editingRow === index ? <input type="text" value={transaction.name} onChange={(e) => handleFieldChange(index, "name", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Company name" /> : transaction.name}</td>
+                  <tr key={transaction.id} ref={el => (rowRefs.current[transaction.id] = el)} className={rowClassName} title={saveError ? `Error: ${saveError}` : (isIncomplete ? "This transaction has incomplete data and requires attention." : "This transaction is ready to be imported.")}>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="date" value={transaction.transaction_date} onChange={(e) => handleFieldChange(transaction.id, "transaction_date", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.transaction_date}</td>
+                    <td className="px-4 py-3 text-sm">{isEditing ? <select value={transaction.transaction_type} onChange={(e) => handleFieldChange(transaction.id, "transaction_type", e.target.value)} className="input-field py-1 px-2 text-sm w-full">{transactionTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}</select> : <span className={`px-2 py-1 rounded-full text-xs font-medium ${transaction.transaction_type === "buy" ? "bg-success-500/20 text-success-400" : transaction.transaction_type === "sell" ? "bg-danger-500/20 text-danger-400" : "bg-primary-500/20 text-primary-400"}`}>{transactionTypes.find((t) => t.value === transaction.transaction_type)?.label || transaction.transaction_type}</span>}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="text" value={transaction.name} onChange={(e) => handleFieldChange(transaction.id, "name", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Company name" /> : transaction.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">
-                      {editingRow === index ? (<div className="relative flex items-center"><ClientSideAssetSearch value={transaction.symbol || ""} onChange={(value) => handleSymbolChange(value, index)} onSelect={(asset) => handleSymbolSelect(asset, index)} placeholder="Search symbol..." showSuggestions={true} preloadAssets={true} />{transaction.symbol && (<div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">{transaction.asset_id ? (<CheckCircle className="text-success-400" size={16} />) : (<AlertTriangle className="text-danger-400" size={16} />)}</div>)}</div>) : !transaction.asset_id && transaction.symbol ? (<div className="flex items-center space-x-2 text-danger-400" title="Symbol not found. Please edit and select a valid asset."><span>{transaction.symbol}</span><AlertTriangle size={14} /></div>) : (transaction.symbol || "-")}
+                      {isEditing ? (<div className="relative flex items-center"><ClientSideAssetSearch value={transaction.symbol || ""} onChange={(value) => handleSymbolChange(value, transaction.id)} onSelect={(asset) => handleSymbolSelect(asset, transaction.id)} placeholder="Search symbol..." showSuggestions={true} preloadAssets={true} /><div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">{transaction.symbol && (transaction.asset_id ? (<CheckCircle className="text-success-400" size={16} />) : (<AlertTriangle className="text-danger-400" size={16} />))}</div></div>) : !transaction.asset_id && transaction.symbol ? (<div className="flex items-center space-x-2 text-danger-400" title="Symbol not found. Please edit and select a valid asset."><span>{transaction.symbol}</span><AlertTriangle size={14} /></div>) : (transaction.symbol || "-")}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{editingRow === index ? <input type="number" step="0.0001" value={transaction.quantity} onChange={(e) => handleFieldChange(index, "quantity", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.quantity}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{editingRow === index ? <input type="number" step="0.01" value={transaction.price} onChange={(e) => handleFieldChange(index, "price", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.price || "0.00"}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{editingRow === index ? <input type="number" step="0.01" value={transaction.fees} onChange={(e) => handleFieldChange(index, "fees", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.fees || "0.00"}`}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">${transaction.total_amount || "0.00"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{editingRow === index ? <input type="text" value={transaction.notes} onChange={(e) => handleFieldChange(index, "notes", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Add a note..." /> : transaction.notes || "-"}</td>
-                    <td className="px-4 py-3 text-sm"><div className="flex items-center space-x-2">{editingRow === index ? (<><button onClick={() => handleSave(index)} className="text-success-400 hover:text-success-300"><Save size={16} /></button><button onClick={handleCancel} className="text-gray-400 hover:text-gray-300"><X size={16} /></button></>) : (<><button onClick={() => handleEdit(index)} className="text-primary-400 hover:text-primary-300"><Edit2 size={16} /></button><button onClick={() => handleDelete(index)} className="text-danger-400 hover:text-danger-300"><Trash2 size={16} /></button></>)}</div></td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.quantity} onChange={(e) => handleFieldChange(transaction.id, "quantity", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : transaction.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.price} onChange={(e) => handleFieldChange(transaction.id, "price", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.price?.toLocaleString() || "0.00"}`}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300">{isEditing ? <input type="number" step="any" value={transaction.fees} onChange={(e) => handleFieldChange(transaction.id, "fees", e.target.value)} className="input-field py-1 px-2 text-sm w-full" /> : `$${transaction.fees?.toLocaleString() || "0.00"}`}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300 font-medium">${transaction.total_amount?.toLocaleString() || "0.00"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-300 max-w-xs truncate">{isEditing ? <input type="text" value={transaction.notes} onChange={(e) => handleFieldChange(transaction.id, "notes", e.target.value)} className="input-field py-1 px-2 text-sm w-full" placeholder="Add a note..." /> : transaction.notes || "-"}</td>
+                    <td className="px-4 py-3 text-sm"><div className="flex items-center space-x-2">{isEditing ? (<><button onClick={() => handleSave(transaction.id)} className="text-success-400 hover:text-success-300"><Save size={16} /></button><button onClick={() => handleCancel(transaction.id)} className="text-gray-400 hover:text-gray-300"><X size={16} /></button></>) : (<><button onClick={() => handleEdit(transaction.id)} className="text-primary-400 hover:text-primary-300"><Edit2 size={16} /></button><button onClick={() => handleDelete(transaction.id)} className="text-danger-400 hover:text-danger-300"><Trash2 size={16} /></button></>)}</div></td>
                   </tr>
                 );
               })}
@@ -341,7 +414,7 @@ const ParsedDataTable = ({
           </table>
         </div>
         <div className="flex items-center justify-between p-6 border-t border-gray-700">
-          <div className="text-sm text-gray-400">{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""} ready to import</div>
+          <div className="text-sm text-gray-400">{filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""} shown</div>
           <div className="flex items-center space-x-3">
             <button onClick={onCancel} className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors">Cancel</button>
             <button onClick={handleBulkSave} disabled={!selectedPortfolio || transactions.length === 0 || isSaving} className="btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[260px]">

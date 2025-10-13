@@ -23,12 +23,11 @@ import {
   formatVolume,
 } from "../../utils/formatters";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
-import { Sidebar } from "../shared";
+import { LoadingSpinner, Sidebar } from "../shared";
 
 const CardLoader = ({ text = "Loading..." }) => (
   <div className="flex items-center justify-center py-8">
-    <RefreshCw className="w-6 h-6 text-primary-400 animate-spin" />
-    <span className="ml-3 text-gray-400">{text}</span>
+    <LoadingSpinner type="analyst" size="md" text={text} />
   </div>
 );
 
@@ -381,11 +380,10 @@ const Dashboard = () => {
                         >
                           <div className="flex items-center space-x-3">
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                transaction.transaction_type === "buy"
-                                  ? "bg-success-400/20"
-                                  : "bg-danger-400/20"
-                              }`}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
+                                ? "bg-success-400/20"
+                                : "bg-danger-400/20"
+                                }`}
                             >
                               {transaction.transaction_type === "buy" ? (
                                 <TrendingUp
@@ -411,11 +409,10 @@ const Dashboard = () => {
                           </div>
                           <div className="text-right">
                             <p
-                              className={`text-sm font-medium ${
-                                transaction.transaction_type === "buy"
-                                  ? "text-danger-400"
-                                  : "text-success-400"
-                              }`}
+                              className={`text-sm font-medium ${transaction.transaction_type === "buy"
+                                ? "text-danger-400"
+                                : "text-success-400"
+                                }`}
                             >
                               {transaction.transaction_type === "buy"
                                 ? "-"
@@ -467,12 +464,11 @@ const Dashboard = () => {
                               </p>
                             </div>
                             <span
-                              className={`text-xs px-2 py-1 rounded shrink-0 ${
-                                (asset.detail?.price_change_percentage_24h ??
-                                  0) >= 0
-                                  ? "bg-success-400/20 text-success-400"
-                                  : "bg-danger-400/20 text-danger-400"
-                              }`}
+                              className={`text-xs px-2 py-1 rounded shrink-0 ${(asset.detail?.price_change_percentage_24h ??
+                                0) >= 0
+                                ? "bg-success-400/20 text-success-400"
+                                : "bg-danger-400/20 text-danger-400"
+                                }`}
                             >
                               {formatPercentage(
                                 asset.detail?.price_change_percentage_24h,
@@ -509,11 +505,11 @@ const Dashboard = () => {
                             <span className="font-medium text-gray-100">
                               {asset.detail?.low_52w && asset.detail?.high_52w
                                 ? `${formatCurrency(asset.detail.low_52w, {
-                                    compact: true,
-                                  })} - ${formatCurrency(
-                                    asset.detail.high_52w,
-                                    { compact: true }
-                                  )}`
+                                  compact: true,
+                                })} - ${formatCurrency(
+                                  asset.detail.high_52w,
+                                  { compact: true }
+                                )}`
                                 : "N/A"}
                             </span>
                           </div>

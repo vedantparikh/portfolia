@@ -1,12 +1,8 @@
 import { Filter, X } from 'lucide-react';
 import React from 'react';
+import transactionTypes from '../../utils/transactionTypes';
 
 const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
-    const transactionTypes = [
-        { value: 'all', label: 'All Types' },
-        { value: 'buy', label: 'Buy Orders' },
-        { value: 'sell', label: 'Sell Orders' }
-    ];
 
     const dateRanges = [
         { value: 'all', label: 'All Time' },

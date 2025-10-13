@@ -14,8 +14,9 @@ import toast from 'react-hot-toast';
 import { portfolioAPI, transactionAPI } from '../../services/api';
 import AssetFilters from '../assets/AssetFilters';
 import AssetModal from '../assets/AssetModal';
-import PortfolioAssetCard from './PortfolioAssetCard';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import CreateTransactionModal from '../transactions/CreateTransactionModal';
+import PortfolioAssetCard from './PortfolioAssetCard';
 
 
 const PortfolioAssets = ({ portfolio, onRefresh }) => {
@@ -372,8 +373,7 @@ const PortfolioAssets = ({ portfolio, onRefresh }) => {
         return (
             <div className="space-y-6">
                 <div className="text-center py-12">
-                    <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-4" />
-                    <p className="text-gray-400">Loading portfolio assets...</p>
+                    <LoadingSpinner type="analyst" size="lg" text="Loading portfolio assets..." centered />
                 </div>
             </div>
         );

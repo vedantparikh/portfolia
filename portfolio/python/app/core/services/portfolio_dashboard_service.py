@@ -3,7 +3,7 @@ Portfolio Dashboard Service
 Comprehensive service for portfolio dashboard data aggregation and presentation.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from sqlalchemy import and_, desc
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from core.database.models import (
     Asset,
-    AssetPrice,
     Portfolio,
     PortfolioAsset,
     Transaction,
@@ -29,6 +28,7 @@ class PortfolioDashboardService:
 
     def __init__(self, db: Session):
         self.db = db
+        self.portfolio_service = PortfolioService(db)
 
     async def get_dashboard_overview(self, portfolio_id: int, user_id: int) -> Dict[str, Any]:
         """Get comprehensive dashboard overview for a portfolio."""
@@ -50,7 +50,7 @@ class PortfolioDashboardService:
 
         # Get current holdings
         holdings = await self._get_portfolio_holdings(portfolio_id)
-        
+
         # Calculate basic metrics
         total_value = sum(float(h.current_value or h.cost_basis_total) for h in holdings)
         total_cost_basis = sum(float(h.cost_basis_total) for h in holdings)
@@ -59,13 +59,13 @@ class PortfolioDashboardService:
 
         # Get performance metrics
         performance_metrics = self._get_performance_metrics(portfolio_id)
-        
+
         # Get risk metrics
         risk_metrics = self._get_risk_metrics(portfolio_id)
-        
+
         # Get allocation breakdown
         allocation_breakdown = self._get_allocation_breakdown(holdings, total_value)
-        
+
         # Get recent activity
         recent_activity = self._get_recent_activity(portfolio_id, limit=10)
 
@@ -105,7 +105,7 @@ class PortfolioDashboardService:
         for portfolio_asset, asset in holdings_data:
             # Update P&L if needed
             if portfolio_asset.current_value is None:
-                await self._update_asset_pnl(portfolio_asset)
+                await self.portfolio_service.update_asset_pnl(portfolio_asset)
 
             holding = PortfolioHolding(
                 asset_id=asset.id,
@@ -264,89 +264,3 @@ class PortfolioDashboardService:
             })
 
         return activity
-
-    async def _update_asset_pnl(self, portfolio_asset: PortfolioAsset) -> None:
-        """Update unrealized P&L for a portfolio asset."""
-        # This would integrate with your existing market data service
-        # For now, we'll use a simplified approach
-
-        portfolio_service = PortfolioService(self.db)
-        await portfolio_service._update_asset_pnl(portfolio_asset)
-
-    def get_portfolio_performance_chart_data(
-        self, portfolio_id: int, days: int = 30
-    ) -> Dict[str, Any]:
-        """Get portfolio performance chart data."""
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days)
-
-        # Get performance history
-        performance_data = (
-            self.db.query(PortfolioPerformanceHistory)
-            .filter(
-                and_(
-                    PortfolioPerformanceHistory.portfolio_id == portfolio_id,
-                    PortfolioPerformanceHistory.snapshot_date >= start_date,
-                )
-            )
-            .order_by(PortfolioPerformanceHistory.snapshot_date)
-            .all()
-        )
-
-        chart_data = {
-            "dates": [],
-            "values": [],
-            "returns": [],
-            "cumulative_returns": [],
-        }
-
-        for snapshot in performance_data:
-            chart_data["dates"].append(snapshot.snapshot_date.isoformat())
-            chart_data["values"].append(float(snapshot.total_value))
-            chart_data["returns"].append(float(snapshot.daily_return or 0))
-            chart_data["cumulative_returns"].append(float(snapshot.cumulative_return or 0))
-
-        return chart_data
-
-    def get_asset_performance_chart_data(
-        self, asset_id: int, days: int = 30
-    ) -> Dict[str, Any]:
-        """Get asset performance chart data."""
-
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=days)
-
-        # Get price data
-        price_data = (
-            self.db.query(AssetPrice)
-            .filter(
-                and_(
-                    AssetPrice.asset_id == asset_id,
-                    AssetPrice.date >= start_date,
-                )
-            )
-            .order_by(AssetPrice.date)
-            .all()
-        )
-
-        chart_data = {
-            "dates": [],
-            "prices": [],
-            "volumes": [],
-            "returns": [],
-        }
-
-        for price in price_data:
-            chart_data["dates"].append(price.date.isoformat())
-            chart_data["prices"].append(float(price.close_price))
-            chart_data["volumes"].append(float(price.volume or 0))
-
-        # Calculate returns
-        if len(chart_data["prices"]) > 1:
-            for i in range(1, len(chart_data["prices"])):
-                prev_price = chart_data["prices"][i - 1]
-                curr_price = chart_data["prices"][i]
-                daily_return = (curr_price - prev_price) / prev_price
-                chart_data["returns"].append(daily_return)
-
-        return chart_data

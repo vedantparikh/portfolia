@@ -94,7 +94,7 @@ const Assets = () => {
                 sort_order: filters.sortOrder,
             };
 
-            if (searchQuery) apiParams.symbol = searchQuery;
+            if (searchQuery) apiParams.query = searchQuery;
             if (filters.category !== 'all') {
                 const categoryMap = {
                     'cryptocurrency': 'CRYPTOCURRENCY',

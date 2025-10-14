@@ -14,7 +14,7 @@ const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
     ];
 
     const sortOptions = [
-        { value: 'created_at', label: 'Date' },
+        { value: 'transaction_date', label: 'Date' },
         { value: 'amount', label: 'Amount' },
         { value: 'symbol', label: 'Symbol' },
         { value: 'type', label: 'Type' }
@@ -34,7 +34,7 @@ const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
             portfolio: 'all',
             type: 'all',
             dateRange: 'all',
-            sortBy: 'created_at',
+            sortBy: 'transaction_date',
             sortOrder: 'desc'
         });
     };
@@ -43,7 +43,7 @@ const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
         return filters.portfolio !== 'all' ||
             filters.type !== 'all' ||
             filters.dateRange !== 'all' ||
-            filters.sortBy !== 'created_at' ||
+            filters.sortBy !== 'transaction_date' ||
             filters.sortOrder !== 'desc';
     };
 
@@ -180,7 +180,7 @@ const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
                             {dateRanges.find(r => r.value === filters.dateRange)?.label}
                         </span>
                     )}
-                    {filters.sortBy !== 'created_at' && (
+                    {filters.sortBy !== 'transaction_date' && (
                         <span className="px-2 py-1 bg-primary-600/20 text-primary-400 text-xs rounded-full">
                             Sort: {sortOptions.find(o => o.value === filters.sortBy)?.label}
                         </span>

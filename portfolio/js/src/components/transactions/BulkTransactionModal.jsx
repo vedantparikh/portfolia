@@ -21,11 +21,13 @@ const createEmptyTransaction = () => ({
   transaction_date: new Date().toISOString().split("T")[0], // Default to today
 });
 
+const LOCAL_STORAGE_KEY_PREFIX = "bulkTransactions_";
+
 const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
-  const [transactions, setTransactions] = useState([createEmptyTransaction()]);
   const [portfolioId, setPortfolioId] = useState(
     portfolios?.[0]?.id.toString() || ""
   );
+  const [transactions, setTransactions] = useState([createEmptyTransaction()]);
   const [isSaving, setIsSaving] = useState(false);
   const [showTips, setShowTips] = useState(true);
   const [focusedRow, setFocusedRow] = useState(null);
@@ -34,6 +36,42 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
     // Preload assets to make the asset dropdowns responsive
     assetCache.preloadAssets();
   }, []);
+
+  // useEffect to LOAD transactions from local storage when the portfolio changes.
+  useEffect(() => {
+    if (!portfolioId) return; // Don't load if no portfolio is selected
+
+    const storageKey = `${LOCAL_STORAGE_KEY_PREFIX}${portfolioId}`;
+    try {
+      const savedTransactions = localStorage.getItem(storageKey);
+      if (savedTransactions) {
+        // If data is found, parse it and set it as the current state.
+        setTransactions(JSON.parse(savedTransactions));
+      } else {
+        // If no data is found for this portfolio, reset to a single blank row.
+        setTransactions([createEmptyTransaction()]);
+      }
+    } catch (error) {
+      console.error("Failed to read transactions from local storage:", error);
+      setTransactions([createEmptyTransaction()]); // Reset on error
+    }
+  }, [portfolioId]); // This effect re-runs whenever the selected portfolioId changes.
+
+  // useEffect to SAVE transactions to local storage whenever they are modified.
+  useEffect(() => {
+    if (!portfolioId || transactions.length === 0) return;
+
+    // Avoid saving the initial, completely blank state.
+    const hasUserInput = transactions.some(t => t.asset_id || t.quantity || t.price);
+    if (!hasUserInput && transactions.length === 1) return;
+
+    const storageKey = `${LOCAL_STORAGE_KEY_PREFIX}${portfolioId}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(transactions));
+    } catch (error) {
+      console.error("Failed to save transactions to local storage:", error);
+    }
+  }, [transactions, portfolioId]); // This effect re-runs on any change to transactions or portfolioId.
 
   const completeTransactions = useMemo(() => {
     return transactions.filter(
@@ -150,6 +188,9 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
       }));
 
       await onSave(parseInt(portfolioId), transactionsToSave);
+
+      const storageKey = `${LOCAL_STORAGE_KEY_PREFIX}${portfolioId}`;
+      localStorage.removeItem(storageKey);
     } catch (error) {
       // Error toast is handled in the parent component
     } finally {

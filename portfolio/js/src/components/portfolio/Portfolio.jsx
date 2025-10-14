@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import { portfolioAPI, transactionAPI } from "../../services/api";
 import {
   formatCurrency,
@@ -27,9 +28,11 @@ import PortfolioDetail from "./PortfolioDetail";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
 const Portfolio = () => {
+  const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [portfoliosLoading, setPortfoliosLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
@@ -66,18 +69,17 @@ const Portfolio = () => {
 
   const loadPortfolios = async () => {
     try {
-      setLoading(true);
+      // Use portfoliosLoading state
+      setPortfoliosLoading(true);
       console.log("[Portfolio] Loading portfolios...");
       const response = await portfolioAPI.getPortfolios();
       console.log("[Portfolio] Portfolios response:", response);
 
-      // Use consistent API response format
       const portfolios = Array.isArray(response) ? response : [];
 
       console.log("[Portfolio] Processed portfolios:", portfolios);
       setPortfolios(portfolios);
 
-      // Select first portfolio by default
       if (portfolios.length > 0) {
         console.log("[Portfolio] Selecting first portfolio:", portfolios[0]);
         setSelectedPortfolio(portfolios[0]);
@@ -87,7 +89,6 @@ const Portfolio = () => {
       }
     } catch (error) {
       console.error("Failed to load portfolios:", error);
-      // Show more specific error message
       if (error.response?.status === 401) {
         toast.error("Authentication failed. Please login again.");
       } else if (error.response?.status === 404) {
@@ -109,11 +110,17 @@ const Portfolio = () => {
       setPortfolios([]);
       setSelectedPortfolio(null);
     } finally {
-      setLoading(false);
+      // Use portfoliosLoading state
+      setPortfoliosLoading(false);
     }
   };
 
   const loadPortfolioDetails = async (portfolioId) => {
+    // Set details loading to true and clear previous data
+    setDetailsLoading(true);
+    setPortfolioStats(null);
+    setTransactions([]);
+
     try {
       console.log("[Portfolio] Loading details for portfolio:", portfolioId);
 
@@ -126,7 +133,6 @@ const Portfolio = () => {
         setPortfolioStats(summaryResponse);
       } catch (summaryError) {
         console.warn("Failed to load portfolio summary:", summaryError);
-        // Set default stats if summary fails
         setPortfolioStats({
           total_value: 0,
           total_cost: 0,
@@ -146,7 +152,6 @@ const Portfolio = () => {
           });
         console.log("[Portfolio] Transactions response:", transactionsResponse);
 
-        // Use consistent API response format
         const transactions = Array.isArray(transactionsResponse)
           ? transactionsResponse
           : [];
@@ -170,6 +175,9 @@ const Portfolio = () => {
       }
       setPortfolioStats(null);
       setTransactions([]);
+    } finally {
+      // Set details loading to false once complete
+      setDetailsLoading(false);
     }
   };
 
@@ -179,7 +187,6 @@ const Portfolio = () => {
       const response = await portfolioAPI.createPortfolio(portfolioData);
       console.log("[Portfolio] Create response:", response);
 
-      // Use consistent API response format
       const newPortfolio = response;
 
       setPortfolios((prev) => [...prev, newPortfolio]);
@@ -187,7 +194,6 @@ const Portfolio = () => {
       setShowCreateModal(false);
       toast.success("Portfolio created successfully");
 
-      // Load details for the new portfolio
       if (newPortfolio && newPortfolio.id) {
         loadPortfolioDetails(newPortfolio.id);
       }
@@ -204,7 +210,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to create portfolio: ${error.response?.data?.detail || error.message
+          `Failed to create portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -220,7 +227,6 @@ const Portfolio = () => {
       );
       console.log("[Portfolio] Update response:", response);
 
-      // Handle different response formats
       let updatedPortfolio = response;
       if (response && response.portfolio) {
         updatedPortfolio = response.portfolio;
@@ -232,7 +238,6 @@ const Portfolio = () => {
         prev.map((p) => (p.id === portfolioId ? updatedPortfolio : p))
       );
 
-      // Update selected portfolio if it's the one being edited
       if (selectedPortfolio && selectedPortfolio.id === portfolioId) {
         setSelectedPortfolio(updatedPortfolio);
       }
@@ -241,7 +246,6 @@ const Portfolio = () => {
       setEditingPortfolio(null);
       toast.success("Portfolio updated successfully");
 
-      // Reload portfolio details to reflect changes
       if (updatedPortfolio && updatedPortfolio.id) {
         loadPortfolioDetails(updatedPortfolio.id);
       }
@@ -260,7 +264,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to update portfolio: ${error.response?.data?.detail || error.message
+          `Failed to update portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -275,7 +280,6 @@ const Portfolio = () => {
       const updatedPortfolios = portfolios.filter((p) => p.id !== portfolioId);
       setPortfolios(updatedPortfolios);
 
-      // If deleted portfolio was selected, select another one
       if (selectedPortfolio && selectedPortfolio.id === portfolioId) {
         if (updatedPortfolios.length > 0) {
           setSelectedPortfolio(updatedPortfolios[0]);
@@ -303,7 +307,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to delete portfolio: ${error.response?.data?.detail || error.message
+          `Failed to delete portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -316,9 +321,10 @@ const Portfolio = () => {
   };
 
   const handleRefresh = () => {
-    loadPortfolios();
     if (selectedPortfolio) {
       loadPortfolioDetails(selectedPortfolio.id);
+    } else {
+      loadPortfolios();
     }
     toast.success("Portfolio data refreshed");
   };
@@ -361,11 +367,17 @@ const Portfolio = () => {
 
   const stats = getTotalStats();
 
-  if (loading) {
+  // Use portfoliosLoading for the initial full-screen spinner
+  if (portfoliosLoading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
-          <LoadingSpinner type="analyst" size="lg" text="Loading portfolios..." centered />
+          <LoadingSpinner
+            type="analyst"
+            size="lg"
+            text="Loading portfolios..."
+            centered
+          />
         </div>
       </div>
     );
@@ -494,78 +506,63 @@ const Portfolio = () => {
                   <span>Create Portfolio</span>
                 </button>
               </div>
-
-              {/* Debug Info */}
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4">
-                  Debug Info
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div>Loading: {loading ? "true" : "false"}</div>
-                  <div>Portfolios count: {portfolios.length}</div>
-                  <div>
-                    Selected portfolio:{" "}
-                    {selectedPortfolio ? selectedPortfolio.name : "none"}
-                  </div>
-                  <div>
-                    Portfolio stats: {portfolioStats ? "loaded" : "not loaded"}
-                  </div>
-                  <div>Transactions count: {transactions.length}</div>
-                </div>
-              </div>
             </div>
           ) : (
             <>
-
               {/* View Mode Toggle */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setViewMode("overview")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "overview"
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "overview"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
                     title="Overview"
                   >
                     <BarChart3 size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("detail")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "detail"
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "detail"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
                     title="Holdings Detail"
                   >
                     <PieChart size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("assets")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "assets"
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "assets"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
                     title="Portfolio Assets"
                   >
                     <Wallet size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("chart")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "chart"
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "chart"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
                     title="Performance Chart"
                   >
                     <Activity size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("performance")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "performance"
-                      ? "bg-primary-600 text-white"
-                      : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "performance"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
                     title="Performance Metrics"
                   >
                     <BarChart3 size={16} />
@@ -578,24 +575,49 @@ const Portfolio = () => {
                 <div className="space-y-6">
                   {viewMode === "overview" && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <PortfolioCard
-                        portfolio={selectedPortfolio}
-                        stats={stats}
-                        onEdit={handleEditPortfolio}
-                        onDelete={handleDeletePortfolio}
-                        onAddPosition={(portfolio) => {
-                          // TODO: Implement add position functionality
-                          toast.info("Add position functionality coming soon!");
-                        }}
-                        onViewDetails={(portfolio) => {
-                          setViewMode("detail");
-                        }}
-                      />
+                      {/* CHANGED: Conditional rendering for Portfolio Card */}
+                      {detailsLoading || !stats ? (
+                        <div className="card p-6 flex items-center justify-center min-h-[300px]">
+                          <LoadingSpinner
+                            type="analyst"
+                            text="Loading portfolio stats..."
+                            centered
+                          />
+                        </div>
+                      ) : (
+                        <PortfolioCard
+                          portfolio={selectedPortfolio}
+                          stats={stats}
+                          isLoading={detailsLoading}
+                          onEdit={handleEditPortfolio}
+                          onDelete={handleDeletePortfolio}
+                          onAddPosition={(portfolio) => {
+                            navigate("/transactions", {
+                              state: {
+                                action: "createTransaction",
+                                portfolioId: portfolio.id,
+                              },
+                            });
+                          }}
+                          onViewDetails={() => {
+                            setViewMode("detail");
+                          }}
+                        />
+                      )}
                       <div className="card p-6">
                         <h3 className="text-lg font-semibold text-gray-100 mb-4">
                           Recent Transactions
                         </h3>
-                        {transactions.length > 0 ? (
+                        {/* CHANGED: Conditional rendering for Transactions List */}
+                        {detailsLoading ? (
+                          <div className="flex justify-center items-center min-h-[300px]">
+                            <LoadingSpinner
+                              type="transaction"
+                              text="Fetching transactions..."
+                              centered
+                            />
+                          </div>
+                        ) : transactions.length > 0 ? (
                           <div className="space-y-3">
                             {transactions.slice(0, 5).map((transaction) => (
                               <div
@@ -604,10 +626,11 @@ const Portfolio = () => {
                               >
                                 <div className="flex items-center space-x-3">
                                   <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
-                                      ? "bg-success-400/20"
-                                      : "bg-danger-400/20"
-                                      }`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                      transaction.transaction_type === "buy"
+                                        ? "bg-success-400/20"
+                                        : "bg-danger-400/20"
+                                    }`}
                                   >
                                     {transaction.transaction_type === "buy" ? (
                                       <TrendingUp
@@ -640,10 +663,11 @@ const Portfolio = () => {
                                 </div>
                                 <div className="text-right">
                                   <p
-                                    className={`text-sm font-medium ${transaction.transaction_type === "buy"
-                                      ? "text-success-400"
-                                      : "text-danger-400"
-                                      }`}
+                                    className={`text-sm font-medium ${
+                                      transaction.transaction_type === "buy"
+                                        ? "text-success-400"
+                                        : "text-danger-400"
+                                    }`}
                                   >
                                     {transaction.transaction_type === "buy"
                                       ? "-"
@@ -667,33 +691,47 @@ const Portfolio = () => {
                     </div>
                   )}
 
-                  {viewMode === "detail" && selectedPortfolio && (
-                    <PortfolioDetail
-                      portfolio={selectedPortfolio}
-                      stats={stats}
-                      transactions={transactions}
-                    />
-                  )}
+                  {/* Unified loading state for other views */}
+                  {viewMode !== "overview" &&
+                    (detailsLoading ? (
+                      <div className="card p-12 flex items-center justify-center min-h-[400px]">
+                        <LoadingSpinner
+                          type="analyst"
+                          text={`Loading ${viewMode} data...`}
+                          centered
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {viewMode === "detail" && selectedPortfolio && (
+                          <PortfolioDetail
+                            portfolio={selectedPortfolio}
+                            stats={stats}
+                            transactions={transactions}
+                          />
+                        )}
 
-                  {viewMode === "assets" && selectedPortfolio && (
-                    <PortfolioAssets
-                      portfolio={selectedPortfolio}
-                      onRefresh={handleRefresh}
-                    />
-                  )}
+                        {viewMode === "assets" && selectedPortfolio && (
+                          <PortfolioAssets
+                            portfolio={selectedPortfolio}
+                            onRefresh={handleRefresh}
+                          />
+                        )}
 
-                  {viewMode === "chart" && selectedPortfolio && (
-                    <PortfolioChart
-                      portfolio={selectedPortfolio}
-                      stats={stats}
-                    />
-                  )}
+                        {viewMode === "chart" && selectedPortfolio && (
+                          <PortfolioChart
+                            portfolio={selectedPortfolio}
+                            stats={stats}
+                          />
+                        )}
 
-                  {viewMode === "performance" && selectedPortfolio && (
-                    <PortfolioPerformanceMetrics
-                      portfolio={selectedPortfolio}
-                    />
-                  )}
+                        {viewMode === "performance" && selectedPortfolio && (
+                          <PortfolioPerformanceMetrics
+                            portfolio={selectedPortfolio}
+                          />
+                        )}
+                      </>
+                    ))}
                 </div>
               )}
             </>

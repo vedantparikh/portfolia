@@ -180,13 +180,24 @@ async def get_performance_history(
         latest_snapshot = (
             db.query(PortfolioPerformanceHistory)
             .filter(PortfolioPerformanceHistory.portfolio_id == portfolio_id)
-            .order_by(PortfolioPerformanceHistory.created_at.desc())
+            .order_by(PortfolioPerformanceHistory.snapshot_date.desc())
             .first()
         )
-
-        if not latest_snapshot:
+        # Get the OLDEST snapshot to check the depth of our history
+        oldest_snapshot = (
+            db.query(PortfolioPerformanceHistory)
+            .filter(PortfolioPerformanceHistory.portfolio_id == portfolio_id)
+            .order_by(PortfolioPerformanceHistory.snapshot_date.asc())
+            .first()
+        )
+        if not latest_snapshot or not oldest_snapshot:
             should_regenerate = True
             logger.info(f"No existing history for portfolio {portfolio_id}. Generating.")
+        # Check if the user is requesting data from before our oldest record.
+        elif start_date.date() < oldest_snapshot.snapshot_date.date():
+            should_regenerate = True
+            logger.info(
+                f"Requested history (from {start_date.date()}) is older than the oldest snapshot ({oldest_snapshot.snapshot_date.date()}). Regenerating to backfill.")
         # Check if the last snapshot is from a previous day
         elif latest_snapshot.snapshot_date.date() < end_date.date():
             should_regenerate = True

@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, desc
 from sqlalchemy.orm import Session
 
 from core.database.models.watchlist import WatchlistAlert

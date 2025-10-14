@@ -28,6 +28,7 @@ class PortfolioDashboardService:
 
     def __init__(self, db: Session):
         self.db = db
+        self.portfolio_service = PortfolioService(db)
 
     async def get_dashboard_overview(self, portfolio_id: int, user_id: int) -> Dict[str, Any]:
         """Get comprehensive dashboard overview for a portfolio."""
@@ -104,7 +105,7 @@ class PortfolioDashboardService:
         for portfolio_asset, asset in holdings_data:
             # Update P&L if needed
             if portfolio_asset.current_value is None:
-                await self._update_asset_pnl(portfolio_asset)
+                await self.portfolio_service.update_asset_pnl(portfolio_asset)
 
             holding = PortfolioHolding(
                 asset_id=asset.id,
@@ -263,11 +264,3 @@ class PortfolioDashboardService:
             })
 
         return activity
-
-    async def _update_asset_pnl(self, portfolio_asset: PortfolioAsset) -> None:
-        """Update unrealized P&L for a portfolio asset."""
-        # This would integrate with your existing market data service
-        # For now, we'll use a simplified approach
-
-        portfolio_service = PortfolioService(self.db)
-        await portfolio_service._update_asset_pnl(portfolio_asset)

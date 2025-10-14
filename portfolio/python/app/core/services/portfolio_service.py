@@ -218,7 +218,7 @@ class PortfolioService:
 
         return portfolio_asset
 
-    async def _update_asset_pnl(
+    async def update_asset_pnl(
             self, portfolio_asset: PortfolioAsset
     ) -> PortfolioAsset:
         """Update unrealized P&L for a portfolio asset using real-time data."""

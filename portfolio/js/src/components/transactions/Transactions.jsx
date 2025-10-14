@@ -54,7 +54,7 @@ const Transactions = () => {
     portfolio: "all",
     type: "all",
     dateRange: "all",
-    sortBy: "created_at",
+    sortBy: "transaction_date",
     sortOrder: "desc",
   });
 
@@ -129,7 +129,7 @@ const Transactions = () => {
     filtered.sort((a, b) => {
       let aValue, bValue;
       switch (filters.sortBy) {
-        case "created_at": aValue = new Date(a.transaction_date); bValue = new Date(b.transaction_date); break;
+        case "transaction_date": aValue = new Date(a.transaction_date); bValue = new Date(b.transaction_date); break;
         case "amount": aValue = a.total_amount || 0; bValue = b.total_amount || 0; break;
         case "symbol": aValue = (a.asset?.symbol || "").toLowerCase(); bValue = (b.asset?.symbol || "").toLowerCase(); break;
         case "type": aValue = (a.transaction_type || a.type || "").toLowerCase(); bValue = (b.transaction_type || b.type || "").toLowerCase(); break;

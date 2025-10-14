@@ -495,24 +495,6 @@ const Portfolio = () => {
                 </button>
               </div>
 
-              {/* Debug Info */}
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4">
-                  Debug Info
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div>Loading: {loading ? "true" : "false"}</div>
-                  <div>Portfolios count: {portfolios.length}</div>
-                  <div>
-                    Selected portfolio:{" "}
-                    {selectedPortfolio ? selectedPortfolio.name : "none"}
-                  </div>
-                  <div>
-                    Portfolio stats: {portfolioStats ? "loaded" : "not loaded"}
-                  </div>
-                  <div>Transactions count: {transactions.length}</div>
-                </div>
-              </div>
             </div>
           ) : (
             <>

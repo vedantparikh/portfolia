@@ -1681,6 +1681,67 @@ class PortfolioAnalyticsService:
                 end_date.date(),
             )
 
+            # Get the date of the first-ever transaction for this portfolio (inception).
+            first_transaction_date = (
+                self.db.query(func.min(Transaction.transaction_date))
+                .filter(Transaction.portfolio_id == portfolio_id)
+                .scalar()
+            )
+
+            if not first_transaction_date:
+                logger.warning(
+                    f"No transactions found for portfolio {portfolio_id}. Cannot generate history."
+                )
+                return []
+
+            # Get the latest snapshot we already have in the database.
+            latest_snapshot = (
+                self.db.query(PortfolioPerformanceHistory)
+                .filter(PortfolioPerformanceHistory.portfolio_id == portfolio_id)
+                .order_by(PortfolioPerformanceHistory.snapshot_date.desc())
+                .first()
+            )
+
+            effective_start_date = start_date
+
+            if latest_snapshot is None:
+                # CASE 1: NO DATA EXISTS. Perform initial, full calculation from inception.
+                logger.info("No existing snapshots found. Performing initial full calculation.")
+                effective_start_date = datetime.combine(first_transaction_date.date(), datetime.min.time())
+
+            else:
+                latest_snapshot_date = datetime.combine(latest_snapshot.snapshot_date.date(), datetime.min.time())
+
+                # CASE 2: EXTEND FORWARD. The request is for a period after our last record.
+                if start_date > latest_snapshot_date:
+                    logger.info("Request is for a future period. Extending existing snapshots.")
+                    effective_start_date = latest_snapshot_date + timedelta(days=1)
+                    # If the new start is after the end, there's nothing to do.
+                    if effective_start_date > end_date:
+                        logger.info("History is already up-to-date. No new snapshots needed.")
+                        return []
+
+                # CASE 3: RECALCULATE/BACKFILL. The request overlaps or is for the past.
+                else:
+                    logger.info("Request overlaps with existing data. Recalculating period to ensure consistency.")
+                    # We must delete everything from the requested start_date onwards.
+                    (
+                        self.db.query(PortfolioPerformanceHistory)
+                        .filter(
+                            PortfolioPerformanceHistory.portfolio_id == portfolio_id,
+                            PortfolioPerformanceHistory.snapshot_date >= start_date,
+                        )
+                        .delete(synchronize_session=False)
+                    )
+                    effective_start_date = start_date
+
+            # Ensure we don't calculate for a period before the first transaction.
+            first_transaction_datetime = datetime.combine(first_transaction_date.date(), datetime.min.time())
+            if effective_start_date < first_transaction_datetime:
+                effective_start_date = first_transaction_datetime
+
+            logger.info(f"Effective calculation range set to: {effective_start_date.date()} to {end_date.date()}")
+
             # 1. DELETE EXISTING SNAPSHOTS in the date range to avoid duplicates.
             (
                 self.db.query(PortfolioPerformanceHistory)

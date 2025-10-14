@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import { portfolioAPI, transactionAPI } from "../../services/api";
 import {
   formatCurrency,
@@ -27,6 +28,7 @@ import PortfolioDetail from "./PortfolioDetail";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
 const Portfolio = () => {
+  const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState(null);
   const [portfoliosLoading, setPortfoliosLoading] = useState(true);
@@ -208,7 +210,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to create portfolio: ${error.response?.data?.detail || error.message
+          `Failed to create portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -261,7 +264,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to update portfolio: ${error.response?.data?.detail || error.message
+          `Failed to update portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -303,7 +307,8 @@ const Portfolio = () => {
         toast.error("Network error. Please check backend connectivity.");
       } else {
         toast.error(
-          `Failed to delete portfolio: ${error.response?.data?.detail || error.message
+          `Failed to delete portfolio: ${
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -367,7 +372,12 @@ const Portfolio = () => {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
-          <LoadingSpinner type="analyst" size="lg" text="Loading portfolios..." centered />
+          <LoadingSpinner
+            type="analyst"
+            size="lg"
+            text="Loading portfolios..."
+            centered
+          />
         </div>
       </div>
     );
@@ -504,50 +514,55 @@ const Portfolio = () => {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setViewMode("overview")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "overview"
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "overview"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    }`}
                     title="Overview"
                   >
                     <BarChart3 size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("detail")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "detail"
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "detail"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    }`}
                     title="Holdings Detail"
                   >
                     <PieChart size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("assets")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "assets"
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "assets"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    }`}
                     title="Portfolio Assets"
                   >
                     <Wallet size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("chart")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "chart"
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "chart"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    }`}
                     title="Performance Chart"
                   >
                     <Activity size={16} />
                   </button>
                   <button
                     onClick={() => setViewMode("performance")}
-                    className={`p-2 rounded-lg transition-colors ${viewMode === "performance"
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "performance"
                         ? "bg-primary-600 text-white"
                         : "bg-dark-700 text-gray-400 hover:bg-dark-600"
-                      }`}
+                    }`}
                     title="Performance Metrics"
                   >
                     <BarChart3 size={16} />
@@ -563,16 +578,30 @@ const Portfolio = () => {
                       {/* CHANGED: Conditional rendering for Portfolio Card */}
                       {detailsLoading || !stats ? (
                         <div className="card p-6 flex items-center justify-center min-h-[300px]">
-                          <LoadingSpinner type="analyst" text="Loading portfolio stats..." centered />
+                          <LoadingSpinner
+                            type="analyst"
+                            text="Loading portfolio stats..."
+                            centered
+                          />
                         </div>
                       ) : (
                         <PortfolioCard
                           portfolio={selectedPortfolio}
                           stats={stats}
+                          isLoading={detailsLoading}
                           onEdit={handleEditPortfolio}
                           onDelete={handleDeletePortfolio}
-                          onAddPosition={() => toast.info("Add position functionality coming soon!")}
-                          onViewDetails={() => setViewMode("detail")}
+                          onAddPosition={(portfolio) => {
+                            navigate("/transactions", {
+                              state: {
+                                action: "createTransaction",
+                                portfolioId: portfolio.id,
+                              },
+                            });
+                          }}
+                          onViewDetails={() => {
+                            setViewMode("detail");
+                          }}
                         />
                       )}
                       <div className="card p-6">
@@ -582,7 +611,11 @@ const Portfolio = () => {
                         {/* CHANGED: Conditional rendering for Transactions List */}
                         {detailsLoading ? (
                           <div className="flex justify-center items-center min-h-[300px]">
-                            <LoadingSpinner type="transaction" text="Fetching transactions..." centered />
+                            <LoadingSpinner
+                              type="transaction"
+                              text="Fetching transactions..."
+                              centered
+                            />
                           </div>
                         ) : transactions.length > 0 ? (
                           <div className="space-y-3">
@@ -593,10 +626,11 @@ const Portfolio = () => {
                               >
                                 <div className="flex items-center space-x-3">
                                   <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${transaction.transaction_type === "buy"
-                                      ? "bg-success-400/20"
-                                      : "bg-danger-400/20"
-                                      }`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                      transaction.transaction_type === "buy"
+                                        ? "bg-success-400/20"
+                                        : "bg-danger-400/20"
+                                    }`}
                                   >
                                     {transaction.transaction_type === "buy" ? (
                                       <TrendingUp
@@ -629,10 +663,11 @@ const Portfolio = () => {
                                 </div>
                                 <div className="text-right">
                                   <p
-                                    className={`text-sm font-medium ${transaction.transaction_type === "buy"
-                                      ? "text-success-400"
-                                      : "text-danger-400"
-                                      }`}
+                                    className={`text-sm font-medium ${
+                                      transaction.transaction_type === "buy"
+                                        ? "text-success-400"
+                                        : "text-danger-400"
+                                    }`}
                                   >
                                     {transaction.transaction_type === "buy"
                                       ? "-"
@@ -655,12 +690,16 @@ const Portfolio = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Unified loading state for other views */}
-                  {viewMode !== 'overview' && (
-                    detailsLoading ? (
+                  {viewMode !== "overview" &&
+                    (detailsLoading ? (
                       <div className="card p-12 flex items-center justify-center min-h-[400px]">
-                         <LoadingSpinner type="analyst" text={`Loading ${viewMode} data...`} centered />
+                        <LoadingSpinner
+                          type="analyst"
+                          text={`Loading ${viewMode} data...`}
+                          centered
+                        />
                       </div>
                     ) : (
                       <>
@@ -692,8 +731,7 @@ const Portfolio = () => {
                           />
                         )}
                       </>
-                    )
-                  )}
+                    ))}
                 </div>
               )}
             </>

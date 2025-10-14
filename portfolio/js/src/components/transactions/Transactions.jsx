@@ -12,6 +12,7 @@ import {
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { InView } from "react-intersection-observer";
+import { useLocation } from "react-router-dom";
 
 import {
   accountStatementsAPI,
@@ -20,6 +21,7 @@ import {
 } from "../../services/api";
 import assetCache from "../../services/assetCache";
 import { Sidebar } from "../shared";
+import LoadingSpinner from "../shared/LoadingSpinner";
 import BulkTransactionModal from "./BulkTransactionModal";
 import CreateTransactionModal from "./CreateTransactionModal";
 import EditTransactionModal from "./EditTransactionModal";
@@ -28,11 +30,11 @@ import ParsedDataTable from "./ParsedDataTable";
 import TransactionCard from "./TransactionCard";
 import TransactionExportModal from "./TransactionExportModal";
 import TransactionFilters from "./TransactionFilters";
-import LoadingSpinner from "../shared/LoadingSpinner";
 
 const RENDER_PAGE_SIZE = 50; // How many items to render at a time
 
 const Transactions = () => {
+  const location = useLocation();
   const [allTransactions, setAllTransactions] = useState([]);
   const [visibleTransactions, setVisibleTransactions] = useState([]);
   const [portfolios, setPortfolios] = useState([]);
@@ -49,6 +51,7 @@ const Transactions = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [allAssets, setAllAssets] = useState([]);
   const [visibleCount, setVisibleCount] = useState(RENDER_PAGE_SIZE);
+  const [initialPortfolioId, setInitialPortfolioId] = useState(null);
 
   const [filters, setFilters] = useState({
     portfolio: "all",
@@ -89,6 +92,19 @@ const Transactions = () => {
     return () => unsubscribe();
   }, []);
 
+  // This useEffect checks for navigation state on component load
+  useEffect(() => {
+    const navState = location.state;
+    // If the action from Portfolio.js is present, open the modal
+    if (navState?.action === "createTransaction" && navState?.portfolioId) {
+      setInitialPortfolioId(navState.portfolioId);
+      setShowCreateModal(true);
+
+      // Clean up the state to prevent the modal from re-opening on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   // Effect for filtering and paginating the displayed transactions
   useEffect(() => {
     let filtered = [...allTransactions];
@@ -97,45 +113,88 @@ const Transactions = () => {
     if (searchQuery) {
       filtered = filtered.filter(
         (transaction) =>
-          (transaction.asset.symbol || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (transaction.asset.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (transaction.portfolio.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (transaction.notes || "").toLowerCase().includes(searchQuery.toLowerCase())
+          (transaction.asset.symbol || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (transaction.asset.name || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (transaction.portfolio.name || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (transaction.notes || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
       );
     }
 
     // Apply other filters
     if (filters.portfolio !== "all") {
-      filtered = filtered.filter((t) => t.portfolio_id === parseInt(filters.portfolio));
+      filtered = filtered.filter(
+        (t) => t.portfolio_id === parseInt(filters.portfolio)
+      );
     }
     if (filters.type !== "all") {
-      filtered = filtered.filter((t) => t.transaction_type === filters.type || t.type === filters.type);
+      filtered = filtered.filter(
+        (t) => t.transaction_type === filters.type || t.type === filters.type
+      );
     }
-    if (filters.dateRange !== 'all') {
+    if (filters.dateRange !== "all") {
       const now = new Date();
       const filterDate = new Date();
       switch (filters.dateRange) {
-        case "today": filterDate.setHours(0, 0, 0, 0); break;
-        case "week": filterDate.setDate(now.getDate() - 7); break;
-        case "month": filterDate.setMonth(now.getMonth() - 1); break;
-        case "quarter": filterDate.setMonth(now.getMonth() - 3); break;
-        case "year": filterDate.setFullYear(now.getFullYear() - 1); break;
+        case "today":
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case "week":
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case "month":
+          filterDate.setMonth(now.getMonth() - 1);
+          break;
+        case "quarter":
+          filterDate.setMonth(now.getMonth() - 3);
+          break;
+        case "year":
+          filterDate.setFullYear(now.getFullYear() - 1);
+          break;
       }
-      filtered = filtered.filter(t => new Date(t.transaction_date) >= filterDate);
+      filtered = filtered.filter(
+        (t) => new Date(t.transaction_date) >= filterDate
+      );
     }
-
 
     // Apply sorting
     filtered.sort((a, b) => {
       let aValue, bValue;
       switch (filters.sortBy) {
-        case "transaction_date": aValue = new Date(a.transaction_date); bValue = new Date(b.transaction_date); break;
-        case "amount": aValue = a.total_amount || 0; bValue = b.total_amount || 0; break;
-        case "symbol": aValue = (a.asset?.symbol || "").toLowerCase(); bValue = (b.asset?.symbol || "").toLowerCase(); break;
-        case "type": aValue = (a.transaction_type || a.type || "").toLowerCase(); bValue = (b.transaction_type || b.type || "").toLowerCase(); break;
-        default: aValue = new Date(a.transaction_date); bValue = new Date(b.transaction_date);
+        case "transaction_date":
+          aValue = new Date(a.transaction_date);
+          bValue = new Date(b.transaction_date);
+          break;
+        case "amount":
+          aValue = a.total_amount || 0;
+          bValue = b.total_amount || 0;
+          break;
+        case "symbol":
+          aValue = (a.asset?.symbol || "").toLowerCase();
+          bValue = (b.asset?.symbol || "").toLowerCase();
+          break;
+        case "type":
+          aValue = (a.transaction_type || a.type || "").toLowerCase();
+          bValue = (b.transaction_type || b.type || "").toLowerCase();
+          break;
+        default:
+          aValue = new Date(a.transaction_date);
+          bValue = new Date(b.transaction_date);
       }
-      return filters.sortOrder === "asc" ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
+      return filters.sortOrder === "asc"
+        ? aValue > bValue
+          ? 1
+          : -1
+        : aValue < bValue
+        ? 1
+        : -1;
     });
 
     setVisibleTransactions(filtered.slice(0, visibleCount));
@@ -145,7 +204,6 @@ const Transactions = () => {
   useEffect(() => {
     setVisibleCount(RENDER_PAGE_SIZE);
   }, [filters, searchQuery]);
-
 
   const handleRefresh = () => {
     loadData();
@@ -160,14 +218,19 @@ const Transactions = () => {
       handleRefresh();
     } catch (error) {
       console.error("Failed to create transaction:", error);
-      toast.error(error.response?.data?.detail || "Failed to create transaction");
+      toast.error(
+        error.response?.data?.detail || "Failed to create transaction"
+      );
       throw error;
     }
   };
 
   const handleUpdateTransaction = async (transactionId, transactionData) => {
     try {
-      const response = await transactionAPI.updateTransaction(transactionId, transactionData);
+      const response = await transactionAPI.updateTransaction(
+        transactionId,
+        transactionData
+      );
       setAllTransactions((prev) =>
         prev.map((t) => (t.id === transactionId ? response : t))
       );
@@ -213,20 +276,33 @@ const Transactions = () => {
   const handleCancelParsedData = () => {
     setShowParsedData(false);
     setParsedData(null);
-    assetCache.assets = []; 
+    assetCache.assets = [];
   };
 
-  const handleBulkCreate = async (portfolioId, transactionData, options = {}) => {
+  const handleBulkCreate = async (
+    portfolioId,
+    transactionData,
+    options = {}
+  ) => {
     const { context, onSuccess } = options;
     try {
-      const response = await accountStatementsAPI.bulkCreateTransactions(portfolioId, transactionData);
+      const response = await accountStatementsAPI.bulkCreateTransactions(
+        portfolioId,
+        transactionData
+      );
       if (response.summary?.total_succeeded > 0) {
-        toast.success(`Successfully imported ${response.summary.total_succeeded} transactions.`);
+        toast.success(
+          `Successfully imported ${response.summary.total_succeeded} transactions.`
+        );
         handleRefresh();
       }
       if (context === "create") {
         onSuccess();
-        toast.success(`Successfully created ${response.summary?.total_created || transactionData.length} transactions.`);
+        toast.success(
+          `Successfully created ${
+            response.summary?.total_created || transactionData.length
+          } transactions.`
+        );
         handleRefresh();
       }
       return response;
@@ -241,7 +317,12 @@ const Transactions = () => {
   if (loading) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
-        <LoadingSpinner type="transaction" size="lg" text="Loading transactions..." centered />
+        <LoadingSpinner
+          type="transaction"
+          size="lg"
+          text="Loading transactions..."
+          centered
+        />
       </div>
     );
   }
@@ -270,37 +351,71 @@ const Transactions = () => {
         <div className="max-w-7xl mx-auto p-6">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <a href="/dashboard" className="flex items-center space-x-2 text-gray-400 hover:text-gray-300">
+              <a
+                href="/dashboard"
+                className="flex items-center space-x-2 text-gray-400 hover:text-gray-300"
+              >
                 <ArrowLeft size={20} />
                 <span>Back to Dashboard</span>
               </a>
               <div className="flex items-center space-x-3">
-                <button onClick={handleRefresh} className="btn-secondary flex items-center space-x-2">
-                  <RefreshCw size={16} /><span>Refresh</span>
+                <button
+                  onClick={handleRefresh}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <RefreshCw size={16} />
+                  <span>Refresh</span>
                 </button>
-                <button onClick={() => setShowFilters(!showFilters)} className="btn-outline flex items-center space-x-2">
-                  <Filter size={16} /><span>Filters</span>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="btn-outline flex items-center space-x-2"
+                >
+                  <Filter size={16} />
+                  <span>Filters</span>
                 </button>
-                <button onClick={() => setShowPDFUpload(true)} className="btn-outline flex items-center space-x-2">
-                  <FileText size={16} /><span>Upload PDF</span>
+                <button
+                  onClick={() => setShowPDFUpload(true)}
+                  className="btn-outline flex items-center space-x-2"
+                >
+                  <FileText size={16} />
+                  <span>Upload PDF</span>
                 </button>
-                <button onClick={() => setShowBulkModal(true)} className="btn-outline flex items-center space-x-2">
-                  <Zap size={16} /><span>Bulk Entry</span>
+                <button
+                  onClick={() => setShowBulkModal(true)}
+                  className="btn-outline flex items-center space-x-2"
+                >
+                  <Zap size={16} />
+                  <span>Bulk Entry</span>
                 </button>
-                <button onClick={() => setShowExportModal(true)} className="btn-outline flex items-center space-x-2">
-                  <Download size={16} /><span>Export</span>
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  className="btn-outline flex items-center space-x-2"
+                >
+                  <Download size={16} />
+                  <span>Export</span>
                 </button>
-                <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center space-x-2">
-                  <Plus size={16} /><span>New Transaction</span>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <Plus size={16} />
+                  <span>New Transaction</span>
                 </button>
               </div>
             </div>
             <div className="mb-4">
-              <h1 className="text-3xl font-bold text-gray-100 mb-2">Transactions</h1>
-              <p className="text-gray-400">Track and manage your trading activity</p>
+              <h1 className="text-3xl font-bold text-gray-100 mb-2">
+                Transactions
+              </h1>
+              <p className="text-gray-400">
+                Track and manage your trading activity
+              </p>
             </div>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={20}
+              />
               <input
                 type="text"
                 placeholder="Search by symbol, name, portfolio, or notes..."
@@ -313,21 +428,34 @@ const Transactions = () => {
 
           {showFilters && (
             <div className="card p-6 mb-8">
-              <TransactionFilters filters={filters} portfolios={portfolios} onFilterChange={setFilters} />
+              <TransactionFilters
+                filters={filters}
+                portfolios={portfolios}
+                onFilterChange={setFilters}
+              />
             </div>
           )}
 
           {visibleTransactions.length === 0 ? (
             <div className="card p-12 text-center">
               <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-300 mb-2">No transactions found</h3>
+              <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                No transactions found
+              </h3>
               <p className="text-gray-500 mb-6">
-                {searchQuery || filters.portfolio !== 'all' || filters.type !== 'all' || filters.dateRange !== 'all'
+                {searchQuery ||
+                filters.portfolio !== "all" ||
+                filters.type !== "all" ||
+                filters.dateRange !== "all"
                   ? "Try adjusting your search or filter criteria"
                   : "Start by creating your first transaction"}
               </p>
-              <button onClick={() => setShowCreateModal(true)} className="btn-primary flex items-center space-x-2 mx-auto">
-                <Plus size={16} /><span>Create Transaction</span>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn-primary flex items-center space-x-2 mx-auto"
+              >
+                <Plus size={16} />
+                <span>Create Transaction</span>
               </button>
             </div>
           ) : (
@@ -351,29 +479,43 @@ const Transactions = () => {
               }
             }}
           >
-            {visibleTransactions.length < allTransactions.filter(t => { // A rough check to see if more can be loaded
-              if (searchQuery) return (t.asset.symbol || "").toLowerCase().includes(searchQuery.toLowerCase());
-              return true;
-            }).length && (
-                <div className="flex justify-center items-center p-4 mt-4">
-                  <LoadingSpinner type="transaction" size="md" text="Loading more transactions..." />
-                </div>
-              )}
+            {visibleTransactions.length <
+              allTransactions.filter((t) => {
+                // A rough check to see if more can be loaded
+                if (searchQuery)
+                  return (t.asset.symbol || "")
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase());
+                return true;
+              }).length && (
+              <div className="flex justify-center items-center p-4 mt-4">
+                <LoadingSpinner
+                  type="transaction"
+                  size="md"
+                  text="Loading more transactions..."
+                />
+              </div>
+            )}
           </InView>
-
 
           {/* MODALS */}
           {showCreateModal && (
             <CreateTransactionModal
               portfolios={portfolios}
-              onClose={() => setShowCreateModal(false)}
+              onClose={() => {
+                setShowCreateModal(false), setInitialPortfolioId(null);
+              }}
               onCreate={handleCreateTransaction}
+              initialPortfolioId={initialPortfolioId}
             />
           )}
           {showEditModal && editingTransaction && (
             <EditTransactionModal
               isOpen={showEditModal}
-              onClose={() => { setShowEditModal(false); setEditingTransaction(null); }}
+              onClose={() => {
+                setShowEditModal(false);
+                setEditingTransaction(null);
+              }}
               transaction={editingTransaction}
               portfolios={portfolios}
               onUpdate={handleUpdateTransaction}
@@ -389,7 +531,12 @@ const Transactions = () => {
           {showParsedData && parsedData && (
             <ParsedDataTable
               parsedData={parsedData}
-              onSave={(portfolioId, data) => handleBulkCreate(portfolioId, data, { onSuccess: handleCancelParsedData, context: 'import' })}
+              onSave={(portfolioId, data) =>
+                handleBulkCreate(portfolioId, data, {
+                  onSuccess: handleCancelParsedData,
+                  context: "import",
+                })
+              }
               onCancel={handleCancelParsedData}
               portfolios={portfolios}
               allAssets={allAssets}
@@ -399,7 +546,12 @@ const Transactions = () => {
             <BulkTransactionModal
               isOpen={showBulkModal}
               onClose={() => setShowBulkModal(false)}
-              onSave={(portfolioId, data) => handleBulkCreate(portfolioId, data, { onSuccess: () => setShowBulkModal(false), context: 'create' })}
+              onSave={(portfolioId, data) =>
+                handleBulkCreate(portfolioId, data, {
+                  onSuccess: () => setShowBulkModal(false),
+                  context: "create",
+                })
+              }
               portfolios={portfolios}
             />
           )}
@@ -418,4 +570,3 @@ const Transactions = () => {
 };
 
 export default Transactions;
-

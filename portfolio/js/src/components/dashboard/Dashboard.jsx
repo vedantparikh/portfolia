@@ -32,7 +32,7 @@ const CardLoader = ({ text = "Loading..." }) => (
 );
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -137,6 +137,7 @@ const Dashboard = () => {
   };
 
   const handleRefresh = () => {
+    refreshUser();
     loadDashboardData();
     toast.success("Dashboard data refreshed");
   };

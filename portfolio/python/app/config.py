@@ -71,8 +71,11 @@ class Settings(BaseSettings):
     TEST_DATABASE_URL: str = env.str("TEST_DATABASE_URL", "sqlite:///./test.db")
 
     # Email settings
+    EMAIL_FROM: str = env.str("EMAIL_FROM", "")
     EMAIL_HOST_USER: str = env.str("EMAIL_HOST_USER", "noreply@portfolia.com")
     EMAIL_HOST_PASSWORD: str = env.str("EMAIL_HOST_PASSWORD", "")
+    EMAIL_HOST: str = env.str("EMAIL_HOST", "smtp-relay.brevo.com")
+    EMAIL_PORT: int = env.int("EMAIL_PORT", 587)
 
     STATIC_DIR: str = env.str("STATIC_DIR", "STATICS")
 
@@ -94,7 +97,8 @@ class Settings(BaseSettings):
         """Construct database URL from components."""
         if self.TESTING:
             return self.TEST_DATABASE_URL
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
+                f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}")
 
     @property
     def REDIS_URL(self) -> str:

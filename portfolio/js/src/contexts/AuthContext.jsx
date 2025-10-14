@@ -382,6 +382,24 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const refreshUser = async () => {
+        try {
+            console.log("Attempting to refresh user data...");
+            // Re-fetch the user and profile from your backend
+            const user = await authAPI.getCurrentUser();
+            const profile = await authAPI.getUserProfile();
+
+            // Dispatch actions to update the state with the latest data
+            dispatch({ type: AUTH_ACTIONS.SET_USER, payload: user });
+            dispatch({ type: AUTH_ACTIONS.SET_PROFILE, payload: profile });
+            console.log("User data refreshed successfully.");
+        } catch (error) {
+            console.error("Failed to refresh user:", error);
+            // If the refresh fails (e.g., token expired), you might want to log the user out
+            // For now, we'll just log the error.
+        }
+    };
+
     /* 
       CONTEXT VALUE - What we provide to all child components
       This object contains all the state and functions that components can use
@@ -395,6 +413,7 @@ export const AuthProvider = ({ children }) => {
         clearError,            // Function to clear error messages
         verifyEmail,           // Function to verify email
         resendVerification,    // Function to resend verification email
+        refreshUser,           // Function to refresh user data
     };
 
     /* 

@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     TEST_DATABASE_URL: str = env.str("TEST_DATABASE_URL", "sqlite:///./test.db")
 
     # Email settings
-    EMAIL_FROM: str = env.str("EMAIL_FROM", "vedantparikh63@gmail.com")
+    EMAIL_FROM: str = env.str("EMAIL_FROM", "")
     EMAIL_HOST_USER: str = env.str("EMAIL_HOST_USER", "noreply@portfolia.com")
     EMAIL_HOST_PASSWORD: str = env.str("EMAIL_HOST_PASSWORD", "")
     EMAIL_HOST: str = env.str("EMAIL_HOST", "smtp-relay.brevo.com")

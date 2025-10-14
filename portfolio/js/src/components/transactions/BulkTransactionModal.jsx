@@ -327,12 +327,12 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
               </thead>
               <tbody className="divide-y divide-gray-700">
                 {transactions.map((transaction, index) => (
-                  <tr key={transaction.id} className="hover:bg-gray-700/50">
-                    <td
-                      className={`px-4 py-3 text-sm text-gray-300 ${
-                        focusedRow === index ? "relative z-20" : "relative z-10"
+                  <tr
+                    key={transaction.id}
+                    className={`hover:bg-gray-700/50 ${focusedRow === index ? "relative z-20" : ""
                       }`}
-                    >
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-300">
                       <div
                         onFocus={() => setFocusedRow(index)}
                         onBlur={() => setFocusedRow(null)}

@@ -87,7 +87,7 @@ class Settings(BaseSettings):
 
     @property
     def STATIC_FILE_PATH(self) -> Path:
-        return Path(__file__).parent.parent / self.STATIC_DIR
+        return Path(__file__).parent / self.STATIC_DIR
 
     @property
     def DATABASE_URL(self) -> str:

@@ -23,7 +23,7 @@ from app.core.database.models import Portfolio
 from app.core.database.models import PortfolioAsset
 from app.core.database.models import Transaction
 from app.core.database.models import TransactionType
-from app.core.services.portfolio_calculation_service import PeriodType
+from core.services.utils import PeriodType
 from app.core.services.portfolio_calculation_service import PortfolioCalculationService
 
 

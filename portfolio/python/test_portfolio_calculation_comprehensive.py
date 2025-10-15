@@ -22,9 +22,9 @@ import pyxirr
 
 # Import the service and related classes
 from app.core.services.portfolio_calculation_service import (
-    PeriodType,
     PortfolioCalculationService,
 )
+from core.services.utils import PeriodType
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

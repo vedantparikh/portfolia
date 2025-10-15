@@ -26,9 +26,9 @@ from app.core.database.models import (
     TransactionType,
 )
 from app.core.services.portfolio_calculation_service import (
-    PeriodType,
     PortfolioCalculationService,
 )
+from core.services.utils import PeriodType
 
 
 class TestPortfolioCalculationService:

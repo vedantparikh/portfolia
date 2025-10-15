@@ -8,7 +8,6 @@ from .portfolio_analytics import (
     PortfolioAllocation,
     PortfolioBenchmark,
     PortfolioPerformanceHistory,
-    PortfolioRiskMetrics,
     RebalancingEvent,
     RiskLevel,
 )
@@ -38,7 +37,6 @@ __all__ = [
     "AssetPerformanceMetrics",
     "PortfolioAllocation",
     "RebalancingEvent",
-    "PortfolioRiskMetrics",
     "AssetCorrelation",
     "PortfolioBenchmark",
     "RiskLevel",

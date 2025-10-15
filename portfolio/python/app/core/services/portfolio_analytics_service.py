@@ -27,7 +27,6 @@ from core.database.models.portfolio_analytics import (
     AssetPerformanceMetrics,
     PortfolioAllocation,
     PortfolioPerformanceHistory,
-    PortfolioRiskMetrics,
     RiskLevel,
 )
 from core.schemas.portfolio_analytics import (
@@ -68,7 +67,7 @@ class PortfolioAnalyticsService:
 
     # Portfolio Performance History
     async def get_or_create_performance_snapshot(
-        self, portfolio_id: int, force_refresh: bool = False
+            self, portfolio_id: int, force_refresh: bool = False
     ) -> PerformanceSnapshotResponse:
         """Get portfolio performance snapshot, auto-refreshing with yfinance if stale."""
         # If force refresh is requested, always create new snapshot
@@ -89,7 +88,7 @@ class PortfolioAnalyticsService:
         )
 
         if existing_snapshot and self._is_data_fresh(
-            existing_snapshot.created_at, self.portfolio_performance_freshness_hours
+                existing_snapshot.created_at, self.portfolio_performance_freshness_hours
         ):
             # Return existing fresh data
             return PerformanceSnapshotResponse(
@@ -109,7 +108,7 @@ class PortfolioAnalyticsService:
         )
 
     async def create_performance_snapshot(
-        self, portfolio_id: int, snapshot_date: Optional[datetime] = None
+            self, portfolio_id: int, snapshot_date: Optional[datetime] = None
     ) -> PerformanceSnapshotResponse:
         """Create a performance snapshot for a portfolio."""
         if snapshot_date is None:
@@ -185,7 +184,7 @@ class PortfolioAnalyticsService:
         )
 
     async def _calculate_portfolio_performance_metrics(
-        self, portfolio_id: int, snapshot_date: datetime
+            self, portfolio_id: int, snapshot_date: datetime
     ) -> Dict[str, Any]:
         """Calculate portfolio performance metrics."""
         # Get historical performance data
@@ -239,7 +238,7 @@ class PortfolioAnalyticsService:
         return metrics
 
     async def _get_historical_portfolio_values(
-        self, portfolio_id: int, start_date: datetime, end_date: datetime
+            self, portfolio_id: int, start_date: datetime, end_date: datetime
     ) -> pd.Series:
         """
         Retrieves the transaction-aware historical total values for a portfolio
@@ -278,7 +277,7 @@ class PortfolioAnalyticsService:
 
     # Asset Performance Metrics
     async def get_or_calculate_asset_metrics(
-        self, asset_id: int, force_refresh: bool = False
+            self, asset_id: int, force_refresh: bool = False
     ) -> AssetMetricsResponse:
         """Get asset metrics, automatically refreshing with yfinance data if stale."""
         # If force refresh is requested, always calculate new metrics
@@ -297,7 +296,7 @@ class PortfolioAnalyticsService:
         )
 
         if existing_metrics and self._is_data_fresh(
-            existing_metrics.created_at, self.asset_metrics_freshness_hours
+                existing_metrics.created_at, self.asset_metrics_freshness_hours
         ):
             # Return existing fresh data
             return AssetMetricsResponse(
@@ -340,7 +339,7 @@ class PortfolioAnalyticsService:
         return await self.calculate_asset_metrics(asset_id, datetime.now(timezone.utc))
 
     async def calculate_asset_metrics(
-        self, asset_id: int, calculation_date: Optional[datetime] = None
+            self, asset_id: int, calculation_date: Optional[datetime] = None
     ) -> AssetMetricsResponse:
         """Calculate comprehensive metrics for an asset using yfinance data."""
         if calculation_date is None:
@@ -451,7 +450,7 @@ class PortfolioAnalyticsService:
         )
 
     def _calculate_technical_indicators_from_yfinance(
-        self, price_data: pd.DataFrame
+            self, price_data: pd.DataFrame
     ) -> Dict[str, Any]:
         """Calculate technical indicators from yfinance data."""
         metrics = {}
@@ -503,7 +502,7 @@ class PortfolioAnalyticsService:
         return metrics
 
     def _calculate_risk_metrics_from_yfinance(
-        self, price_data: pd.DataFrame
+            self, price_data: pd.DataFrame
     ) -> Dict[str, Any]:
         """Calculate risk metrics from yfinance data."""
         metrics = {}
@@ -542,7 +541,7 @@ class PortfolioAnalyticsService:
         return metrics
 
     def _calculate_performance_metrics_from_yfinance(
-        self, price_data: pd.DataFrame
+            self, price_data: pd.DataFrame
     ) -> Dict[str, Any]:
         """Calculate performance metrics from yfinance data."""
         metrics = {}
@@ -588,7 +587,7 @@ class PortfolioAnalyticsService:
         return metrics
 
     async def analyze_portfolio_allocation(
-        self, portfolio_id: int
+            self, portfolio_id: int
     ) -> AllocationAnalysisResponse:
         """Analyze portfolio allocation and detect drift from targets."""
         # Get portfolio assets with current values
@@ -666,7 +665,7 @@ class PortfolioAnalyticsService:
             if target_percentage:
                 drift_percentage = current_percentage - target_percentage
                 drift_amount = Decimal(str(total_current_value)) * (
-                    drift_percentage / 100
+                        drift_percentage / 100
                 )
                 requires_rebalancing = abs(drift_percentage) > Decimal(
                     "5"
@@ -705,103 +704,6 @@ class PortfolioAnalyticsService:
             analysis_date=datetime.now(timezone.utc),
         )
 
-    async def get_or_calculate_portfolio_risk_metrics(
-        self, portfolio_id: int, force_refresh: bool = False
-    ) -> RiskCalculationResponse:
-        """Get portfolio risk metrics, auto-refreshing with yfinance if stale."""
-        # If force refresh is requested, always calculate new metrics
-        if force_refresh:
-            logger.info(f"Force refreshing risk metrics for portfolio {portfolio_id}")
-            return await self.calculate_portfolio_risk_metrics(
-                portfolio_id, datetime.now(timezone.utc)
-            )
-
-        # Check for existing fresh risk metrics first
-        existing_risk = (
-            self.db.query(PortfolioRiskMetrics)
-            .filter(PortfolioRiskMetrics.portfolio_id == portfolio_id)
-            .order_by(PortfolioRiskMetrics.calculation_date.desc())
-            .first()
-        )
-
-        if existing_risk and self._is_data_fresh(
-            existing_risk.created_at, self.risk_metrics_freshness_hours
-        ):
-            # Return existing fresh data
-            return RiskCalculationResponse(
-                portfolio_id=existing_risk.portfolio_id,
-                calculation_date=existing_risk.calculation_date,
-                risk_level=existing_risk.risk_level,
-                portfolio_volatility=existing_risk.portfolio_volatility,
-                var_95=existing_risk.var_95_1d,
-                var_99=existing_risk.var_99_1d,
-                expected_shortfall_95=existing_risk.cvar_95_1d,
-                expected_shortfall_99=existing_risk.cvar_99_1d,
-                max_drawdown=existing_risk.max_drawdown,
-                sharpe_ratio=existing_risk.sharpe_ratio,
-                sortino_ratio=existing_risk.sortino_ratio,
-                beta=existing_risk.portfolio_beta,
-                correlation_to_market=existing_risk.average_correlation,
-            )
-
-        # Data is stale - calculate new metrics
-        return await self.calculate_portfolio_risk_metrics(
-            portfolio_id, datetime.now(timezone.utc)
-        )
-
-    async def calculate_portfolio_risk_metrics(
-        self, portfolio_id: int, calculation_date: Optional[datetime] = None
-    ) -> RiskCalculationResponse:
-        """Calculate comprehensive risk metrics for a portfolio."""
-        if calculation_date is None:
-            calculation_date = datetime.now(timezone.utc)
-
-        # Get portfolio assets
-        portfolio_assets = (
-            self.db.query(PortfolioAsset)
-            .filter(PortfolioAsset.portfolio_id == portfolio_id)
-            .all()
-        )
-
-        if not portfolio_assets:
-            raise ValueError("Portfolio has no assets")
-
-        # Calculate portfolio volatility and other risk metrics
-        # This is a simplified implementation - in practice you'd want more sophisticated calculations
-        portfolio_volatility = Decimal("15.0")  # Placeholder
-        var_95 = Decimal("5.0")  # Placeholder
-        var_99 = Decimal("8.0")  # Placeholder
-
-        # Create risk metrics record
-        risk_metrics = PortfolioRiskMetrics(
-            portfolio_id=portfolio_id,
-            calculation_date=calculation_date,
-            risk_level=RiskLevel.MODERATE,
-            portfolio_volatility=portfolio_volatility,
-            var_95_1d=var_95,
-            var_99_1d=var_99,
-        )
-
-        self.db.add(risk_metrics)
-        self.db.commit()
-        self.db.refresh(risk_metrics)
-
-        return RiskCalculationResponse(
-            portfolio_id=risk_metrics.portfolio_id,
-            calculation_date=risk_metrics.calculation_date,
-            risk_level=risk_metrics.risk_level,
-            portfolio_volatility=risk_metrics.portfolio_volatility,
-            var_95=risk_metrics.var_95_1d,
-            var_99=risk_metrics.var_99_1d,
-            expected_shortfall_95=None,
-            expected_shortfall_99=None,
-            max_drawdown=None,
-            sharpe_ratio=None,
-            sortino_ratio=None,
-            beta=None,
-            correlation_to_market=None,
-        )
-
     def _calculate_risk_metrics(self, price_data: pd.DataFrame) -> Dict[str, Any]:
         """Calculate risk metrics for an asset."""
         metrics = {}
@@ -831,7 +733,7 @@ class PortfolioAnalyticsService:
         return metrics
 
     def _calculate_performance_metrics(
-        self, price_data: pd.DataFrame
+            self, price_data: pd.DataFrame
     ) -> Dict[str, Any]:
         """Calculate performance metrics for an asset."""
         metrics = {}
@@ -860,7 +762,7 @@ class PortfolioAnalyticsService:
 
     # Portfolio Allocation Management
     def set_portfolio_allocation(
-        self, portfolio_id: int, allocations: List[PortfolioAllocationCreate]
+            self, portfolio_id: int, allocations: List[PortfolioAllocationCreate]
     ) -> List[PortfolioAllocation]:
         """Set target allocations for a portfolio."""
         # Clear existing allocations
@@ -891,7 +793,7 @@ class PortfolioAnalyticsService:
         return new_allocations
 
     async def get_portfolio_analytics_summary(
-        self, portfolio_id: int
+            self, portfolio_id: int
     ) -> Dict[str, Any]:
         """Get comprehensive portfolio analytics summary."""
         try:
@@ -941,14 +843,6 @@ class PortfolioAnalyticsService:
                 .first()
             )
 
-            # Get latest risk metrics
-            latest_risk = (
-                self.db.query(PortfolioRiskMetrics)
-                .filter(PortfolioRiskMetrics.portfolio_id == portfolio_id)
-                .order_by(PortfolioRiskMetrics.calculation_date.desc())
-                .first()
-            )
-
             # Get portfolio info
             portfolio = (
                 self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
@@ -978,25 +872,6 @@ class PortfolioAnalyticsService:
                 "sortino_ratio": None,  # Would need to be calculated
                 "max_drawdown": (
                     latest_snapshot.max_drawdown if latest_snapshot else None
-                ),
-                # Risk metrics from latest calculation
-                "risk_level": latest_risk.risk_level if latest_risk else None,
-                "portfolio_volatility": (
-                    latest_risk.portfolio_volatility if latest_risk else None
-                ),
-                "var_95": latest_risk.var_95_1d if latest_risk else None,
-                "var_99": latest_risk.var_99_1d if latest_risk else None,
-                "beta": latest_risk.portfolio_beta if latest_risk else None,
-                "alpha": latest_risk.portfolio_alpha if latest_risk else None,
-                # Diversification metrics
-                "concentration_risk": (
-                    latest_risk.concentration_risk if latest_risk else None
-                ),
-                "effective_number_of_assets": (
-                    latest_risk.effective_number_of_assets if latest_risk else None
-                ),
-                "diversification_ratio": (
-                    latest_risk.diversification_ratio if latest_risk else None
                 ),
                 # Benchmark comparison
                 "benchmark_name": None,  # Would need to get from benchmark table
@@ -1051,12 +926,12 @@ class PortfolioAnalyticsService:
                     if drift.drift_percentage < -5:  # Underweight by more than 5%
                         action_type = "buy"
                         quantity_change = (
-                            abs(drift.drift_amount) / 100
+                                abs(drift.drift_amount) / 100
                         )  # Simplified calculation
                     elif drift.drift_percentage > 5:  # Overweight by more than 5%
                         action_type = "sell"
                         quantity_change = (
-                            abs(drift.drift_amount) / 100
+                                abs(drift.drift_amount) / 100
                         )  # Simplified calculation
                     else:
                         action_type = "hold"
@@ -1091,9 +966,9 @@ class PortfolioAnalyticsService:
                     "asset_name": item.asset_name,
                     "current_percentage": item.current_percentage,
                     "target_percentage": item.target_percentage
-                    or item.current_percentage,
+                                         or item.current_percentage,
                     "expected_percentage": item.target_percentage
-                    or item.current_percentage,
+                                           or item.current_percentage,
                     "current_value": item.current_value,
                     "quantity": item.quantity,
                 }
@@ -1127,7 +1002,7 @@ class PortfolioAnalyticsService:
                 "rebalancing_actions": rebalancing_actions,
                 "estimated_cost": estimated_cost,
                 "tax_impact": estimated_cost
-                * Decimal("0.2"),  # Simplified tax estimate
+                              * Decimal("0.2"),  # Simplified tax estimate
                 "expected_allocations": expected_allocations,
                 "expected_risk_reduction": Decimal("5.0"),  # Simplified estimate
                 "expected_return_impact": Decimal("0.5"),  # Simplified estimate
@@ -1141,7 +1016,7 @@ class PortfolioAnalyticsService:
             raise
 
     async def get_or_calculate_asset_correlation(
-        self, asset1_id: int, asset2_id: int, force_refresh: bool = False
+            self, asset1_id: int, asset2_id: int, force_refresh: bool = False
     ) -> AssetCorrelation:
         """Get asset correlation, auto-refreshing with yfinance if stale."""
         # If force refresh is requested, always calculate new correlation
@@ -1165,7 +1040,7 @@ class PortfolioAnalyticsService:
         )
 
         if existing_correlation and self._is_data_fresh(
-            existing_correlation.created_at, self.correlation_freshness_days * 24
+                existing_correlation.created_at, self.correlation_freshness_days * 24
         ):
             # Return existing fresh data
             return existing_correlation
@@ -1176,10 +1051,10 @@ class PortfolioAnalyticsService:
         )
 
     async def calculate_asset_correlation(
-        self,
-        asset1_id: int,
-        asset2_id: int,
-        calculation_date: Optional[datetime] = None,
+            self,
+            asset1_id: int,
+            asset2_id: int,
+            calculation_date: Optional[datetime] = None,
     ) -> AssetCorrelation:
         """Calculate correlation between two assets."""
         if calculation_date is None:
@@ -1213,10 +1088,10 @@ class PortfolioAnalyticsService:
         )
 
         if (
-            price_data1 is None
-            or price_data2 is None
-            or len(price_data1) < 30
-            or len(price_data2) < 30
+                price_data1 is None
+                or price_data2 is None
+                or len(price_data1) < 30
+                or len(price_data2) < 30
         ):
             raise ValueError("Insufficient price data for correlation calculations")
 
@@ -1238,7 +1113,7 @@ class PortfolioAnalyticsService:
         return correlation
 
     def _calculate_correlations(
-        self, price_data1: pd.DataFrame, price_data2: pd.DataFrame
+            self, price_data1: pd.DataFrame, price_data2: pd.DataFrame
     ) -> Dict[str, Any]:
         """Calculate correlation metrics between two price series."""
         metrics = {}
@@ -1302,7 +1177,7 @@ class PortfolioAnalyticsService:
                 correlation = returns1.corr(returns2)
                 # Simple p-value approximation (for proper stats, use scipy.stats)
                 t_stat = correlation * math.sqrt(
-                    (len(returns1) - 2) / (1 - correlation**2)
+                    (len(returns1) - 2) / (1 - correlation ** 2)
                 )
                 # Simplified p-value calculation
                 p_value = 2 * (1 - abs(t_stat) / 2)  # Rough approximation
@@ -1447,18 +1322,6 @@ class PortfolioAnalyticsService:
                         )
                         .count()
                     ),
-                    "risk_calculations_last_week": (
-                        self.db.query(PortfolioRiskMetrics)
-                        .join(
-                            Portfolio, Portfolio.id == PortfolioRiskMetrics.portfolio_id
-                        )
-                        .filter(
-                            Portfolio.user_id == user_id,
-                            PortfolioRiskMetrics.calculation_date
-                            >= datetime.now(timezone.utc) - timedelta(days=7),
-                        )
-                        .count()
-                    ),
                 },
             }
 
@@ -1467,7 +1330,7 @@ class PortfolioAnalyticsService:
             raise
 
     async def force_refresh_all_portfolio_data(
-        self, portfolio_id: int
+            self, portfolio_id: int
     ) -> Dict[str, Any]:
         """Force refresh all portfolio data from yfinance and update database."""
         try:
@@ -1552,29 +1415,6 @@ class PortfolioAnalyticsService:
             except Exception as e:
                 updated_data["errors"].append(f"Performance snapshot: {str(e)}")
 
-            # Refresh portfolio risk metrics
-            try:
-                risk_metrics = await self.calculate_portfolio_risk_metrics(
-                    portfolio_id, datetime.now(timezone.utc)
-                )
-                updated_data["risk_metrics"] = {
-                    "risk_level": risk_metrics.risk_level,
-                    "portfolio_volatility": (
-                        float(risk_metrics.portfolio_volatility)
-                        if risk_metrics.portfolio_volatility
-                        else None
-                    ),
-                    "var_95": (
-                        float(risk_metrics.var_95) if risk_metrics.var_95 else None
-                    ),
-                    "var_99": (
-                        float(risk_metrics.var_99) if risk_metrics.var_99 else None
-                    ),
-                    "calculation_date": risk_metrics.calculation_date,
-                }
-            except Exception as e:
-                updated_data["errors"].append(f"Risk metrics: {str(e)}")
-
             return updated_data
 
         except Exception as e:
@@ -1648,7 +1488,7 @@ class PortfolioAnalyticsService:
             raise
 
     async def generate_historical_performance_snapshots(
-        self, portfolio_id: int, start_date: datetime, end_date: datetime
+            self, portfolio_id: int, start_date: datetime, end_date: datetime
     ) -> List[PortfolioPerformanceHistory]:
         """
         Generate historical performance snapshots for a portfolio using yfinance data.
@@ -1782,7 +1622,8 @@ class PortfolioAnalyticsService:
 
             # Always start from the first transaction date if the requested start date is before it
             # This ensures we never generate snapshots for dates before any transactions exist
-            # and that we always start from the first transaction date when requested period is longer than transaction history
+            # and that we always start from the first transaction date when requested period is longer than
+            # transaction history
             first_transaction_datetime = datetime.combine(
                 first_transaction_date.date(), datetime.min.time()
             )
@@ -1855,13 +1696,13 @@ class PortfolioAnalyticsService:
                     if tx.transaction_type == TransactionType.BUY:
                         current_holdings[asset_id]["quantity"] += tx.quantity
                         current_holdings[asset_id]["cost_basis"] += (
-                            tx.quantity * tx.price
+                                tx.quantity * tx.price
                         )
                     elif tx.transaction_type == TransactionType.SELL:
                         if current_holdings[asset_id]["quantity"] > 0:
                             avg_cost = (
-                                current_holdings[asset_id]["cost_basis"]
-                                / current_holdings[asset_id]["quantity"]
+                                    current_holdings[asset_id]["cost_basis"]
+                                    / current_holdings[asset_id]["quantity"]
                             )
                             cost_basis_reduction = tx.quantity * avg_cost
                             current_holdings[asset_id][
@@ -1889,13 +1730,13 @@ class PortfolioAnalyticsService:
                         if tx.transaction_type == TransactionType.BUY:
                             current_holdings[asset_id]["quantity"] += tx.quantity
                             current_holdings[asset_id]["cost_basis"] += (
-                                tx.quantity * tx.price
+                                    tx.quantity * tx.price
                             )
                         elif tx.transaction_type == TransactionType.SELL:
                             if current_holdings[asset_id]["quantity"] > 0:
                                 avg_cost = (
-                                    current_holdings[asset_id]["cost_basis"]
-                                    / current_holdings[asset_id]["quantity"]
+                                        current_holdings[asset_id]["cost_basis"]
+                                        / current_holdings[asset_id]["quantity"]
                                 )
                                 cost_basis_reduction = tx.quantity * avg_cost
                                 current_holdings[asset_id][
@@ -1921,14 +1762,14 @@ class PortfolioAnalyticsService:
                         try:
                             # Ensure Date column is in datetime format for comparison
                             if not pd.api.types.is_datetime64_any_dtype(
-                                price_data["Date"]
+                                    price_data["Date"]
                             ):
                                 price_data["Date"] = pd.to_datetime(price_data["Date"])
 
                             # Find the most recent price on or before the current snapshot date
                             prev_rows = price_data[
                                 price_data["Date"].dt.date <= date_key
-                            ]
+                                ]
                             if not prev_rows.empty:
                                 # Since data is sorted descending, get the first row (most recent)
                                 close_price = Decimal(str(prev_rows.iloc[0]["Close"]))

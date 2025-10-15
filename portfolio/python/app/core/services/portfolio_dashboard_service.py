@@ -17,7 +17,6 @@ from core.database.models import (
 )
 from core.database.models.portfolio_analytics import (
     PortfolioPerformanceHistory,
-    PortfolioRiskMetrics,
 )
 from core.schemas.portfolio import PortfolioHolding
 from core.services.portfolio_service import PortfolioService
@@ -60,9 +59,6 @@ class PortfolioDashboardService:
         # Get performance metrics
         performance_metrics = self._get_performance_metrics(portfolio_id)
 
-        # Get risk metrics
-        risk_metrics = self._get_risk_metrics(portfolio_id)
-
         # Get allocation breakdown
         allocation_breakdown = self._get_allocation_breakdown(holdings, total_value)
 
@@ -86,7 +82,6 @@ class PortfolioDashboardService:
                 "last_updated": datetime.now(timezone.utc),
             },
             "performance": performance_metrics,
-            "risk": risk_metrics,
             "allocation": allocation_breakdown,
             "holdings": holdings,
             "recent_activity": recent_activity,
@@ -161,29 +156,6 @@ class PortfolioDashboardService:
             "alpha": float(latest_snapshot.alpha or 0),
         }
 
-    def _get_risk_metrics(self, portfolio_id: int) -> Dict[str, Any]:
-        """Get portfolio risk metrics."""
-        latest_risk = (
-            self.db.query(PortfolioRiskMetrics)
-            .filter(PortfolioRiskMetrics.portfolio_id == portfolio_id)
-            .order_by(desc(PortfolioRiskMetrics.calculation_date))
-            .first()
-        )
-
-        if not latest_risk:
-            return {}
-
-        return {
-            "risk_level": latest_risk.risk_level.value if latest_risk.risk_level else None,
-            "risk_score": float(latest_risk.risk_score or 0),
-            "portfolio_volatility": float(latest_risk.portfolio_volatility or 0),
-            "concentration_risk": float(latest_risk.concentration_risk or 0),
-            "effective_assets": float(latest_risk.effective_number_of_assets or 0),
-            "max_drawdown": float(latest_risk.max_drawdown or 0),
-            "var_95_1d": float(latest_risk.var_95_1d or 0),
-            "var_99_1d": float(latest_risk.var_99_1d or 0),
-        }
-
     def _get_allocation_breakdown(self, holdings: List[PortfolioHolding], total_value: float) -> Dict[str, Any]:
         """Get portfolio allocation breakdown by asset type and sector."""
         if total_value == 0:
@@ -220,14 +192,16 @@ class PortfolioDashboardService:
                 by_sector[asset.sector] = by_sector.get(asset.sector, 0) + allocation_percent
 
             # Individual assets
-            by_asset.append({
-                "symbol": asset.symbol,
-                "name": asset.name,
-                "asset_type": asset_type,
-                "sector": asset.sector,
-                "allocation_percent": round(allocation_percent, 2),
-                "value": round(value, 2),
-            })
+            by_asset.append(
+                {
+                    "symbol": asset.symbol,
+                    "name": asset.name,
+                    "asset_type": asset_type,
+                    "sector": asset.sector,
+                    "allocation_percent": round(allocation_percent, 2),
+                    "value": round(value, 2),
+                }
+            )
 
         # Sort by allocation percentage
         by_asset.sort(key=lambda x: x["allocation_percent"], reverse=True)
@@ -251,16 +225,18 @@ class PortfolioDashboardService:
 
         activity = []
         for transaction, asset in recent_transactions:
-            activity.append({
-                "id": transaction.id,
-                "type": transaction.transaction_type.value,
-                "symbol": asset.symbol,
-                "asset_name": asset.name,
-                "quantity": float(transaction.quantity),
-                "price": float(transaction.price),
-                "total_amount": float(transaction.total_amount),
-                "date": transaction.transaction_date,
-                "fees": float(transaction.fees),
-            })
+            activity.append(
+                {
+                    "id": transaction.id,
+                    "type": transaction.transaction_type.value,
+                    "symbol": asset.symbol,
+                    "asset_name": asset.name,
+                    "quantity": float(transaction.quantity),
+                    "price": float(transaction.price),
+                    "total_amount": float(transaction.total_amount),
+                    "date": transaction.transaction_date,
+                    "fees": float(transaction.fees),
+                }
+            )
 
         return activity

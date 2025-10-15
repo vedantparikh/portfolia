@@ -119,7 +119,9 @@ class PortfolioRiskMetricsService:
         volatility = self._calculate_volatility(daily_returns)
         sharpe_ratio = self._calculate_sharpe_ratio(daily_returns)
         beta = await self._calculate_beta(daily_returns, benchmark_symbol, start_date, end_date)
+        max_drawdown = self._calculate_max_drawdown(daily_returns)
         value_at_risk_95 = self._calculate_var(daily_returns)
+        value_at_risk_99 = self._calculate_var(daily_returns, 0.99)
 
         # Step 3: Assemble the final result dictionary.
         return {
@@ -133,7 +135,9 @@ class PortfolioRiskMetricsService:
                 "annualized_volatility_pct": volatility,
                 "sharpe_ratio": sharpe_ratio,
                 "beta": beta,
+                "max_drawdown": max_drawdown,
                 "value_at_risk_95_pct": value_at_risk_95,
+                "value_at_risk_99_pct": value_at_risk_99,
             },
         }
 
@@ -262,6 +266,33 @@ class PortfolioRiskMetricsService:
             logger.error(f"Error calculating Value at Risk (VaR): {e}")
             return None
 
+    def _calculate_max_drawdown(self, daily_returns: pd.Series) -> Optional[float]:
+        """
+        Calculates the Max Drawdown from a series of daily returns adjusted for cash flows.
+
+        Max Drawdown is the largest percentage drop from a peak to a trough on the
+        portfolio's equity curve. It is a key measure of downside risk.
+        """
+        try:
+            # Step 1: Create the Equity Curve (or growth index)
+            # We start with an initial value of 1 and compound the daily returns.
+            equity_curve = (1 + daily_returns).cumprod()
+
+            # Step 2: Calculate the previous peak for each point in time
+            running_max = equity_curve.cummax()
+
+            # Step 3: Calculate the drawdown from the peak at each point
+            drawdown = (equity_curve - running_max) / running_max
+
+            # Step 4: The Max Drawdown is the minimum value (largest drop) in the drawdown series
+            max_drawdown = drawdown.min()
+
+            return float(max_drawdown * 100)  # Return as a percentage
+
+        except Exception as e:
+            logger.error(f"Error calculating max drawdown: {e}")
+            return None
+
     def _empty_risk_result(
             self, portfolio_id: int, period: str, error_message: str
     ) -> Dict[str, Any]:
@@ -275,6 +306,8 @@ class PortfolioRiskMetricsService:
                 "annualized_volatility_pct": None,
                 "sharpe_ratio": None,
                 "beta": None,
+                "max_drawdown": None,
                 "value_at_risk_95_pct": None,
+                "value_at_risk_99_pct": None,
             },
         }

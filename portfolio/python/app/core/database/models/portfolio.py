@@ -58,9 +58,6 @@ class Portfolio(Base):
     rebalancing_events = relationship(
         "RebalancingEvent", back_populates="portfolio", cascade="all, delete-orphan"
     )
-    risk_metrics = relationship(
-        "PortfolioRiskMetrics", back_populates="portfolio", cascade="all, delete-orphan"
-    )
     benchmarks = relationship(
         "PortfolioBenchmark", back_populates="portfolio", cascade="all, delete-orphan"
     )

@@ -27,7 +27,6 @@ from core.database.models.portfolio_analytics import (
     AssetPerformanceMetrics,
     PortfolioAllocation,
     PortfolioPerformanceHistory,
-    RiskLevel,
 )
 from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
@@ -36,7 +35,6 @@ from core.schemas.portfolio_analytics import (
     AssetMetricsResponse,
     PerformanceSnapshotResponse,
     PortfolioAllocationCreate,
-    RiskCalculationResponse,
 )
 from core.services.market_data_service import market_data_service
 

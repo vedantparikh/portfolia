@@ -43,6 +43,8 @@ from core.schemas.portfolio_analytics import (
     UserDashboardResponse,
 )
 from core.services.portfolio_analytics_service import PortfolioAnalyticsService
+from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsService
+from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics")
@@ -561,7 +563,7 @@ async def analyze_portfolio_allocation(
 @router.get("/portfolios/{portfolio_id}/risk", response_model=RiskCalculationResponse)
 async def get_portfolio_risk_metrics(
         portfolio_id: int,
-        force_refresh: bool = Query(True, description="Force refresh from yfinance"),
+        period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
         current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
 ):
@@ -582,13 +584,12 @@ async def get_portfolio_risk_metrics(
             status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
         )
 
-    analytics_service = PortfolioAnalyticsService(db)
+    portfolio_risk_metric_service = PortfolioRiskMetricsService(db)
 
     try:
         # Use force_refresh parameter to ensure latest data
-        risk_metrics = await analytics_service.get_or_calculate_portfolio_risk_metrics(
-            portfolio_id, force_refresh
-        )
+        risk_metrics = await portfolio_risk_metric_service.calculate_portfolio_risk_metrics(portfolio_id)
+
         return risk_metrics
     except ValueError as e:
         raise HTTPException(
@@ -1004,148 +1005,6 @@ async def get_portfolio_performance_comparison(
         ]
 
     return comparison_data
-
-
-# Analytics All Endpoint - Update All Portfolio Data
-@router.post("/all", status_code=status.HTTP_200_OK)
-async def update_all_analytics(
-        _force_refresh: bool = Query(False, description="Force refresh all data from yfinance"),
-        current_user: User = Depends(get_current_active_user),
-        db: Session = Depends(get_db),
-):
-    """Update all analytics data using yfinance and respond with updated calculations."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    try:
-        # Get all user portfolios
-        user_portfolios = (
-            db.query(Portfolio)
-            .filter(
-                Portfolio.user_id == current_user.id,
-                Portfolio.is_active == True,
-            )
-            .all()
-        )
-
-        # Get all user assets
-        from core.database.models import Asset
-        user_assets = (
-            db.query(Asset)
-            .filter(Asset.user_id == current_user.id, Asset.is_active == True)
-            .all()
-        )
-
-        updated_data = {
-            "user_id": current_user.id,
-            "update_timestamp": datetime.now(timezone.utc),
-            "portfolios_updated": 0,
-            "assets_updated": 0,
-            "errors": [],
-            "portfolio_summaries": [],
-            "asset_metrics": []
-        }
-
-        # Update asset metrics for all user assets
-        for asset in user_assets:
-            try:
-                if asset.symbol:  # Only update assets with symbols
-                    asset_metrics = await analytics_service.get_or_calculate_asset_metrics(
-                        asset.id, force_refresh=True
-                    )
-                    updated_data["asset_metrics"].append({
-                        "asset_id": asset.id,
-                        "symbol": asset.symbol,
-                        "current_price": float(asset_metrics.current_price) if asset_metrics.current_price else None,
-                        "price_change_percent": float(
-                            asset_metrics.price_change_percent) if asset_metrics.price_change_percent else None,
-                        "updated": True
-                    })
-                    updated_data["assets_updated"] += 1
-            except (ValueError, RuntimeError) as e:
-                updated_data["errors"].append(f"Asset {asset.symbol}: {str(e)}")
-
-        # Update portfolio analytics for all user portfolios
-        for portfolio in user_portfolios:
-            try:
-                # Update performance snapshot
-                await analytics_service.get_or_create_performance_snapshot(
-                    portfolio.id, force_refresh=True
-                )
-
-                # Update risk metrics
-                risk_metrics = await analytics_service.get_or_calculate_portfolio_risk_metrics(
-                    portfolio.id, force_refresh=True
-                )
-
-                # Get comprehensive summary
-                portfolio_summary = await analytics_service.get_portfolio_analytics_summary(portfolio.id)
-
-                updated_data["portfolio_summaries"].append({
-                    "portfolio_id": portfolio.id,
-                    "portfolio_name": portfolio.name,
-                    "total_value": float(portfolio_summary["total_value"]) if portfolio_summary["total_value"] else 0,
-                    "total_unrealized_pnl": float(portfolio_summary["total_unrealized_pnl"]) if portfolio_summary[
-                        "total_unrealized_pnl"] else 0,
-                    "total_unrealized_pnl_percent": float(portfolio_summary["total_unrealized_pnl_percent"]) if
-                    portfolio_summary["total_unrealized_pnl_percent"] else 0,
-                    "risk_level": risk_metrics.risk_level if hasattr(risk_metrics, 'risk_level') else None,
-                    "portfolio_volatility": float(risk_metrics.portfolio_volatility) if hasattr(risk_metrics,
-                                                                                                'portfolio_volatility') and risk_metrics.portfolio_volatility else None,
-                    "updated": True
-                })
-                updated_data["portfolios_updated"] += 1
-
-            except (ValueError, RuntimeError) as e:
-                updated_data["errors"].append(f"Portfolio {portfolio.name}: {str(e)}")
-
-        # Update correlations for pairs of user assets (limit to prevent too many calculations)
-        if len(user_assets) >= 2:
-            asset_pairs_to_update = min(10, len(user_assets) * (len(user_assets) - 1) // 2)  # Limit to 10 pairs
-            pairs_updated = 0
-
-            for i, asset1 in enumerate(user_assets[:5]):  # Limit to first 5 assets
-                for asset2 in user_assets[i + 1:6]:  # Pair with next 5 assets
-                    if pairs_updated >= asset_pairs_to_update:
-                        break
-                    try:
-                        if asset1.symbol and asset2.symbol:
-                            await analytics_service.get_or_calculate_asset_correlation(
-                                asset1.id, asset2.id, force_refresh=True
-                            )
-                            pairs_updated += 1
-                    except (ValueError, RuntimeError) as e:
-                        updated_data["errors"].append(f"Correlation {asset1.symbol}-{asset2.symbol}: {str(e)}")
-
-        # Calculate summary statistics
-        total_portfolio_value = sum(
-            p["total_value"] for p in updated_data["portfolio_summaries"]
-        )
-        total_unrealized_pnl = sum(
-            p["total_unrealized_pnl"] for p in updated_data["portfolio_summaries"]
-        )
-
-        updated_data["summary"] = {
-            "total_portfolio_value": total_portfolio_value,
-            "total_unrealized_pnl": total_unrealized_pnl,
-            "total_unrealized_pnl_percent": (
-                    total_unrealized_pnl / (total_portfolio_value - total_unrealized_pnl) * 100) if (
-                                                                                                            total_portfolio_value - total_unrealized_pnl) > 0 else 0,
-            "assets_with_current_data": len(
-                [a for a in updated_data["asset_metrics"] if a["current_price"] is not None]),
-            "successful_updates": updated_data["portfolios_updated"] + updated_data["assets_updated"],
-            "total_errors": len(updated_data["errors"])
-        }
-
-        return {
-            "message": "Analytics data updated successfully",
-            "data": updated_data
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update analytics data: {str(e)}",
-        ) from e
 
 
 # User Analytics Dashboard

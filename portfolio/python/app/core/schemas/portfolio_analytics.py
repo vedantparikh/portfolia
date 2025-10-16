@@ -49,80 +49,6 @@ class PortfolioPerformanceHistory(PortfolioPerformanceHistoryBase):
         from_attributes = True
 
 
-# Asset Performance Metrics Schemas
-class AssetPerformanceMetricsBase(BaseModel):
-    asset_id: int
-    calculation_date: datetime
-    current_price: Decimal = Field(..., description="Current asset price")
-    price_change: Optional[Decimal] = Field(None, description="Price change")
-    price_change_percent: Optional[Decimal] = Field(
-        None, description="Price change percentage"
-    )
-
-    # Technical indicators
-    sma_20: Optional[Decimal] = Field(None, description="20-day Simple Moving Average")
-    sma_50: Optional[Decimal] = Field(None, description="50-day Simple Moving Average")
-    sma_200: Optional[Decimal] = Field(
-        None, description="200-day Simple Moving Average"
-    )
-    ema_12: Optional[Decimal] = Field(
-        None, description="12-day Exponential Moving Average"
-    )
-    ema_26: Optional[Decimal] = Field(
-        None, description="26-day Exponential Moving Average"
-    )
-
-    # Momentum indicators
-    rsi: Optional[Decimal] = Field(None, description="Relative Strength Index")
-    macd: Optional[Decimal] = Field(None, description="MACD")
-    macd_signal: Optional[Decimal] = Field(None, description="MACD Signal")
-    macd_histogram: Optional[Decimal] = Field(None, description="MACD Histogram")
-    stochastic_k: Optional[Decimal] = Field(None, description="Stochastic %K")
-    stochastic_d: Optional[Decimal] = Field(None, description="Stochastic %D")
-
-    # Volatility indicators
-    bollinger_upper: Optional[Decimal] = Field(None, description="Bollinger Upper Band")
-    bollinger_middle: Optional[Decimal] = Field(
-        None, description="Bollinger Middle Band"
-    )
-    bollinger_lower: Optional[Decimal] = Field(None, description="Bollinger Lower Band")
-    atr: Optional[Decimal] = Field(None, description="Average True Range")
-
-    # Volume indicators
-    volume_sma: Optional[Decimal] = Field(
-        None, description="Volume Simple Moving Average"
-    )
-    volume_ratio: Optional[Decimal] = Field(None, description="Volume ratio")
-    obv: Optional[Decimal] = Field(None, description="On-Balance Volume")
-
-    # Risk metrics
-    volatility_20d: Optional[Decimal] = Field(None, description="20-day volatility")
-    volatility_60d: Optional[Decimal] = Field(None, description="60-day volatility")
-    volatility_252d: Optional[Decimal] = Field(None, description="252-day volatility")
-    beta: Optional[Decimal] = Field(None, description="Asset beta")
-    sharpe_ratio: Optional[Decimal] = Field(None, description="Asset Sharpe ratio")
-
-    # Performance metrics (matching database model)
-    total_return_1m: Optional[Decimal] = Field(None, description="1-month total return")
-    total_return_3m: Optional[Decimal] = Field(None, description="3-month total return")
-    total_return_1y: Optional[Decimal] = Field(None, description="1-year total return")
-
-    # Note: total_return_6m, total_return_3y, total_return_5y not in database model
-    # These would need to be calculated fields if needed
-
-
-class AssetPerformanceMetricsCreate(AssetPerformanceMetricsBase):
-    pass
-
-
-class AssetPerformanceMetrics(AssetPerformanceMetricsBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 # Portfolio Allocation Schemas
 class PortfolioAllocationBase(BaseModel):
     portfolio_id: int
@@ -220,42 +146,6 @@ class RebalancingEvent(RebalancingEventBase):
         from_attributes = True
 
 
-# Asset Correlation Schemas
-class AssetCorrelationBase(BaseModel):
-    asset1_id: int
-    asset2_id: int
-    calculation_date: datetime
-    correlation_1m: Optional[Decimal] = Field(None, description="1-month correlation")
-    correlation_3m: Optional[Decimal] = Field(None, description="3-month correlation")
-    correlation_6m: Optional[Decimal] = Field(None, description="6-month correlation")
-    correlation_1y: Optional[Decimal] = Field(None, description="1-year correlation")
-    correlation_3y: Optional[Decimal] = Field(None, description="3-year correlation")
-    rolling_correlation_20d: Optional[Decimal] = Field(
-        None, description="20-day rolling correlation"
-    )
-    rolling_correlation_60d: Optional[Decimal] = Field(
-        None, description="60-day rolling correlation"
-    )
-    p_value: Optional[Decimal] = Field(
-        None, description="Statistical significance p-value"
-    )
-    is_significant: Optional[bool] = Field(
-        None, description="Whether correlation is statistically significant"
-    )
-
-
-class AssetCorrelationCreate(AssetCorrelationBase):
-    pass
-
-
-class AssetCorrelation(AssetCorrelationBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 # Portfolio Benchmark Schemas
 class PortfolioBenchmarkBase(BaseModel):
     portfolio_id: int
@@ -321,28 +211,6 @@ class PortfolioAnalyticsSummary(BaseModel):
     # Performance metrics
     total_return: Optional[Decimal] = None
     annualized_return: Optional[Decimal] = None
-    volatility: Optional[Decimal] = None
-    sharpe_ratio: Optional[Decimal] = None
-    sortino_ratio: Optional[Decimal] = None
-    max_drawdown: Optional[Decimal] = None
-
-    # Risk metrics
-    risk_level: Optional[RiskLevel] = None
-    risk_score: Optional[Decimal] = None
-    var_95_1d: Optional[Decimal] = None
-    beta: Optional[Decimal] = None
-    alpha: Optional[Decimal] = None
-
-    # Diversification metrics
-    concentration_risk: Optional[Decimal] = None
-    effective_number_of_assets: Optional[Decimal] = None
-    diversification_ratio: Optional[Decimal] = None
-
-    # Benchmark comparison
-    benchmark_name: Optional[str] = None
-    excess_return: Optional[Decimal] = None
-    tracking_error: Optional[Decimal] = None
-    information_ratio: Optional[Decimal] = None
 
 
 class PortfolioAllocationAnalysis(BaseModel):
@@ -555,71 +423,6 @@ class PerformanceSnapshotResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
 
 
-class AssetMetricsResponse(BaseModel):
-    """Asset metrics response matching database model."""
-
-    id: int = Field(..., description="Metrics ID")
-    asset_id: int = Field(..., description="Asset ID")
-    calculation_date: datetime = Field(..., description="Calculation date")
-
-    # Price metrics
-    current_price: Decimal = Field(..., description="Current asset price")
-    price_change: Optional[Decimal] = Field(None, description="Price change")
-    price_change_percent: Optional[Decimal] = Field(
-        None, description="Price change percentage"
-    )
-
-    # Technical indicators
-    sma_20: Optional[Decimal] = Field(None, description="20-day Simple Moving Average")
-    sma_50: Optional[Decimal] = Field(None, description="50-day Simple Moving Average")
-    sma_200: Optional[Decimal] = Field(
-        None, description="200-day Simple Moving Average"
-    )
-    ema_12: Optional[Decimal] = Field(
-        None, description="12-day Exponential Moving Average"
-    )
-    ema_26: Optional[Decimal] = Field(
-        None, description="26-day Exponential Moving Average"
-    )
-
-    # Momentum indicators
-    rsi: Optional[Decimal] = Field(None, description="Relative Strength Index")
-    macd: Optional[Decimal] = Field(None, description="MACD")
-    macd_signal: Optional[Decimal] = Field(None, description="MACD Signal")
-    macd_histogram: Optional[Decimal] = Field(None, description="MACD Histogram")
-    stochastic_k: Optional[Decimal] = Field(None, description="Stochastic %K")
-    stochastic_d: Optional[Decimal] = Field(None, description="Stochastic %D")
-
-    # Volatility indicators
-    bollinger_upper: Optional[Decimal] = Field(None, description="Bollinger Upper Band")
-    bollinger_middle: Optional[Decimal] = Field(
-        None, description="Bollinger Middle Band"
-    )
-    bollinger_lower: Optional[Decimal] = Field(None, description="Bollinger Lower Band")
-    atr: Optional[Decimal] = Field(None, description="Average True Range")
-
-    # Volume indicators
-    volume_sma: Optional[Decimal] = Field(
-        None, description="Volume Simple Moving Average"
-    )
-    volume_ratio: Optional[Decimal] = Field(None, description="Volume ratio")
-    obv: Optional[Decimal] = Field(None, description="On-Balance Volume")
-
-    # Risk metrics
-    volatility_20d: Optional[Decimal] = Field(None, description="20-day volatility")
-    volatility_60d: Optional[Decimal] = Field(None, description="60-day volatility")
-    volatility_252d: Optional[Decimal] = Field(None, description="252-day volatility")
-    beta: Optional[Decimal] = Field(None, description="Asset beta")
-    sharpe_ratio: Optional[Decimal] = Field(None, description="Asset Sharpe ratio")
-
-    # Performance metrics
-    total_return_1m: Optional[Decimal] = Field(None, description="1-month total return")
-    total_return_3m: Optional[Decimal] = Field(None, description="3-month total return")
-    total_return_1y: Optional[Decimal] = Field(None, description="1-year total return")
-
-    created_at: datetime = Field(..., description="Creation timestamp")
-
-
 class AllocationAnalysisResponse(BaseModel):
     """Portfolio allocation analysis response."""
 
@@ -683,15 +486,6 @@ class PerformanceComparisonResponse(BaseModel):
     benchmark_performance: Optional[List[dict]] = Field(
         None, description="Benchmark performance data"
     )
-
-
-# Additional response schemas for endpoints
-class AssetMetricsHistoryResponse(BaseModel):
-    """Asset metrics history response."""
-
-    asset_id: int = Field(..., description="Asset ID")
-    total_records: int = Field(..., description="Total number of records")
-    metrics: List[AssetMetricsResponse] = Field(..., description="Historical metrics")
 
 
 class PortfolioAllocationResponse(BaseModel):
@@ -763,44 +557,13 @@ class PortfolioBenchmarkResponse(BaseModel):
         from_attributes = True
 
 
-class AssetCorrelationResponse(BaseModel):
-    """Asset correlation response."""
-
-    id: int = Field(..., description="Correlation ID")
-    asset1_id: int = Field(..., description="First asset ID")
-    asset2_id: int = Field(..., description="Second asset ID")
-    calculation_date: datetime = Field(..., description="Calculation date")
-    correlation_1m: Optional[Decimal] = Field(None, description="1-month correlation")
-    correlation_3m: Optional[Decimal] = Field(None, description="3-month correlation")
-    correlation_6m: Optional[Decimal] = Field(None, description="6-month correlation")
-    correlation_1y: Optional[Decimal] = Field(None, description="1-year correlation")
-    correlation_3y: Optional[Decimal] = Field(None, description="3-year correlation")
-    rolling_correlation_20d: Optional[Decimal] = Field(None, description="20-day rolling correlation")
-    rolling_correlation_60d: Optional[Decimal] = Field(None, description="60-day rolling correlation")
-    p_value: Optional[Decimal] = Field(None, description="P-value")
-    is_significant: Optional[bool] = Field(None, description="Statistical significance")
-    created_at: datetime = Field(..., description="Creation timestamp")
-
-    class Config:
-        from_attributes = True
-
-
 class UserDashboardResponse(BaseModel):
     """User analytics dashboard response."""
 
     user_id: int = Field(..., description="User ID")
     summary_date: datetime = Field(..., description="Summary date")
     portfolios: dict = Field(..., description="Portfolio summary data")
-    assets: dict = Field(..., description="Asset summary data")
     analytics: dict = Field(..., description="Analytics summary data")
-
-
-class UserAssetsResponse(BaseModel):
-    """User assets analytics response."""
-
-    user_id: int = Field(..., description="User ID")
-    total_assets: int = Field(..., description="Total number of assets")
-    assets: List[dict] = Field(..., description="Asset analytics data")
 
 
 class DeleteResponse(BaseModel):

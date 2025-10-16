@@ -9,7 +9,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -103,79 +102,6 @@ class PortfolioPerformanceHistory(Base):
         Index("idx_portfolio_performance_date", "snapshot_date"),
         Index("idx_portfolio_performance_portfolio_date", "portfolio_id", "snapshot_date"),
         UniqueConstraint("portfolio_id", "snapshot_date", name="uq_portfolio_performance_date"),
-    )
-
-
-class AssetPerformanceMetrics(Base):
-    """Asset-specific performance metrics and technical indicators."""
-
-    __tablename__ = "asset_performance_metrics"
-
-    id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(
-        Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
-    )
-    calculation_date = Column(DateTime(timezone=True), nullable=False)
-
-    # Price metrics
-    current_price = Column(Numeric(20, 4), nullable=False)
-    price_change = Column(Numeric(20, 4), nullable=True)
-    price_change_percent = Column(Numeric(10, 4), nullable=True)
-
-    # Technical indicators
-    sma_20 = Column(Numeric(20, 4), nullable=True)  # Simple Moving Average 20
-    sma_50 = Column(Numeric(20, 4), nullable=True)  # Simple Moving Average 50
-    sma_200 = Column(Numeric(20, 4), nullable=True)  # Simple Moving Average 200
-    ema_12 = Column(Numeric(20, 4), nullable=True)  # Exponential Moving Average 12
-    ema_26 = Column(Numeric(20, 4), nullable=True)  # Exponential Moving Average 26
-
-    # Momentum indicators
-    rsi = Column(Numeric(10, 4), nullable=True)  # Relative Strength Index
-    macd = Column(Numeric(20, 4), nullable=True)  # MACD
-    macd_signal = Column(Numeric(20, 4), nullable=True)  # MACD Signal
-    macd_histogram = Column(Numeric(20, 4), nullable=True)  # MACD Histogram
-    stochastic_k = Column(Numeric(10, 4), nullable=True)  # Stochastic %K
-    stochastic_d = Column(Numeric(10, 4), nullable=True)  # Stochastic %D
-
-    # Volatility indicators
-    bollinger_upper = Column(Numeric(20, 4), nullable=True)
-    bollinger_middle = Column(Numeric(20, 4), nullable=True)
-    bollinger_lower = Column(Numeric(20, 4), nullable=True)
-    atr = Column(Numeric(20, 4), nullable=True)  # Average True Range
-
-    # Volume indicators
-    volume_sma = Column(Numeric(20, 0), nullable=True)  # Volume SMA
-    volume_ratio = Column(Numeric(10, 4), nullable=True)  # Current volume / Average volume
-    obv = Column(Numeric(20, 0), nullable=True)  # On-Balance Volume
-
-    # Risk metrics
-    volatility_20d = Column(Numeric(10, 6), nullable=True)  # 20-day volatility
-    volatility_60d = Column(Numeric(10, 6), nullable=True)  # 60-day volatility
-    volatility_252d = Column(Numeric(10, 6), nullable=True)  # 252-day volatility
-    beta = Column(Numeric(10, 6), nullable=True)
-    sharpe_ratio = Column(Numeric(10, 6), nullable=True)
-
-    # Performance metrics
-    total_return_1m = Column(Numeric(10, 6), nullable=True)
-    total_return_3m = Column(Numeric(10, 6), nullable=True)
-    total_return_6m = Column(Numeric(10, 6), nullable=True)
-    total_return_1y = Column(Numeric(10, 6), nullable=True)
-    total_return_3y = Column(Numeric(10, 6), nullable=True)
-    total_return_5y = Column(Numeric(10, 6), nullable=True)
-
-    created_at = Column(
-        DateTime(timezone=True), server_default=text('now()'), nullable=False
-    )
-
-    # Relationships
-    asset = relationship("Asset", back_populates="performance_metrics")
-
-    # Indexes
-    __table_args__ = (
-        Index("idx_asset_performance_asset_id", "asset_id"),
-        Index("idx_asset_performance_date", "calculation_date"),
-        Index("idx_asset_performance_asset_date", "asset_id", "calculation_date"),
-        UniqueConstraint("asset_id", "calculation_date", name="uq_asset_performance_date"),
     )
 
 
@@ -273,52 +199,6 @@ class RebalancingEvent(Base):
         Index("idx_rebalancing_events_portfolio_id", "portfolio_id"),
         Index("idx_rebalancing_events_date", "event_date"),
         Index("idx_rebalancing_events_status", "status"),
-    )
-
-
-class AssetCorrelation(Base):
-    """Asset correlation matrix for portfolio analysis."""
-
-    __tablename__ = "asset_correlations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    asset1_id = Column(
-        Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
-    )
-    asset2_id = Column(
-        Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
-    )
-    calculation_date = Column(DateTime(timezone=True), nullable=False)
-
-    # Correlation metrics
-    correlation_1m = Column(Numeric(10, 6), nullable=True)  # 1-month correlation
-    correlation_3m = Column(Numeric(10, 6), nullable=True)  # 3-month correlation
-    correlation_6m = Column(Numeric(10, 6), nullable=True)  # 6-month correlation
-    correlation_1y = Column(Numeric(10, 6), nullable=True)  # 1-year correlation
-    correlation_3y = Column(Numeric(10, 6), nullable=True)  # 3-year correlation
-
-    # Rolling correlation
-    rolling_correlation_20d = Column(Numeric(10, 6), nullable=True)
-    rolling_correlation_60d = Column(Numeric(10, 6), nullable=True)
-
-    # Statistical significance
-    p_value = Column(Numeric(10, 6), nullable=True)
-    is_significant = Column(Boolean, nullable=True)  # p < 0.05
-
-    created_at = Column(
-        DateTime(timezone=True), server_default=text('now()'), nullable=False
-    )
-
-    # Relationships
-    asset1 = relationship("Asset", foreign_keys=[asset1_id])
-    asset2 = relationship("Asset", foreign_keys=[asset2_id])
-
-    # Indexes
-    __table_args__ = (
-        Index("idx_asset_correlation_asset1", "asset1_id"),
-        Index("idx_asset_correlation_asset2", "asset2_id"),
-        Index("idx_asset_correlation_date", "calculation_date"),
-        UniqueConstraint("asset1_id", "asset2_id", "calculation_date", name="uq_asset_correlation"),
     )
 
 

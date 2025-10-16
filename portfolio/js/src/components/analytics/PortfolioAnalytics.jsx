@@ -35,7 +35,7 @@ const PortfolioAnalytics = ({ portfolioId }) => {
 
             const [summary, riskMetrics, performanceSnapshot] = await Promise.allSettled([
                 analyticsAPI.getPortfolioAnalyticsSummary(portfolioId),
-                analyticsAPI.getPortfolioRiskMetrics(portfolioId, forceRefresh),
+                analyticsAPI.getPortfolioRiskMetrics(portfolioId),
                 analyticsAPI.getPerformanceSnapshot(portfolioId, forceRefresh)
             ]);
 
@@ -235,31 +235,31 @@ const PortfolioAnalytics = ({ portfolioId }) => {
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-400">Portfolio Volatility</span>
                                 <span className="text-sm font-medium text-gray-100">
-                                    {formatPercentage(parseFloat(riskMetrics.portfolio_volatility))}
+                                    {formatPercentage(parseFloat(riskMetrics.metrics.annualized_volatility_pct))}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-400">VaR (95%)</span>
                                 <span className="text-sm font-medium text-gray-100">
-                                    {formatCurrency(parseFloat(riskMetrics.var_95))}
+                                    {formatCurrency(parseFloat(riskMetrics.metrics.value_at_risk_95_pct))}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-400">VaR (99%)</span>
                                 <span className="text-sm font-medium text-gray-100">
-                                    {formatCurrency(parseFloat(riskMetrics.var_99))}
+                                    {formatCurrency(parseFloat(riskMetrics.metrics.value_at_risk_99_pct))}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-400">Max Drawdown</span>
                                 <span className="text-sm font-medium text-gray-100">
-                                    {riskMetrics.max_drawdown ? formatPercentage(parseFloat(riskMetrics.max_drawdown)) : 'N/A'}
+                                    {riskMetrics.metrics.max_drawdown ? formatPercentage(parseFloat(riskMetrics.metrics.max_drawdown)) : 'N/A'}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <span className="text-sm text-gray-400">Sharpe Ratio</span>
                                 <span className="text-sm font-medium text-gray-100">
-                                    {riskMetrics.sharpe_ratio ? parseFloat(riskMetrics.sharpe_ratio).toFixed(2) : 'N/A'}
+                                    {riskMetrics.metrics.sharpe_ratio ? parseFloat(riskMetrics.metrics.sharpe_ratio).toFixed(2) : 'N/A'}
                                 </span>
                             </div>
                         </div>

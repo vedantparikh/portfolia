@@ -19,7 +19,7 @@ class PortfolioRiskMetricsService:
     Service for calculating key portfolio risk metrics based on historical daily values.
     """
 
-    def __init__(self, db: Session, calculation_service: PortfolioCalculationService):
+    def __init__(self, db: Session):
         """
         Initializes the risk metrics service.
 
@@ -29,7 +29,7 @@ class PortfolioRiskMetricsService:
                                  its data-fetching and history generation capabilities.
         """
         self.db = db
-        self.calculation_service = calculation_service
+        self.calculation_service = PortfolioCalculationService(db)
         # Define constants used in calculations
         self.TRADING_DAYS_PER_YEAR = 252
         # ASSUMPTION: A constant annualized risk-free rate of 3.0%.

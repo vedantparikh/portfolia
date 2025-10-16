@@ -220,71 +220,6 @@ class RebalancingEvent(RebalancingEventBase):
         from_attributes = True
 
 
-# Portfolio Risk Metrics Schemas
-class PortfolioRiskMetricsBase(BaseModel):
-    portfolio_id: int
-    calculation_date: datetime
-    portfolio_volatility: Decimal = Field(..., description="Portfolio volatility")
-    portfolio_beta: Optional[Decimal] = Field(None, description="Portfolio beta")
-    portfolio_alpha: Optional[Decimal] = Field(None, description="Portfolio alpha")
-    sharpe_ratio: Optional[Decimal] = Field(None, description="Sharpe ratio")
-    sortino_ratio: Optional[Decimal] = Field(None, description="Sortino ratio")
-    treynor_ratio: Optional[Decimal] = Field(None, description="Treynor ratio")
-    calmar_ratio: Optional[Decimal] = Field(None, description="Calmar ratio")
-
-    # Drawdown metrics
-    max_drawdown: Optional[Decimal] = Field(None, description="Maximum drawdown")
-    max_drawdown_duration: Optional[int] = Field(
-        None, description="Maximum drawdown duration in days"
-    )
-    current_drawdown: Optional[Decimal] = Field(None, description="Current drawdown")
-
-    # Value at Risk
-    var_95_1d: Optional[Decimal] = Field(None, description="95% VaR 1-day")
-    var_99_1d: Optional[Decimal] = Field(None, description="99% VaR 1-day")
-    var_95_1m: Optional[Decimal] = Field(None, description="95% VaR 1-month")
-    var_99_1m: Optional[Decimal] = Field(None, description="99% VaR 1-month")
-
-    # Conditional Value at Risk
-    cvar_95_1d: Optional[Decimal] = Field(None, description="95% CVaR 1-day")
-    cvar_99_1d: Optional[Decimal] = Field(None, description="99% CVaR 1-day")
-
-    # Risk level assessment
-    risk_level: Optional[RiskLevel] = Field(None, description="Risk level")
-    risk_score: Optional[Decimal] = Field(
-        None, ge=0, le=100, description="Risk score 0-100"
-    )
-
-    # Diversification metrics
-    concentration_risk: Optional[Decimal] = Field(
-        None, description="Concentration risk (Herfindahl index)"
-    )
-    effective_number_of_assets: Optional[Decimal] = Field(
-        None, description="Effective number of assets"
-    )
-    diversification_ratio: Optional[Decimal] = Field(
-        None, description="Diversification ratio"
-    )
-
-    # Correlation metrics
-    average_correlation: Optional[Decimal] = Field(
-        None, description="Average correlation"
-    )
-    max_correlation: Optional[Decimal] = Field(None, description="Maximum correlation")
-
-
-class PortfolioRiskMetricsCreate(PortfolioRiskMetricsBase):
-    pass
-
-
-class PortfolioRiskMetrics(PortfolioRiskMetricsBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
 # Asset Correlation Schemas
 class AssetCorrelationBase(BaseModel):
     asset1_id: int
@@ -703,28 +638,36 @@ class AllocationAnalysisResponse(BaseModel):
     analysis_date: datetime = Field(..., description="Analysis date")
 
 
-class RiskCalculationResponse(BaseModel):
-    """Portfolio risk calculation response."""
+class RiskMetrics(BaseModel):
+    """A nested model for portfolio risk metrics."""
 
-    portfolio_id: int = Field(..., description="Portfolio ID")
-    calculation_date: datetime = Field(..., description="Calculation date")
-    risk_level: RiskLevel = Field(..., description="Risk level")
-    portfolio_volatility: Decimal = Field(..., description="Portfolio volatility")
-    var_95: Decimal = Field(..., description="95% Value at Risk")
-    var_99: Decimal = Field(..., description="99% Value at Risk")
-    expected_shortfall_95: Optional[Decimal] = Field(
-        None, description="95% Expected Shortfall"
+    annualized_volatility_pct: Optional[Decimal] = Field(
+        None, description="Annualized portfolio volatility in percent."
     )
-    expected_shortfall_99: Optional[Decimal] = Field(
-        None, description="99% Expected Shortfall"
+    sharpe_ratio: Optional[Decimal] = Field(None, description="Sharpe ratio.")
+    beta: Optional[Decimal] = Field(None, description="Portfolio beta against a benchmark.")
+    max_drawdown: Optional[Decimal] = Field(
+        None, description="The largest peak-to-trough decline in portfolio value."
     )
-    max_drawdown: Optional[Decimal] = Field(None, description="Maximum drawdown")
-    sharpe_ratio: Optional[Decimal] = Field(None, description="Sharpe ratio")
-    sortino_ratio: Optional[Decimal] = Field(None, description="Sortino ratio")
-    beta: Optional[Decimal] = Field(None, description="Portfolio beta")
-    correlation_to_market: Optional[Decimal] = Field(
-        None, description="Correlation to market"
+    value_at_risk_95_pct: Optional[Decimal] = Field(
+        None, description="95% Value at Risk (VaR) in percent."
     )
+    value_at_risk_99_pct: Optional[Decimal] = Field(
+        None, description="99% Value at Risk (VaR) in percent."
+    )
+
+
+class RiskCalculationResponse(BaseModel):
+    """
+    Defines the structure for a portfolio risk calculation response,
+    encapsulating identification, period, potential errors, and a
+    comprehensive set of risk metrics.
+    """
+
+    portfolio_id: int = Field(..., description="The unique identifier for the portfolio.")
+    period: str = Field(..., description="The time period for which the risk was calculated (e.g., '1Y', 'YTD').")
+    error: Optional[str] = Field(None, description="An error message if the calculation failed, otherwise null.")
+    metrics: RiskMetrics = Field(..., description="A container for the calculated risk metrics.")
 
 
 class PerformanceComparisonResponse(BaseModel):
@@ -745,7 +688,7 @@ class PerformanceComparisonResponse(BaseModel):
 # Additional response schemas for endpoints
 class AssetMetricsHistoryResponse(BaseModel):
     """Asset metrics history response."""
-    
+
     asset_id: int = Field(..., description="Asset ID")
     total_records: int = Field(..., description="Total number of records")
     metrics: List[AssetMetricsResponse] = Field(..., description="Historical metrics")
@@ -753,9 +696,9 @@ class AssetMetricsHistoryResponse(BaseModel):
 
 class PortfolioAllocationResponse(BaseModel):
     """Portfolio allocation response."""
-    
+
     id: int = Field(..., description="Allocation ID")
-    portfolio_id: int = Field(..., description="Portfolio ID") 
+    portfolio_id: int = Field(..., description="Portfolio ID")
     asset_id: int = Field(..., description="Asset ID")
     target_percentage: Decimal = Field(..., description="Target allocation percentage")
     min_percentage: Optional[Decimal] = Field(None, description="Minimum allocation percentage")
@@ -773,7 +716,7 @@ class PortfolioAllocationResponse(BaseModel):
 
 class PortfolioPerformanceHistoryResponse(BaseModel):
     """Portfolio performance history response."""
-    
+
     portfolio_id: int = Field(..., description="Portfolio ID")
     total_records: int = Field(..., description="Total number of records")
     history: List[PortfolioPerformanceHistory] = Field(..., description="Performance history")
@@ -781,7 +724,7 @@ class PortfolioPerformanceHistoryResponse(BaseModel):
 
 class RebalancingEventResponse(BaseModel):
     """Rebalancing event response."""
-    
+
     id: int = Field(..., description="Event ID")
     portfolio_id: int = Field(..., description="Portfolio ID")
     event_date: datetime = Field(..., description="Event date")
@@ -800,7 +743,7 @@ class RebalancingEventResponse(BaseModel):
 
 class PortfolioBenchmarkResponse(BaseModel):
     """Portfolio benchmark response."""
-    
+
     id: int = Field(..., description="Benchmark ID")
     portfolio_id: int = Field(..., description="Portfolio ID")
     benchmark_asset_id: int = Field(..., description="Benchmark asset ID")
@@ -822,7 +765,7 @@ class PortfolioBenchmarkResponse(BaseModel):
 
 class AssetCorrelationResponse(BaseModel):
     """Asset correlation response."""
-    
+
     id: int = Field(..., description="Correlation ID")
     asset1_id: int = Field(..., description="First asset ID")
     asset2_id: int = Field(..., description="Second asset ID")
@@ -844,7 +787,7 @@ class AssetCorrelationResponse(BaseModel):
 
 class UserDashboardResponse(BaseModel):
     """User analytics dashboard response."""
-    
+
     user_id: int = Field(..., description="User ID")
     summary_date: datetime = Field(..., description="Summary date")
     portfolios: dict = Field(..., description="Portfolio summary data")
@@ -854,7 +797,7 @@ class UserDashboardResponse(BaseModel):
 
 class UserAssetsResponse(BaseModel):
     """User assets analytics response."""
-    
+
     user_id: int = Field(..., description="User ID")
     total_assets: int = Field(..., description="Total number of assets")
     assets: List[dict] = Field(..., description="Asset analytics data")
@@ -862,5 +805,5 @@ class UserAssetsResponse(BaseModel):
 
 class DeleteResponse(BaseModel):
     """Standard delete response."""
-    
+
     message: str = Field(..., description="Success message")

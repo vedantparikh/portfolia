@@ -28,6 +28,7 @@ from core.schemas.market_data import (
     YFinancePriceData,
 )
 from core.services.market_data_service import market_data_service
+from core.services.utils import get_major_indices
 
 logger = get_logger(__name__)
 
@@ -280,7 +281,7 @@ async def get_major_indices(
         current_user=Depends(get_current_user),
 ):
     client_ip = get_client_ip(request) if request else "unknown"
-    major_indices = market_data_service.get_major_indices()
+    major_indices = get_major_indices()
     log_api_request(
         logger,
         "GET",

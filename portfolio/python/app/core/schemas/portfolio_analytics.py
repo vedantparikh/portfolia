@@ -458,6 +458,10 @@ class RiskMetrics(BaseModel):
     value_at_risk_99_pct: Optional[Decimal] = Field(
         None, description="99% Value at Risk (VaR) in percent."
     )
+    sortino_ratio: Optional[Decimal] = Field(None, description="Sortino ratio.")
+    cvar_95: Optional[Decimal] = Field(None, description="95% Value at Risk (VaR) in percent.")
+    calmar_ratio: Optional[Decimal] = Field(None, description="Calmar ratio.")
+
 
 
 class RiskCalculationResponse(BaseModel):

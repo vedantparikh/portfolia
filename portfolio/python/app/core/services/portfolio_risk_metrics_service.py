@@ -118,8 +118,11 @@ class PortfolioRiskMetricsService:
         # Step 2: Calculate each risk metric using the daily returns data.
         volatility = self._calculate_volatility(daily_returns)
         sharpe_ratio = self._calculate_sharpe_ratio(daily_returns)
-        beta = await self._calculate_beta(daily_returns, benchmark_symbol, start_date, end_date)
         max_drawdown = self._calculate_max_drawdown(daily_returns)
+        sortino_ratio = self._calculate_sortino_ratio(daily_returns)
+        cvar_95 = self._calculate_cvar(daily_returns, 0.95)
+        calmar_ratio = self._calculate_calmar_ratio(daily_returns, max_drawdown)
+        beta = await self._calculate_beta(daily_returns, benchmark_symbol, start_date, end_date)
         value_at_risk_95 = self._calculate_var(daily_returns)
         value_at_risk_99 = self._calculate_var(daily_returns, 0.99)
 
@@ -138,6 +141,9 @@ class PortfolioRiskMetricsService:
                 "max_drawdown": max_drawdown,
                 "value_at_risk_95_pct": value_at_risk_95,
                 "value_at_risk_99_pct": value_at_risk_99,
+                "sortino_ratio": sortino_ratio,
+                "cvar_95": cvar_95,
+                "calmar_ratio": calmar_ratio,
             },
         }
 
@@ -293,6 +299,71 @@ class PortfolioRiskMetricsService:
             logger.error(f"Error calculating max drawdown: {e}")
             return None
 
+    def _calculate_sortino_ratio(self, daily_returns: pd.Series) -> Optional[float]:
+        """Calculates the annualized Sortino Ratio."""
+        try:
+            daily_risk_free_rate = (1 + self.ANNUALIZED_RISK_FREE_RATE) ** (
+                    1 / self.TRADING_DAYS_PER_YEAR
+            ) - 1
+            excess_returns = daily_returns - daily_risk_free_rate
+
+            # Calculate downside deviation (std dev of only negative excess returns)
+            downside_returns = excess_returns[excess_returns < 0]
+            if downside_returns.empty:
+                return np.inf  # Or some other indicator of no downside risk
+            downside_deviation = downside_returns.std()
+
+            if downside_deviation == 0:
+                return 0.0
+
+            # Calculate and annualize Sortino
+            avg_excess_return = excess_returns.mean()
+            sortino_ratio = avg_excess_return / downside_deviation
+            annualized_sortino = sortino_ratio * np.sqrt(self.TRADING_DAYS_PER_YEAR)
+            return float(annualized_sortino)
+        except Exception as e:
+            logger.error(f"Error calculating Sortino Ratio: {e}")
+            return None
+
+    def _calculate_cvar(
+            self, daily_returns: pd.Series, confidence_level: float = 0.95
+    ) -> Optional[float]:
+        """Calculates the Conditional Value at Risk (CVaR) or Expected Shortfall."""
+        try:
+            # First, find the VaR threshold
+            var_threshold = daily_returns.quantile(1 - confidence_level)
+            # CVaR is the average of returns that are less than or equal to the VaR threshold
+            cvar = daily_returns[daily_returns <= var_threshold].mean()
+            return float(cvar * 100)  # Return as a percentage loss
+        except Exception as e:
+            logger.error(f"Error calculating CVaR: {e}")
+            return None
+
+    def _calculate_calmar_ratio(self, daily_returns: pd.Series, max_drawdown_pct: float) -> Optional[float]:
+        """Calculates the Calmar Ratio."""
+        try:
+            # max_drawdown_pct is already calculated as a negative percentage (e.g., -20.0)
+            if max_drawdown_pct is None or max_drawdown_pct == 0:
+                return np.inf  # Avoid division by zero
+
+            # Calculate annualized return
+            num_days = len(daily_returns)
+            if num_days < self.TRADING_DAYS_PER_YEAR:
+                # If less than a year, don't annualize or handle as per business logic
+                total_return = (1 + daily_returns).prod() - 1
+                # Simple scaling (can be debated, geometric is better)
+                annualized_return = total_return * (self.TRADING_DAYS_PER_YEAR / num_days)
+            else:
+                # Proper geometric annualization
+                total_return = (1 + daily_returns).prod()
+                annualized_return = total_return ** (self.TRADING_DAYS_PER_YEAR / num_days) - 1
+
+            calmar_ratio = annualized_return / abs(max_drawdown_pct / 100)
+            return float(calmar_ratio)
+        except Exception as e:
+            logger.error(f"Error calculating Calmar Ratio: {e}")
+            return None
+
     def _empty_risk_result(
             self, portfolio_id: int, period: str, error_message: str
     ) -> Dict[str, Any]:
@@ -309,5 +380,8 @@ class PortfolioRiskMetricsService:
                 "max_drawdown": None,
                 "value_at_risk_95_pct": None,
                 "value_at_risk_99_pct": None,
+                "sortino_ratio": None,
+                "cvar_95": None,
+                "calmar_ratio": None,
             },
         }

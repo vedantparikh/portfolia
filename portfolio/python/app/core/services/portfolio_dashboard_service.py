@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from core.database.models import (
     Asset,
     Portfolio,
-    PortfolioAsset,
     Transaction,
 )
 from core.database.models.portfolio_analytics import (
@@ -48,7 +47,7 @@ class PortfolioDashboardService:
             raise ValueError("Portfolio not found")
 
         # Get current holdings
-        holdings = await self._get_portfolio_holdings(portfolio_id)
+        holdings = await self.portfolio_service.get_portfolio_holdings(portfolio_id)
 
         # Calculate basic metrics
         total_value = sum(float(h.current_value or h.cost_basis_total) for h in holdings)
@@ -86,51 +85,6 @@ class PortfolioDashboardService:
             "holdings": holdings,
             "recent_activity": recent_activity,
         }
-
-    async def _get_portfolio_holdings(self, portfolio_id: int) -> List[PortfolioHolding]:
-        """Get detailed portfolio holdings."""
-        holdings_data = (
-            self.db.query(PortfolioAsset, Asset)
-            .join(Asset, PortfolioAsset.asset_id == Asset.id)
-            .filter(PortfolioAsset.portfolio_id == portfolio_id)
-            .all()
-        )
-
-        holdings = []
-        for portfolio_asset, asset in holdings_data:
-            # Update P&L if needed
-            if portfolio_asset.current_value is None:
-                await self.portfolio_service.update_asset_pnl(portfolio_asset)
-
-            holding = PortfolioHolding(
-                asset_id=asset.id,
-                symbol=asset.symbol,
-                name=asset.name,
-                quantity=float(portfolio_asset.quantity),
-                cost_basis=float(portfolio_asset.cost_basis),
-                cost_basis_total=float(portfolio_asset.cost_basis_total),
-                current_value=(
-                    float(portfolio_asset.current_value)
-                    if portfolio_asset.current_value
-                    else None
-                ),
-                today_pnl=float(portfolio_asset.current_value),
-                today_pnl_percent=float(portfolio_asset.current_value),
-                unrealized_pnl=(
-                    float(portfolio_asset.unrealized_pnl)
-                    if portfolio_asset.unrealized_pnl
-                    else None
-                ),
-                unrealized_pnl_percent=(
-                    float(portfolio_asset.unrealized_pnl_percent)
-                    if portfolio_asset.unrealized_pnl_percent
-                    else None
-                ),
-                last_updated=portfolio_asset.last_updated,
-            )
-            holdings.append(holding)
-
-        return holdings
 
     def _get_performance_metrics(self, portfolio_id: int) -> Dict[str, Any]:
         """Get portfolio performance metrics."""

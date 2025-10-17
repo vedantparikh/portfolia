@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, NamedTuple
+from typing import Dict, Optional, NamedTuple
 
 from dateutil.relativedelta import relativedelta
 

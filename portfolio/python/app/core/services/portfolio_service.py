@@ -750,7 +750,7 @@ class PortfolioService:
         return get_portfolio_performance_summary(self.db, portfolio_id, days)
 
     async def get_portfolio_holdings(
-            self, portfolio_id: int, user_id: int
+            self, portfolio_id: int,
     ) -> List[PortfolioHolding]:
         """
         OPTIMIZED & FIXED: Fetches all asset and market data concurrently for performance.

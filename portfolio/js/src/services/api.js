@@ -1037,19 +1037,28 @@ export const analyticsAPI = {
   },
 
   /* 
-      GET PORTFOLIO RISK METRICS - Get portfolio risk metrics, auto-refreshing with yfinance if stale
-      Parameters: portfolioId (string or number), forceRefresh (boolean)
+      GET PORTFOLIO RISK METRICS - Get portfolio risk metrics
+      Parameters: portfolioId (string or number)
       Returns: Server response with risk metrics data
     */
-  getPortfolioRiskMetrics: async (portfolioId, forceRefresh = true) => {
+  getPortfolioRiskMetrics: async (portfolioId) => {
     const response = await api.get(
       `/analytics/portfolios/${portfolioId}/risk`,
-      {
-        params: { force_refresh: forceRefresh },
-      }
     );
     return response.data;
   },
+
+  /* 
+      GET PORTFOLIO Advanced RISK METRICS - Get portfolio advanced risk metrics
+      Parameters: portfolioId (string or number)
+      Returns: Server response with advanced risk metrics data
+    */
+      getPortfolioAdvanceRiskMetrics: async (portfolioId) => {
+        const response = await api.get(
+          `/analytics/portfolios/${portfolioId}/advance-risk`,
+        );
+        return response.data;
+      },
 
   /* 
       ADD PORTFOLIO BENCHMARK - Add a benchmark to a portfolio

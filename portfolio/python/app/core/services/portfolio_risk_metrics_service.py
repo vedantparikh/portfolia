@@ -122,7 +122,6 @@ class PortfolioRiskMetricsService:
         sortino_ratio = self._calculate_sortino_ratio(daily_returns)
         cvar_95 = self._calculate_cvar(daily_returns, 0.95)
         calmar_ratio = self._calculate_calmar_ratio(daily_returns, max_drawdown)
-        beta = await self._calculate_beta(daily_returns, benchmark_symbol, start_date, end_date)
         value_at_risk_95 = self._calculate_var(daily_returns)
         value_at_risk_99 = self._calculate_var(daily_returns, 0.99)
 
@@ -137,7 +136,6 @@ class PortfolioRiskMetricsService:
             "metrics": {
                 "annualized_volatility_pct": volatility,
                 "sharpe_ratio": sharpe_ratio,
-                "beta": beta,
                 "max_drawdown": max_drawdown,
                 "value_at_risk_95_pct": value_at_risk_95,
                 "value_at_risk_99_pct": value_at_risk_99,
@@ -196,61 +194,6 @@ class PortfolioRiskMetricsService:
             return float(annualized_sharpe_ratio)
         except Exception as e:
             logger.error(f"Error calculating Sharpe Ratio: {e}")
-            return None
-
-    async def _calculate_beta(
-            self,
-            portfolio_daily_returns: pd.Series,
-            benchmark_symbol: str,
-            start_date: Optional[datetime],
-            end_date: datetime,
-    ) -> Optional[float]:
-        """
-        Calculates Beta, a measure of a portfolio's volatility relative to the market.
-
-        Beta = Covariance(Portfolio Returns, Benchmark Returns) / Variance(Benchmark Returns)
-        - Beta > 1: More volatile than the market.
-        - Beta < 1: Less volatile than the market.
-        - Beta = 1: Moves in line with the market.
-        """
-        try:
-            # Fetch benchmark price data
-            benchmark_data = await self.calculation_service.get_price_data(benchmark_symbol)
-            if benchmark_data is None or benchmark_data.empty:
-                logger.warning(f"Could not fetch benchmark data for {benchmark_symbol}")
-                return None
-
-            # Filter benchmark data for the relevant period
-            if start_date:
-                benchmark_data = benchmark_data[benchmark_data.index >= start_date.date()]
-            benchmark_data = benchmark_data[benchmark_data.index <= end_date.date()]
-
-            # Calculate benchmark daily returns
-            benchmark_daily_returns = benchmark_data["Close"].pct_change().dropna()
-
-            # Align portfolio and benchmark returns data
-            combined_df = pd.DataFrame(
-                {
-                    "portfolio": portfolio_daily_returns,
-                    "benchmark": benchmark_daily_returns,
-                }
-            ).dropna()
-
-            if len(combined_df) < 2:
-                logger.warning("Not enough overlapping data points to calculate Beta.")
-                return None
-
-            # Calculate covariance and variance
-            covariance = combined_df["portfolio"].cov(combined_df["benchmark"])
-            variance = combined_df["benchmark"].var()
-
-            if variance == 0:
-                return 0.0
-
-            beta = covariance / variance
-            return float(beta)
-        except Exception as e:
-            logger.error(f"Error calculating Beta: {e}")
             return None
 
     def _calculate_var(
@@ -376,7 +319,6 @@ class PortfolioRiskMetricsService:
             "metrics": {
                 "annualized_volatility_pct": None,
                 "sharpe_ratio": None,
-                "beta": None,
                 "max_drawdown": None,
                 "value_at_risk_95_pct": None,
                 "value_at_risk_99_pct": None,

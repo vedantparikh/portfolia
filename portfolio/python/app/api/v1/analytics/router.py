@@ -19,6 +19,7 @@ from core.database.models.portfolio_analytics import (
     PortfolioPerformanceHistory,
     RebalancingEvent,
 )
+from core.schemas.portfolio_advance_risk_metrics import AdvanceRiskCalculationResponse
 from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
     DeleteResponse,
@@ -33,9 +34,10 @@ from core.schemas.portfolio_analytics import (
     PortfolioRebalancingRecommendation,
     RebalancingEventCreate,
     RebalancingEventResponse,
-    RiskCalculationResponse,
     UserDashboardResponse,
 )
+from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
+from core.services.portfolio_advance_risk_metrics import PortfolioAdvanceRiskMetricsService
 from core.services.portfolio_analytics_service import PortfolioAnalyticsService
 from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsService
 from core.services.utils import PeriodType
@@ -474,7 +476,7 @@ async def get_portfolio_risk_metrics(
         current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
 ):
-    """Get portfolio risk metrics, always refreshing with latest yfinance data."""
+    """Get portfolio risk metrics."""
     # Verify portfolio ownership
     portfolio = (
         db.query(Portfolio)
@@ -498,6 +500,41 @@ async def get_portfolio_risk_metrics(
         risk_metrics = await portfolio_risk_metric_service.calculate_portfolio_risk_metrics(portfolio_id)
 
         return risk_metrics
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
+
+@router.get("/portfolios/{portfolio_id}/advance-risk", response_model=AdvanceRiskCalculationResponse)
+async def get_portfolio_risk_metrics(
+        portfolio_id: int,
+        period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db),
+):
+    """Get portfolio advance risk metrics."""
+    # Verify portfolio ownership
+    portfolio = (
+        db.query(Portfolio)
+        .filter(
+            Portfolio.id == portfolio_id,
+            Portfolio.user_id == current_user.id,
+            Portfolio.is_active,
+        )
+        .first()
+    )
+
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
+
+    portfolio_advance_risk_metric_service = PortfolioAdvanceRiskMetricsService(db)
+
+    try:
+        advance_risk_metrics = await portfolio_advance_risk_metric_service.calculate_advanced_metrics(portfolio_id)
+
+        return advance_risk_metrics
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)

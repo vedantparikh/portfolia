@@ -971,33 +971,6 @@ export const analyticsAPI = {
   },
 
   /* 
-      GET ASSET METRICS - Get asset metrics, automatically refreshing with yfinance if stale
-      Parameters: assetId (string or number), forceRefresh (boolean)
-      Returns: Server response with asset metrics data
-    */
-  getAssetMetrics: async (assetId, forceRefresh = true) => {
-    const response = await api.get(`/analytics/assets/${assetId}/metrics`, {
-      params: { force_refresh: forceRefresh },
-    });
-    return response.data;
-  },
-
-  /* 
-      GET ASSET METRICS HISTORY - Get asset performance metrics history
-      Parameters: assetId (string or number), days (number)
-      Returns: Server response with asset metrics history data
-    */
-  getAssetMetricsHistory: async (assetId, days = 30) => {
-    const response = await api.get(
-      `/analytics/assets/${assetId}/metrics/history`,
-      {
-        params: { days },
-      }
-    );
-    return response.data;
-  },
-
-  /* 
       SET PORTFOLIO ALLOCATIONS - Set target allocations for a portfolio
       Parameters: portfolioId (string or number), allocations (array)
       Returns: Server response with allocation data
@@ -1064,19 +1037,28 @@ export const analyticsAPI = {
   },
 
   /* 
-      GET PORTFOLIO RISK METRICS - Get portfolio risk metrics, auto-refreshing with yfinance if stale
-      Parameters: portfolioId (string or number), forceRefresh (boolean)
+      GET PORTFOLIO RISK METRICS - Get portfolio risk metrics
+      Parameters: portfolioId (string or number)
       Returns: Server response with risk metrics data
     */
-  getPortfolioRiskMetrics: async (portfolioId, forceRefresh = true) => {
+  getPortfolioRiskMetrics: async (portfolioId) => {
     const response = await api.get(
       `/analytics/portfolios/${portfolioId}/risk`,
-      {
-        params: { force_refresh: forceRefresh },
-      }
     );
     return response.data;
   },
+
+  /* 
+      GET PORTFOLIO Advanced RISK METRICS - Get portfolio advanced risk metrics
+      Parameters: portfolioId (string or number)
+      Returns: Server response with advanced risk metrics data
+    */
+      getPortfolioAdvanceRiskMetrics: async (portfolioId) => {
+        const response = await api.get(
+          `/analytics/portfolios/${portfolioId}/advance-risk`,
+        );
+        return response.data;
+      },
 
   /* 
       ADD PORTFOLIO BENCHMARK - Add a benchmark to a portfolio
@@ -1143,25 +1125,6 @@ export const analyticsAPI = {
     return response.data;
   },
 
-  /* 
-      GET ASSET CORRELATIONS - Get asset correlations, auto-refreshing with yfinance if stale
-      Parameters: asset1Id (string or number), asset2Id (string or number), forceRefresh (boolean)
-      Returns: Server response with correlation data
-    */
-  getAssetCorrelations: async (
-    asset1Id = null,
-    asset2Id = null,
-    forceRefresh = true
-  ) => {
-    const response = await api.get("/analytics/assets/correlations", {
-      params: {
-        asset1_id: asset1Id,
-        asset2_id: asset2Id,
-        force_refresh: forceRefresh,
-      },
-    });
-    return response.data;
-  },
 
   /* 
       GET PORTFOLIO PERFORMANCE COMPARISON - Get portfolio performance comparison with benchmark
@@ -1191,14 +1154,6 @@ export const analyticsAPI = {
     return response.data;
   },
 
-  /* 
-      GET USER ASSETS ANALYTICS - Get analytics for all user assets (including standalone assets)
-      Returns: Server response with user assets analytics data
-    */
-  getUserAssetsAnalytics: async () => {
-    const response = await api.get("/analytics/users/assets");
-    return response.data;
-  },
 };
 
 /* 

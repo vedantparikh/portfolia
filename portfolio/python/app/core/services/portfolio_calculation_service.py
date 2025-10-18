@@ -11,7 +11,7 @@ Supports period-based calculations and benchmark comparisons.
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd  # type: ignore
@@ -27,55 +27,9 @@ from core.database.models import (
     TransactionType,
 )
 from core.services.market_data_service import MarketDataService
+from core.services.utils import PeriodType, CashFlow
 
 logger = logging.getLogger(__name__)
-
-
-class CashFlow(NamedTuple):
-    """Represents a cash flow with date and amount."""
-
-    date: datetime
-    amount: float  # Positive for inflows, negative for outflows
-
-
-class PeriodType:
-    """Standard period types for calculations."""
-
-    LAST_3_MONTHS = "3m"
-    LAST_6_MONTHS = "6m"
-    LAST_1_YEAR = "1y"
-    LAST_2_YEARS = "2y"
-    LAST_3_YEARS = "3y"
-    LAST_5_YEARS = "5y"
-    YTD = "ytd"
-    INCEPTION = "inception"
-
-    @classmethod
-    def get_start_date(
-            cls, period: str, base_date: Optional[datetime] = None
-    ) -> Optional[datetime]:
-        """Get start date for a given period using proper calendar calculations."""
-        if base_date is None:
-            base_date = datetime.now(timezone.utc)
-
-        if period == cls.LAST_3_MONTHS:
-            return base_date - relativedelta(months=3)
-        elif period == cls.LAST_6_MONTHS:
-            return base_date - relativedelta(months=6)
-        elif period == cls.LAST_1_YEAR:
-            return base_date - relativedelta(years=1)
-        elif period == cls.LAST_2_YEARS:
-            return base_date - relativedelta(years=2)
-        elif period == cls.LAST_3_YEARS:
-            return base_date - relativedelta(years=3)
-        elif period == cls.LAST_5_YEARS:
-            return base_date - relativedelta(years=5)
-        elif period == cls.YTD:
-            return datetime(base_date.year, 1, 1, tzinfo=timezone.utc)
-        elif period == cls.INCEPTION:
-            return None  # No start date filter
-        else:
-            raise ValueError(f"Unknown period type: {period}")
 
 
 class PortfolioCalculationService:
@@ -118,7 +72,7 @@ class PortfolioCalculationService:
             raise ValueError(f"Portfolio {portfolio_id} not found or not accessible")
 
         # Get all transactions for the portfolio
-        all_transactions = self._get_transactions(portfolio_id, None, end_date)
+        all_transactions = self.get_transactions(portfolio_id, None, end_date)
 
         if not all_transactions:
             return self._empty_performance_result(portfolio_id, period)
@@ -175,7 +129,7 @@ class PortfolioCalculationService:
                 "calculation_date": datetime.now(timezone.utc).isoformat(),
             }
         # Generate daily portfolio value history for risk calculations
-        portfolio_history_df = await self._get_portfolio_history(
+        portfolio_history_df = await self.get_portfolio_history(
             all_transactions, actual_start_date, end_date
         )
 
@@ -254,7 +208,7 @@ class PortfolioCalculationService:
 
         try:
             # Get price data for benchmark
-            price_data = await self._get_price_data(benchmark_symbol)
+            price_data = await self.get_price_data(benchmark_symbol)
             if price_data.empty:
                 raise ValueError(
                     f"No price data available for benchmark {benchmark_symbol}"
@@ -330,7 +284,7 @@ class PortfolioCalculationService:
         actual_period_for_benchmark = portfolio_performance.get("period", period)
 
         # Create cash flows from portfolio transactions
-        all_transactions = self._get_transactions(portfolio_id, None, end_date)
+        all_transactions = self.get_transactions(portfolio_id, None, end_date)
         cash_flows = self._create_cash_flows_from_transactions(all_transactions)
 
         # Get benchmark performance with same cash flows
@@ -1103,7 +1057,7 @@ class PortfolioCalculationService:
                     missing_price_errors.append(error_msg)
                     continue
 
-                price_data = await self._get_price_data(asset.symbol)
+                price_data = await self.get_price_data(asset.symbol)
                 if price_data is None or price_data.empty:
                     error_msg = f"No price data available for {asset.symbol}"
                     logger.error(error_msg)
@@ -1169,7 +1123,7 @@ class PortfolioCalculationService:
             logger.error("Error calculating benchmark value: %s", e)
             return 0.0
 
-    async def _get_price_data(self, symbol: str) -> pd.DataFrame:
+    async def get_price_data(self, symbol: str) -> pd.DataFrame:
         """Get price data for a symbol with caching."""
         try:
             # Check cache
@@ -1259,7 +1213,7 @@ class PortfolioCalculationService:
             .first()
         )
 
-    def _get_transactions(
+    def get_transactions(
             self,
             portfolio_id: int,
             start_date: Optional[datetime],
@@ -1455,7 +1409,7 @@ class PortfolioCalculationService:
             logger.error("Error calculating max drawdown: %s", e)
             return None
 
-    async def _get_portfolio_history(
+    async def get_portfolio_history(
             self,
             all_transactions: List[Transaction],
             start_date: Optional[datetime],
@@ -1496,6 +1450,7 @@ class PortfolioCalculationService:
             for date in date_range:
                 # Update holdings with transactions for the current day
                 date_key = date.date()
+                daily_net_cash_flow = 0.0
                 if date_key in transactions_by_date:
                     for transaction in transactions_by_date[date_key]:
                         asset_id = transaction.asset_id
@@ -1505,8 +1460,12 @@ class PortfolioCalculationService:
 
                         if transaction.transaction_type == TransactionType.BUY:
                             holdings[asset_id] += quantity
+                            # A buy is a cash inflow (deposit)
+                            daily_net_cash_flow += float(transaction.total_amount)
                         elif transaction.transaction_type == TransactionType.SELL:
                             holdings[asset_id] -= quantity
+                            # A sell is a cash outflow (withdrawal)
+                            daily_net_cash_flow -= float(transaction.total_amount)
 
                 # Calculate portfolio value for the current day
                 total_value = 0.0
@@ -1523,12 +1482,12 @@ class PortfolioCalculationService:
                         if not asset:
                             continue
 
-                        price_data = await self._get_price_data(asset.symbol)
+                        price_data = await self.get_price_data(asset.symbol)
                         price = self._get_price_for_date(price_data, date.date())
                         if price:
                             total_value += quantity * price
 
-                history.append({"date": date, "value": total_value})
+                history.append({"date": date, "value": total_value, "net_cash_flow": daily_net_cash_flow})
 
             if not history:
                 return None

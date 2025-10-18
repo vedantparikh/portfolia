@@ -14,18 +14,14 @@ from core.auth.dependencies import get_current_active_user
 from core.database.connection import get_db
 from core.database.models import Portfolio, Transaction, User
 from core.database.models.portfolio_analytics import (
-    AssetCorrelation,
-    AssetPerformanceMetrics,
     PortfolioAllocation,
     PortfolioBenchmark,
     PortfolioPerformanceHistory,
     RebalancingEvent,
 )
+from core.schemas.portfolio_advance_risk_metrics import AdvanceRiskCalculationResponse
 from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
-    AssetCorrelationResponse,
-    AssetMetricsHistoryResponse,
-    AssetMetricsResponse,
     DeleteResponse,
     PerformanceComparisonResponse,
     PerformanceSnapshotResponse,
@@ -38,11 +34,13 @@ from core.schemas.portfolio_analytics import (
     PortfolioRebalancingRecommendation,
     RebalancingEventCreate,
     RebalancingEventResponse,
-    RiskCalculationResponse,
-    UserAssetsResponse,
     UserDashboardResponse,
 )
+from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
+from core.services.portfolio_advance_risk_metrics import PortfolioAdvanceRiskMetricsService
 from core.services.portfolio_analytics_service import PortfolioAnalyticsService
+from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsService
+from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics")
@@ -197,7 +195,9 @@ async def get_performance_history(
         elif start_date.date() < oldest_snapshot.snapshot_date.date():
             should_regenerate = True
             logger.info(
-                f"Requested history (from {start_date.date()}) is older than the oldest snapshot ({oldest_snapshot.snapshot_date.date()}). Regenerating to backfill.")
+                f"Requested history (from {start_date.date()}) is older than the oldest snapshot ("
+                f"{oldest_snapshot.snapshot_date.date()}). Regenerating to backfill."
+            )
         # Check if the last snapshot is from a previous day
         elif latest_snapshot.snapshot_date.date() < end_date.date():
             should_regenerate = True
@@ -246,95 +246,6 @@ async def get_performance_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get performance history: {str(e)}",
         ) from e
-
-
-# Asset Performance Metrics
-@router.get("/assets/{asset_id}/metrics", response_model=AssetMetricsResponse)
-async def get_asset_metrics(
-        asset_id: int,
-        force_refresh: bool = Query(True, description="Force refresh from yfinance"),
-        db: Session = Depends(get_db),
-):
-    """Get asset metrics, always refreshing with latest yfinance data."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    try:
-        # Use force_refresh parameter to ensure latest data
-        metrics = await analytics_service.get_or_calculate_asset_metrics(
-            asset_id, force_refresh
-        )
-        return metrics
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        ) from e
-
-
-@router.get(
-    "/assets/{asset_id}/metrics/history", response_model=AssetMetricsHistoryResponse
-)
-async def get_asset_metrics_history(
-        asset_id: int,
-        days: int = Query(30, ge=1, le=10000, description="Number of days to look back"),
-        db: Session = Depends(get_db),
-):
-    """Get asset performance metrics history."""
-    end_date = datetime.now(timezone.utc)
-    start_date = end_date - timedelta(days=days)
-
-    metrics = (
-        db.query(AssetPerformanceMetrics)
-        .filter(
-            AssetPerformanceMetrics.asset_id == asset_id,
-            AssetPerformanceMetrics.calculation_date >= start_date,
-        )
-        .order_by(AssetPerformanceMetrics.calculation_date.desc())
-        .all()
-    )
-
-    # Convert to response schemas
-    metrics_responses = [
-        AssetMetricsResponse(
-            id=metric.id,
-            asset_id=metric.asset_id,
-            calculation_date=metric.calculation_date,
-            current_price=metric.current_price,
-            price_change=metric.price_change,
-            price_change_percent=metric.price_change_percent,
-            sma_20=metric.sma_20,
-            sma_50=metric.sma_50,
-            sma_200=metric.sma_200,
-            ema_12=metric.ema_12,
-            ema_26=metric.ema_26,
-            rsi=metric.rsi,
-            macd=metric.macd,
-            macd_signal=metric.macd_signal,
-            macd_histogram=metric.macd_histogram,
-            stochastic_k=metric.stochastic_k,
-            stochastic_d=metric.stochastic_d,
-            bollinger_upper=metric.bollinger_upper,
-            bollinger_middle=metric.bollinger_middle,
-            bollinger_lower=metric.bollinger_lower,
-            atr=metric.atr,
-            volume_sma=metric.volume_sma,
-            volume_ratio=metric.volume_ratio,
-            obv=metric.obv,
-            volatility_20d=metric.volatility_20d,
-            volatility_60d=metric.volatility_60d,
-            volatility_252d=metric.volatility_252d,
-            beta=metric.beta,
-            sharpe_ratio=metric.sharpe_ratio,
-            total_return_1m=metric.total_return_1m,
-            total_return_3m=metric.total_return_3m,
-            total_return_1y=metric.total_return_1y,
-            created_at=metric.created_at,
-        )
-        for metric in metrics
-    ]
-
-    return AssetMetricsHistoryResponse(
-        asset_id=asset_id, total_records=len(metrics), metrics=metrics_responses
-    )
 
 
 # Portfolio Allocation Management
@@ -561,11 +472,11 @@ async def analyze_portfolio_allocation(
 @router.get("/portfolios/{portfolio_id}/risk", response_model=RiskCalculationResponse)
 async def get_portfolio_risk_metrics(
         portfolio_id: int,
-        force_refresh: bool = Query(True, description="Force refresh from yfinance"),
+        period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
         current_user: User = Depends(get_current_active_user),
         db: Session = Depends(get_db),
 ):
-    """Get portfolio risk metrics, always refreshing with latest yfinance data."""
+    """Get portfolio risk metrics."""
     # Verify portfolio ownership
     portfolio = (
         db.query(Portfolio)
@@ -582,14 +493,48 @@ async def get_portfolio_risk_metrics(
             status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
         )
 
-    analytics_service = PortfolioAnalyticsService(db)
+    portfolio_risk_metric_service = PortfolioRiskMetricsService(db)
 
     try:
         # Use force_refresh parameter to ensure latest data
-        risk_metrics = await analytics_service.get_or_calculate_portfolio_risk_metrics(
-            portfolio_id, force_refresh
-        )
+        risk_metrics = await portfolio_risk_metric_service.calculate_portfolio_risk_metrics(portfolio_id)
+
         return risk_metrics
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
+
+@router.get("/portfolios/{portfolio_id}/advance-risk", response_model=AdvanceRiskCalculationResponse)
+async def get_portfolio_risk_metrics(
+        portfolio_id: int,
+        period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db),
+):
+    """Get portfolio advance risk metrics."""
+    # Verify portfolio ownership
+    portfolio = (
+        db.query(Portfolio)
+        .filter(
+            Portfolio.id == portfolio_id,
+            Portfolio.user_id == current_user.id,
+            Portfolio.is_active,
+        )
+        .first()
+    )
+
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
+        )
+
+    portfolio_advance_risk_metric_service = PortfolioAdvanceRiskMetricsService(db)
+
+    try:
+        advance_risk_metrics = await portfolio_advance_risk_metric_service.calculate_advanced_metrics(portfolio_id)
+
+        return advance_risk_metrics
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
@@ -859,60 +804,6 @@ async def get_rebalancing_recommendations(
     return PortfolioRebalancingRecommendation(**recommendation)
 
 
-# Asset Correlations
-@router.get("/assets/correlations", response_model=List[AssetCorrelationResponse])
-async def get_asset_correlations(
-        asset1_id: Optional[int] = Query(None, description="First asset ID"),
-        asset2_id: Optional[int] = Query(None, description="Second asset ID"),
-        force_refresh: bool = Query(True, description="Force refresh from yfinance"),
-        db: Session = Depends(get_db),
-):
-    """Get asset correlations, always refreshing with latest yfinance data."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    if asset1_id and asset2_id:
-        # Get specific correlation between two assets
-        try:
-            # Use force_refresh parameter to ensure latest data
-            correlation = await analytics_service.get_or_calculate_asset_correlation(
-                asset1_id, asset2_id, force_refresh
-            )
-            return [correlation]
-        except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-            ) from e
-    else:
-        # Get historical correlations and refresh recent ones
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=30)
-
-        query = db.query(AssetCorrelation).filter(
-            AssetCorrelation.calculation_date >= start_date,
-        )
-
-        if asset1_id:
-            query = query.filter(AssetCorrelation.asset1_id == asset1_id)
-        if asset2_id:
-            query = query.filter(AssetCorrelation.asset2_id == asset2_id)
-
-        correlations = query.order_by(AssetCorrelation.calculation_date.desc()).all()
-
-        # If force refresh and we have specific assets, update their correlations
-        if force_refresh and asset1_id and correlations:
-            try:
-                # Update correlations for the specific asset with other assets
-                for correlation in correlations[:5]:  # Limit to 5 most recent
-                    other_asset_id = correlation.asset2_id if correlation.asset1_id == asset1_id else correlation.asset1_id
-                    await analytics_service.get_or_calculate_asset_correlation(
-                        asset1_id, other_asset_id, True
-                    )
-            except Exception:
-                pass  # Continue even if refresh fails
-
-        return correlations
-
-
 # Performance Comparison
 @router.get(
     "/portfolios/{portfolio_id}/performance/comparison",
@@ -961,19 +852,6 @@ async def get_portfolio_performance_comparison(
             status_code=status.HTTP_404_NOT_FOUND, detail="No performance data found"
         )
 
-    # Get benchmark performance if specified
-    benchmark_history = None
-    if benchmark_id:
-        benchmark_history = (
-            db.query(AssetPerformanceMetrics)
-            .filter(
-                AssetPerformanceMetrics.asset_id == benchmark_id,
-                AssetPerformanceMetrics.calculation_date >= start_date,
-            )
-            .order_by(AssetPerformanceMetrics.calculation_date)
-            .all()
-        )
-
     # Build comparison data
     comparison_data = {
         "portfolio_id": portfolio_id,
@@ -991,161 +869,7 @@ async def get_portfolio_performance_comparison(
         ],
     }
 
-    if benchmark_history:
-        comparison_data["benchmark_performance"] = [
-            {
-                "date": metric.calculation_date,
-                "total_return": float(
-                    metric.total_return_1m or 0
-                ),  # Using 1-month return as proxy
-                "volatility": float(metric.volatility_20d or 0),
-            }
-            for metric in benchmark_history
-        ]
-
     return comparison_data
-
-
-# Analytics All Endpoint - Update All Portfolio Data
-@router.post("/all", status_code=status.HTTP_200_OK)
-async def update_all_analytics(
-        _force_refresh: bool = Query(False, description="Force refresh all data from yfinance"),
-        current_user: User = Depends(get_current_active_user),
-        db: Session = Depends(get_db),
-):
-    """Update all analytics data using yfinance and respond with updated calculations."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    try:
-        # Get all user portfolios
-        user_portfolios = (
-            db.query(Portfolio)
-            .filter(
-                Portfolio.user_id == current_user.id,
-                Portfolio.is_active == True,
-            )
-            .all()
-        )
-
-        # Get all user assets
-        from core.database.models import Asset
-        user_assets = (
-            db.query(Asset)
-            .filter(Asset.user_id == current_user.id, Asset.is_active == True)
-            .all()
-        )
-
-        updated_data = {
-            "user_id": current_user.id,
-            "update_timestamp": datetime.now(timezone.utc),
-            "portfolios_updated": 0,
-            "assets_updated": 0,
-            "errors": [],
-            "portfolio_summaries": [],
-            "asset_metrics": []
-        }
-
-        # Update asset metrics for all user assets
-        for asset in user_assets:
-            try:
-                if asset.symbol:  # Only update assets with symbols
-                    asset_metrics = await analytics_service.get_or_calculate_asset_metrics(
-                        asset.id, force_refresh=True
-                    )
-                    updated_data["asset_metrics"].append({
-                        "asset_id": asset.id,
-                        "symbol": asset.symbol,
-                        "current_price": float(asset_metrics.current_price) if asset_metrics.current_price else None,
-                        "price_change_percent": float(
-                            asset_metrics.price_change_percent) if asset_metrics.price_change_percent else None,
-                        "updated": True
-                    })
-                    updated_data["assets_updated"] += 1
-            except (ValueError, RuntimeError) as e:
-                updated_data["errors"].append(f"Asset {asset.symbol}: {str(e)}")
-
-        # Update portfolio analytics for all user portfolios
-        for portfolio in user_portfolios:
-            try:
-                # Update performance snapshot
-                await analytics_service.get_or_create_performance_snapshot(
-                    portfolio.id, force_refresh=True
-                )
-
-                # Update risk metrics
-                risk_metrics = await analytics_service.get_or_calculate_portfolio_risk_metrics(
-                    portfolio.id, force_refresh=True
-                )
-
-                # Get comprehensive summary
-                portfolio_summary = await analytics_service.get_portfolio_analytics_summary(portfolio.id)
-
-                updated_data["portfolio_summaries"].append({
-                    "portfolio_id": portfolio.id,
-                    "portfolio_name": portfolio.name,
-                    "total_value": float(portfolio_summary["total_value"]) if portfolio_summary["total_value"] else 0,
-                    "total_unrealized_pnl": float(portfolio_summary["total_unrealized_pnl"]) if portfolio_summary[
-                        "total_unrealized_pnl"] else 0,
-                    "total_unrealized_pnl_percent": float(portfolio_summary["total_unrealized_pnl_percent"]) if
-                    portfolio_summary["total_unrealized_pnl_percent"] else 0,
-                    "risk_level": risk_metrics.risk_level if hasattr(risk_metrics, 'risk_level') else None,
-                    "portfolio_volatility": float(risk_metrics.portfolio_volatility) if hasattr(risk_metrics,
-                                                                                                'portfolio_volatility') and risk_metrics.portfolio_volatility else None,
-                    "updated": True
-                })
-                updated_data["portfolios_updated"] += 1
-
-            except (ValueError, RuntimeError) as e:
-                updated_data["errors"].append(f"Portfolio {portfolio.name}: {str(e)}")
-
-        # Update correlations for pairs of user assets (limit to prevent too many calculations)
-        if len(user_assets) >= 2:
-            asset_pairs_to_update = min(10, len(user_assets) * (len(user_assets) - 1) // 2)  # Limit to 10 pairs
-            pairs_updated = 0
-
-            for i, asset1 in enumerate(user_assets[:5]):  # Limit to first 5 assets
-                for asset2 in user_assets[i + 1:6]:  # Pair with next 5 assets
-                    if pairs_updated >= asset_pairs_to_update:
-                        break
-                    try:
-                        if asset1.symbol and asset2.symbol:
-                            await analytics_service.get_or_calculate_asset_correlation(
-                                asset1.id, asset2.id, force_refresh=True
-                            )
-                            pairs_updated += 1
-                    except (ValueError, RuntimeError) as e:
-                        updated_data["errors"].append(f"Correlation {asset1.symbol}-{asset2.symbol}: {str(e)}")
-
-        # Calculate summary statistics
-        total_portfolio_value = sum(
-            p["total_value"] for p in updated_data["portfolio_summaries"]
-        )
-        total_unrealized_pnl = sum(
-            p["total_unrealized_pnl"] for p in updated_data["portfolio_summaries"]
-        )
-
-        updated_data["summary"] = {
-            "total_portfolio_value": total_portfolio_value,
-            "total_unrealized_pnl": total_unrealized_pnl,
-            "total_unrealized_pnl_percent": (
-                    total_unrealized_pnl / (total_portfolio_value - total_unrealized_pnl) * 100) if (
-                                                                                                            total_portfolio_value - total_unrealized_pnl) > 0 else 0,
-            "assets_with_current_data": len(
-                [a for a in updated_data["asset_metrics"] if a["current_price"] is not None]),
-            "successful_updates": updated_data["portfolios_updated"] + updated_data["assets_updated"],
-            "total_errors": len(updated_data["errors"])
-        }
-
-        return {
-            "message": "Analytics data updated successfully",
-            "data": updated_data
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update analytics data: {str(e)}",
-        ) from e
 
 
 # User Analytics Dashboard
@@ -1201,46 +925,4 @@ async def get_user_analytics_dashboard(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get analytics dashboard: {str(e)}",
-        ) from e
-
-
-@router.get("/users/assets", response_model=UserAssetsResponse)
-async def get_user_assets_analytics(
-        force_refresh: bool = Query(True, description="Force refresh from yfinance"),
-        current_user: User = Depends(get_current_active_user),
-        db: Session = Depends(get_db),
-):
-    """Get analytics for all user assets, always refreshing with latest yfinance data."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    try:
-        # Force refresh user assets before getting analytics
-        if force_refresh:
-            try:
-                from core.database.models import Asset
-                user_assets = (
-                    db.query(Asset)
-                    .filter(Asset.user_id == current_user.id, Asset.is_active == True)
-                    .all()
-                )
-
-                asset_ids = [asset.id for asset in user_assets if asset.symbol]
-                if asset_ids:
-                    await analytics_service.bulk_update_asset_prices(asset_ids)
-
-            except Exception as e:
-                logger.warning(f"Failed to refresh user assets: {e}")
-
-        assets_data = await analytics_service.get_user_assets_for_analytics(
-            current_user.id
-        )
-        return {
-            "user_id": current_user.id,
-            "total_assets": len(assets_data),
-            "assets": assets_data,
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get user assets analytics: {str(e)}",
         ) from e

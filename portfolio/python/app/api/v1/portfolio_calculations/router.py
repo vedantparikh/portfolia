@@ -28,9 +28,9 @@ from core.schemas.portfolio_calculations import (
     PortfolioPerformanceResponse,
 )
 from core.services.portfolio_calculation_service import (
-    PeriodType,
     PortfolioCalculationService,
 )
+from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
 

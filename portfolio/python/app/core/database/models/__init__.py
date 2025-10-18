@@ -3,12 +3,9 @@ from .analysis_configuration import AnalysisConfiguration
 from .asset import Asset, MarketIndex
 from .portfolio import Portfolio, PortfolioAsset
 from .portfolio_analytics import (
-    AssetCorrelation,
-    AssetPerformanceMetrics,
     PortfolioAllocation,
     PortfolioBenchmark,
     PortfolioPerformanceHistory,
-    PortfolioRiskMetrics,
     RebalancingEvent,
     RiskLevel,
 )
@@ -35,11 +32,8 @@ __all__ = [
     "WatchlistPerformance",
     # Portfolio Analytics Models
     "PortfolioPerformanceHistory",
-    "AssetPerformanceMetrics",
     "PortfolioAllocation",
     "RebalancingEvent",
-    "PortfolioRiskMetrics",
-    "AssetCorrelation",
     "PortfolioBenchmark",
     "RiskLevel",
     "AnalysisConfiguration",

@@ -25,6 +25,13 @@ class RiskMetrics(BaseModel):
     calmar_ratio: Optional[Decimal] = Field(None, description="Calmar ratio.")
 
 
+class RiskAssessmentMetrics(BaseModel):
+    """A nested model for portfolio risk assessment metrics."""
+
+    level: Optional[str] = Field(None, description="Level of risk assessment.")
+    reasoning: Optional[str] = Field(None, description="Reasoning for risk assessment.")
+
+
 class RiskCalculationResponse(BaseModel):
     """
     Defines the structure for a portfolio risk calculation response,
@@ -36,3 +43,6 @@ class RiskCalculationResponse(BaseModel):
     period: str = Field(..., description="The time period for which the risk was calculated (e.g., '1Y', 'YTD').")
     error: Optional[str] = Field(None, description="An error message if the calculation failed, otherwise null.")
     metrics: RiskMetrics = Field(..., description="A container for the calculated risk metrics.")
+    risk_assessment: Optional[RiskAssessmentMetrics] = Field(
+        ..., description="A container for the risk assessment metrics."
+        )

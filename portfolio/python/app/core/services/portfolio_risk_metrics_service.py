@@ -125,6 +125,18 @@ class PortfolioRiskMetricsService:
         value_at_risk_95 = self._calculate_var(daily_returns)
         value_at_risk_99 = self._calculate_var(daily_returns, 0.99)
 
+        metrics_dict = {
+            "annualized_volatility_pct": volatility,
+            "sharpe_ratio": sharpe_ratio,
+            "max_drawdown": max_drawdown,
+            "value_at_risk_95_pct": value_at_risk_95,
+            "value_at_risk_99_pct": value_at_risk_99,
+            "sortino_ratio": sortino_ratio,
+            "cvar_95": cvar_95,
+            "calmar_ratio": calmar_ratio,
+        }
+        risk_assessment = self._interpret_risk_level(metrics_dict)
+
         # Step 3: Assemble the final result dictionary.
         return {
             "portfolio_id": portfolio_id,
@@ -133,16 +145,89 @@ class PortfolioRiskMetricsService:
             "start_date": start_date,
             "end_date": end_date,
             "calculation_date": datetime.now(timezone.utc).isoformat(),
-            "metrics": {
-                "annualized_volatility_pct": volatility,
-                "sharpe_ratio": sharpe_ratio,
-                "max_drawdown": max_drawdown,
-                "value_at_risk_95_pct": value_at_risk_95,
-                "value_at_risk_99_pct": value_at_risk_99,
-                "sortino_ratio": sortino_ratio,
-                "cvar_95": cvar_95,
-                "calmar_ratio": calmar_ratio,
-            },
+            "metrics": metrics_dict,
+            "risk_assessment": risk_assessment,
+        }
+
+    def _interpret_risk_level(self, metrics: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Analyzes calculated metrics to provide a qualitative risk level and reasoning.
+
+        This uses simple heuristics based on volatility, max drawdown, and VaR.
+        These thresholds are examples and should be tuned to your business logic.
+        """
+        vol = metrics.get("annualized_volatility_pct")
+        md = metrics.get("max_drawdown")
+        var_95 = metrics.get("value_at_risk_95_pct")
+
+        if vol is None or md is None or var_95 is None:
+            return {
+                "level": "indeterminate",
+                "reasoning": "Could not determine risk level due to missing metrics."
+            }
+
+        level = ""
+        reasoning_parts = []
+
+        # 1. Determine level primarily by Annualized Volatility
+        if vol < 10.0:
+            level = "low"
+            reasoning_parts.append(
+                f"Your portfolio's risk is <strong>Low</strong>, primarily driven by its low annualized volatility of <strong>{vol:.2f}%</strong>. "
+                "This suggests stable, predictable returns with limited fluctuation."
+            )
+        elif vol < 20.0:
+            level = "moderate"
+            reasoning_parts.append(
+                f"Your portfolio's risk is <strong>Moderate</strong>. Its annualized volatility of <strong>{vol:.2f}%</strong> is typical of "
+                "a diversified equity portfolio (like an S&P 500 index fund)."
+            )
+        elif vol < 30.0:
+            level = "high"
+            reasoning_parts.append(
+                f"Your portfolio's risk is <strong>High</strong>, indicated by a significant annualized volatility of <strong>{vol:.2f}%</strong>. "
+                "This level of risk is common for aggressive growth or tech-heavy portfolios and implies a potential for large value swings."
+            )
+        else:
+            level = "very_high"
+            reasoning_parts.append(
+                f"Your portfolio's risk is <strong>Very High</strong>, with an extremely high annualized volatility of <strong>{vol:.2f}%</strong>. "
+                "This suggests a highly speculative portfolio with extreme price swings."
+            )
+
+        # 2. Add context from Max Drawdown
+        if md < -30.0:
+            reasoning_parts.append(
+                f"This is reinforced by a large historical Max Drawdown of <strong>{md:.2f}%</strong>,"
+                " showing a past potential for significant losses from a peak."
+            )
+        elif md < -15.0:
+            reasoning_parts.append(
+                f"Its historical Max Drawdown of <strong>{md:.2f}%</strong> is consistent with this risk level."
+            )
+        else:
+            reasoning_parts.append(
+                f"Its historical Max Drawdown of <strong>{md:.2f}%</strong> has been relatively contained."
+            )
+
+            # 3. Add context from Value at Risk (VaR)
+            if var_95 < -2.5:
+                reasoning_parts.append(
+                    f"Furthermore, the 95% Value at Risk (VaR) is <strong>{var_95:.2f}%</strong>, meaning there is a 5% chance "
+                    "of losing more than this amount in a single day."
+                )
+            elif var_95 < -1.0:
+                reasoning_parts.append(
+                    f"The 95% Value at Risk (VaR) of <strong>{var_95:.2f}%</strong> indicates a moderate potential for daily losses."
+                )
+            else:
+                reasoning_parts.append(
+                    f"The 95% Value at Risk (VaR) of <strong>{var_95:.2f}%</strong> shows a low potential for significant daily losses."
+                )
+
+        return {
+            "level": level,
+            "reasoning": " ".join(reasoning_parts)
         }
 
     def _calculate_volatility(self, daily_returns: pd.Series) -> Optional[float]:
@@ -326,4 +411,8 @@ class PortfolioRiskMetricsService:
                 "cvar_95": None,
                 "calmar_ratio": None,
             },
+            "risk_assessment": {
+                "level": "indeterminate",
+                "reasoning": error_message
+            }
         }

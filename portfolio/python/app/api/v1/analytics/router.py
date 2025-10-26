@@ -497,13 +497,14 @@ async def get_portfolio_risk_metrics(
 
     try:
         # Use force_refresh parameter to ensure latest data
-        risk_metrics = await portfolio_risk_metric_service.calculate_portfolio_risk_metrics(portfolio_id)
+        risk_metrics = await portfolio_risk_metric_service.calculate_portfolio_risk_metrics(portfolio_id, period)
 
         return risk_metrics
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
+
 
 @router.get("/portfolios/{portfolio_id}/advance-risk", response_model=AdvanceRiskCalculationResponse)
 async def get_portfolio_risk_metrics(
@@ -532,7 +533,9 @@ async def get_portfolio_risk_metrics(
     portfolio_advance_risk_metric_service = PortfolioAdvanceRiskMetricsService(db)
 
     try:
-        advance_risk_metrics = await portfolio_advance_risk_metric_service.calculate_advanced_metrics(portfolio_id)
+        advance_risk_metrics = await portfolio_advance_risk_metric_service.calculate_advanced_metrics(
+            portfolio_id, period
+            )
 
         return advance_risk_metrics
     except ValueError as e:

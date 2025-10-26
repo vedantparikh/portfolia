@@ -54,7 +54,7 @@ const QuantumVisual = () => {
     }, []);
     return (
         <p className="font-mono text-3xl font-bold text-green-400 tabular-nums h-12 flex items-center">
-            {number.toString().padStart(7, '0')}
+            {number.toString()}
         </p>
     );
 };

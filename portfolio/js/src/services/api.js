@@ -1041,9 +1041,14 @@ export const analyticsAPI = {
       Parameters: portfolioId (string or number)
       Returns: Server response with risk metrics data
     */
-  getPortfolioRiskMetrics: async (portfolioId) => {
+  getPortfolioRiskMetrics: async (portfolioId, period = "inception") => {
     const response = await api.get(
       `/analytics/portfolios/${portfolioId}/risk`,
+      {
+        params: {
+          period: period,
+        },
+      }
     );
     return response.data;
   },
@@ -1053,9 +1058,14 @@ export const analyticsAPI = {
       Parameters: portfolioId (string or number)
       Returns: Server response with advanced risk metrics data
     */
-      getPortfolioAdvanceRiskMetrics: async (portfolioId) => {
+      getPortfolioAdvanceRiskMetrics: async (portfolioId, period = "inception") => {
         const response = await api.get(
           `/analytics/portfolios/${portfolioId}/advance-risk`,
+          {
+            params: {
+              period: period,
+            },
+          }
         );
         return response.data;
       },

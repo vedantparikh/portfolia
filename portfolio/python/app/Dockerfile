@@ -1,5 +1,4 @@
-# Simple Dockerfile for Portfolia API
-FROM python:3.12-slim
+FROM python:3.12
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -10,16 +9,21 @@ ENV PYTHONPATH=/app
 WORKDIR /app
 
 # Install system dependencies
+# We only need libpq-dev (for psycopg2) and curl (for HEALTHCHECK)
+# All build tools (gcc, rustc, cargo, etc.) are no longer needed
+# because we are using pre-compiled wheels.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
+#
+# We have REMOVED all the "--no-binary" flags.
+# This will be MUCH faster as it downloads pre-compiled wheels.
+#
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project

@@ -28,5 +28,4 @@ __all__ = [
     "get_current_verified_user",
     "get_current_user_profile",
     "require_permission",
-    "require_admin",
 ]

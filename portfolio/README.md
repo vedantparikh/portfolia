@@ -93,7 +93,9 @@ Single-file bind mounts (`main.py`, `config.py`, `start_api.py`) go stale in the
 
 ## Releases
 
-GitHub Actions publishes the production images to GHCR after this workflow is on `master`. A green CI run on `master` pushes `edge` and `sha-<short>`. Merging the release-please PR tags `vX.Y.Z` and pushes `X.Y.Z`, `X.Y` and `sha-<short>`. Both images are linux/arm64, with an SBOM and provenance. The Jetson keeps running the local `:prod` tags until `scripts/deploy.sh` (plan R.4).
+GitHub Actions publishes the production images to GHCR after this workflow is on `master`. A green CI run on `master` pushes `edge` and `sha-<short>`. Merging the release-please PR tags `vX.Y.Z` and pushes `X.Y.Z`, `X.Y` and `sha-<short>`. Both images are linux/arm64, with an SBOM and provenance.
+
+`scripts/deploy.sh prod X.Y.Z` is how the Jetson switches to one of those tags. It backs up Postgres, runs migrations, and restarts the API, worker, and UI. Postgres and Redis containers are left as they are. A failed health check puts the previous version back. Until you run that command, the stack stays on the local `:prod` images.
 
 ## Further reading
 

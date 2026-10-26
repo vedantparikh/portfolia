@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import enum
+from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    Column,
     DateTime,
     Enum,
     ForeignKey,
@@ -12,10 +15,15 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from core.database.models.base import Base
+
+if TYPE_CHECKING:
+    from core.database.models.asset import Asset
+    from core.database.models.portfolio import Portfolio
+    from core.database.models.user import User
 
 
 class TransactionType(enum.Enum):
@@ -58,38 +66,58 @@ class Transaction(Base):
 
     __tablename__ = "transactions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    portfolio_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
     )
-    asset_id = Column(
+    asset_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
     )
-    transaction_type = Column(Enum(TransactionType), nullable=False)
-    status = Column(
+    transaction_type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType), nullable=False
+    )
+    status: Mapped[TransactionStatus] = mapped_column(
         Enum(TransactionStatus), default=TransactionStatus.COMPLETED, nullable=False
     )
 
     # Transaction details
-    quantity = Column(Numeric(20, 8), nullable=False)  # Support for fractional shares
-    price = Column(Numeric(20, 4), nullable=False)  # Price per share/unit
-    total_amount = Column(Numeric(20, 4), nullable=False)  # Total transaction value
-    currency = Column(String(3), default="USD", nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Support for fractional shares
+    price: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Price per share/unit
+    total_amount: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Total transaction value
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
 
     # Transaction metadata
-    transaction_date = Column(DateTime(timezone=True), nullable=False)
-    settlement_date = Column(DateTime(timezone=True), nullable=True)
-    notes = Column(Text, nullable=True)
-    reference_number = Column(String(100), nullable=True)  # External reference
-    source_key = Column(String(64), nullable=True)  # Imported statement row
-    fees = Column(Numeric(20, 4), default=0, nullable=False)  # Transaction fees
-    taxes = Column(Numeric(20, 4), default=0, nullable=False)  # Tax implications
+    transaction_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    settlement_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reference_number: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # External reference
+    source_key: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )  # Imported statement row
+    fees: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), default=0, nullable=False
+    )  # Transaction fees
+    taxes: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), default=0, nullable=False
+    )  # Tax implications
 
     # Timestamps
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -97,9 +125,11 @@ class Transaction(Base):
     )
 
     # Relationships
-    portfolio = relationship("Portfolio", back_populates="transactions")
-    asset = relationship("Asset", back_populates="transactions")
-    manual_entry = relationship(
+    portfolio: Mapped[Portfolio] = relationship(
+        "Portfolio", back_populates="transactions"
+    )
+    asset: Mapped[Asset] = relationship("Asset", back_populates="transactions")
+    manual_entry: Mapped[ManualEntry] = relationship(
         "ManualEntry",
         back_populates="transaction",
         uselist=False,
@@ -162,27 +192,33 @@ class ManualEntry(Base):
 
     __tablename__ = "manual_entries"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    transaction_id = Column(
+    transaction_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey("transactions.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )
-    entry_method = Column(Enum(EntryMethod), default=EntryMethod.MANUAL, nullable=False)
-    validation_status = Column(
+    entry_method: Mapped[EntryMethod] = mapped_column(
+        Enum(EntryMethod), default=EntryMethod.MANUAL, nullable=False
+    )
+    validation_status: Mapped[str] = mapped_column(
         String(50), default="pending", nullable=False
     )  # pending, validated, flagged
-    validation_notes = Column(Text, nullable=True)
-    source_file = Column(String(255), nullable=True)  # If imported from file
-    import_batch_id = Column(String(100), nullable=True)  # For batch imports
-    created_at = Column(
+    validation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_file: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )  # If imported from file
+    import_batch_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # For batch imports
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -190,8 +226,10 @@ class ManualEntry(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="manual_entries")
-    transaction = relationship("Transaction", back_populates="manual_entry")
+    user: Mapped[User] = relationship("User", back_populates="manual_entries")
+    transaction: Mapped[Transaction] = relationship(
+        "Transaction", back_populates="manual_entry"
+    )
 
     # Indexes for performance
     __table_args__ = (

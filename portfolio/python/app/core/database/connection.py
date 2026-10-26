@@ -20,7 +20,7 @@ engine = create_engine(
     max_overflow=settings.MAX_OVERFLOW,
     pool_pre_ping=True,
     pool_recycle=settings.POOL_RECYCLE,
-    echo=settings.DEBUG,
+    echo=False,
 )
 
 # Create session factory

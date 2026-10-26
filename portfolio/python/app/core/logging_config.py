@@ -79,8 +79,8 @@ def setup_logging(
     if log_level is None:
         log_level = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
 
-    if log_level not in LOG_LEVELS:
-        print(f"Invalid log level '{log_level}', using '{DEFAULT_LOG_LEVEL}'")
+    invalid_level = log_level not in LOG_LEVELS
+    if invalid_level:
         log_level = DEFAULT_LOG_LEVEL
 
     numeric_level = LOG_LEVELS[log_level]
@@ -160,6 +160,8 @@ def setup_logging(
 
     # Log the configuration
     logger = logging.getLogger(__name__)
+    if invalid_level:
+        logger.warning("Invalid log level, using %s", DEFAULT_LOG_LEVEL)
     logger.info("Logging configured successfully")
     logger.info(f"Log level: {log_level}")
     logger.info(f"Console logging: {enable_console}")
@@ -359,8 +361,3 @@ def log_error_with_context(
         f"ERROR: {type(error).__name__}: {str(error)}{context_info}{additional_info}",
         exc_info=True,
     )
-
-
-# Initialize logging when module is imported
-if not logging.getLogger().handlers:
-    setup_logging()

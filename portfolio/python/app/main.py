@@ -11,6 +11,7 @@ from config import settings
 from core.database.connection import init_db
 from core.error_handlers import install_error_handlers
 from core.logging_config import get_logger, setup_logging
+from core.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
 from health_check import router as health_router
 
 # Setup comprehensive logging
@@ -118,7 +119,10 @@ def create_app() -> FastAPI:
         allow_credentials="*" not in settings.ALLOWED_ORIGINS,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER],
     )
+    # Added last so it runs first: the id exists before handlers and CORS.
+    application.add_middleware(RequestContextMiddleware)
     logger.info("Including application routers")
     application.include_router(health_router, prefix="/health")
     application.include_router(build_v1_router())

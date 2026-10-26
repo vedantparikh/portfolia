@@ -160,7 +160,6 @@ def cleanup_test_database(test_db_engine):
     # Drop all tables and close engine after all tests
     Base.metadata.drop_all(bind=test_db_engine)
     test_db_engine.dispose()
-    print("\n🧹 Test database cleaned up successfully!")
 
 
 # Test data fixtures

@@ -11,7 +11,7 @@
 | Method | Use | Cache |
 |---|---|---|
 | `get_current_prices(symbols)` | Live price (regularMarketPrice → currentPrice → previousClose) for holdings/summary | Redis 60 s, one pipeline write |
-| `get_yesterdays_closes(symbols)` | Previous close for today's P&L (`yf.download(period="2d")`, first row) | 12 h, one pipeline write |
+| `get_yesterdays_closes(symbols)` | Previous close for today's P&L: last session before the current one, in the bar's timezone (`auto_adjust=False`, 10 days) | 12 h, keyed by the UTC date |
 | `get_daily_history(symbol)` | **Valuation source**: closes split-adjusted, *not* dividend-adjusted (`auto_adjust=False`), plus `splits` and `dividends` on ex-dates; naive date index | 6 h |
 | `fetch_ticker_data(...)` | OHLCV (dividend-adjusted default) for charts/indicators/benchmark | none |
 | `search_quotes` / `search_listings` | One Yahoo search. The UI gets every quote; the ISIN resolver keeps equities, ETFs, funds and crypto | 7 d |
@@ -32,8 +32,8 @@
 
 ## Known gaps
 - Unused client fns `getMajorIndices`, `getBulkPrices`, `getTickerInfo`, `getTickerData`.
-- Market status ignores US holidays; previous close cache can be stale across a weekend morning.
+- Market status ignores US holidays.
 - A cache miss still calls Yahoo inside the request. Plan 3.3 moves that to the worker.
 
 ## Planned
-Plan 3.3: the worker refreshes prices so a request never calls Yahoo. 2.8: previous close should not be the first row of a 2-day download.
+Plan 3.3: the worker refreshes prices so a request never calls Yahoo.

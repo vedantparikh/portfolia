@@ -2,12 +2,14 @@
 
 import asyncio
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
 import yfinance as yf  # type: ignore
+
+from core.services.market_data.sessions import previous_session_close
 
 logger = logging.getLogger(__name__)
 
@@ -100,26 +102,26 @@ class YahooMarketDataProvider:
                 logger.warning("Could not retrieve price for %s", symbol)
         return prices
 
-    def _previous_closes(self, symbols: List[str]) -> Dict[str, Decimal]:
-        closes: Dict[str, Decimal] = {}
+    def _previous_closes(self, symbols: List[str], now=None) -> Dict[str, Decimal]:
+        """Last completed session, not the older of two downloaded rows."""
+        if not symbols:
+            return {}
+        now = now or datetime.now(timezone.utc)
         data = yf.download(
             tickers=list(symbols),
-            period="2d",
+            period="10d",
             interval="1d",
+            auto_adjust=False,
             progress=False,
             group_by="ticker",
         )
-        if data.empty:
-            return closes
+        if data is None or data.empty:
+            return {}
+        closes: Dict[str, Decimal] = {}
         for symbol in symbols:
-            symbol_upper = symbol.upper()
-            if symbol_upper not in data or data[symbol_upper].empty:
-                continue
-            symbol_df = data[symbol_upper].sort_index()
-            if len(symbol_df) > 1 and "Close" in symbol_df.columns:
-                previous_close = symbol_df["Close"].iloc[0]
-                if pd.notna(previous_close):
-                    closes[symbol_upper] = Decimal(str(previous_close))
+            price = previous_session_close(_close_series(data, symbol), now)
+            if price is not None:
+                closes[symbol.upper()] = price
         return closes
 
     def _download(
@@ -231,6 +233,26 @@ class YahooMarketDataProvider:
             for quote in quotes
             if isinstance(quote, dict) and quote.get("symbol")
         ]
+
+
+def _close_series(data: pd.DataFrame, symbol: str) -> pd.Series:
+    """The Close column for one symbol, for either Yahoo column layout."""
+    symbol = symbol.upper()
+    if isinstance(data.columns, pd.MultiIndex):
+        levels = [data.columns.get_level_values(i) for i in range(data.columns.nlevels)]
+        if symbol in levels[0]:
+            frame = data[symbol]
+        elif symbol in levels[-1]:
+            frame = data.xs(symbol, axis=1, level=-1)
+        else:
+            return pd.Series(dtype=float)
+    else:
+        frame = data
+    if isinstance(frame, pd.Series):
+        return frame
+    if "Close" not in frame.columns:
+        return pd.Series(dtype=float)
+    return frame["Close"]
 
 
 def _first(raw: Dict[str, Any], *keys: str):

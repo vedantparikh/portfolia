@@ -192,7 +192,7 @@ Golden tests are written first for every item.
 | ✅ 2.5 | `domain/valuation.py`: daily holdings × price × FX on a trading calendar, with explicit stale/missing flags. **Done:** `daily_series` forward-fills. A close older than 5 sessions sets `stale_price` and `stale_symbols` on that day and on the chart points; the value still uses the last close. No price at all raises `MissingPriceError` (never valued at cost). FX is applied by the caller before this. | H4, H6, M5 |
 | ✅ 2.6 | `domain/returns.py` and `domain/risk.py`: TWR, XIRR (with opening value), CAGR, calendar-date period returns, and risk metrics with a single risk-free rate and percent units. **Now:** `core/domain/returns.py`: TWR, XIRR (period + annual), CAGR, calendar periods, `period_summary`, one `RISK_FREE_RATE`; chart, /performance, /multi-period and risk agree exactly. | H1, H3, M6, M10 |
 | ✅ 2.7 | Benchmark shadow portfolio built on the same functions, with a total-return index. **Done:** `core/domain/benchmark.py` `shadow_series` + `GET /portfolios/calculations/portfolio/{id}/benchmark`, Performance Chart "Compare with"; old benchmark endpoints and ~560 lines of legacy helpers removed. A foreign-currency benchmark is converted with 2.3 before the shadow is built. | C4, H2 |
-| 🟡 2.8 | Today's P&L formula and a correct previous close (time-aware rather than `iloc[0]` of 2 days). **Now:** `day_change` implemented and used by holdings/summary/overview; previous close still `yf.download(2d)` first row, 12h cache. | H5 |
+| ✅ 2.8 | Today's P&L formula and a correct previous close. **Done:** `day_change` is used by holdings, summary and overview. The previous close is the last session that started before the current one, using the bar's timezone, not the older of two downloaded rows. Cached 12 hours under the UTC date. | H5 |
 | ✅ 2.9 | Allocation and rebalancing in shares. Fix the indicator formulas (Wilder RSI/ATR/ADX, population-std Bollinger, CCI, StochRSI). **Done (2026-10-16):** all 17 indicators match `ta` (reference test), real PSAR, configuration UI wired. **Now:** Allocation from live holdings, rebalancing in shares with the stored threshold. Indicator formulas open (PSAR stub, non-Wilder RSI/ATR/ADX, sample-std Bollinger). | M8, Low |
 | 🟡 2.10 | `PortfolioAsset` becomes a derived cache, rebuilt on every transaction write. Remove the client-writable quantity and P&L fields. **Now:** Rebuilt on every transaction write and on refresh; client-writable `PUT /portfolios/{id}/assets/{asset_id}` remains. | M1 |
 | 🟡 2.11 | Re-run the Phase 0.7 characterisation snapshots and review **each** changed number against a hand calculation or a broker statement. **Now:** Characterisation snapshots unchanged through the refactor; demo data replayed independently to the cent. Broker-statement check open. | — |
@@ -338,6 +338,7 @@ Open:
 | 2026-10-26 | `feat/tr-statement-layout` | — | 2.2: Trade Republic PDF rows that a real statement splits across lines, or continues after a page break, are imported. Savings-plan quantities keep a decimal dot |
 | 2026-10-26 | `feat/market-data-provider` | — | 2.4: one Yahoo provider, concurrency limit, backoff, Redis pipeline cache. Symbol search is only `GET /stock/symbols`. Live API not restarted |
 | 2026-10-26 | `feat/stale-price-flags` | — | 2.5: a close older than 5 sessions is flagged on the valuation series and the chart. The last close is still the value. A missing price still raises. Live API not restarted |
+| 2026-10-26 | `feat/previous-close` | — | 2.8: today's P&L uses the last finished session, in the listing's timezone. Live API not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -375,7 +376,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.8, a time-aware previous close.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.10, PortfolioAsset rebuilt from transactions only.
 
 ---
 

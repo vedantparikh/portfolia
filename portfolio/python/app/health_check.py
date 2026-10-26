@@ -1,76 +1,42 @@
-#!/usr/bin/env python3
-"""
-Health check router for Portfolia application.
-This module provides health check endpoints for monitoring application health.
-"""
+"""Process liveness, and readiness of Postgres and Redis."""
 
-import logging
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
-from core.database.connection import get_db, get_db_health
-from core.errors import public_message
-
-logger = logging.getLogger(__name__)
+from core.database.connection import get_db_health
 
 router = APIRouter(tags=["health"])
 
 
+@router.get("/live")
+def live():
+    """The process is serving. This does not check Postgres or Redis."""
+    return {"status": "ok"}
+
+
+async def _dependencies() -> JSONResponse:
+    report = await get_db_health()
+    healthy = report["database"] == "healthy" and report["redis"] == "healthy"
+    return JSONResponse(
+        status_code=200 if healthy else 503,
+        content={
+            "status": "healthy" if healthy else "unhealthy",
+            "database": report["database"],
+            "redis": report["redis"],
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+    )
+
+
+@router.get("/ready")
+async def ready():
+    """Postgres and Redis are reachable."""
+    return await _dependencies()
+
+
 @router.get("/")
-async def health_check_endpoint():
-    """Basic health check endpoint."""
-    try:
-        health_status = await get_db_health()
-        return {
-            "status": health_status["overall"],
-            "database": health_status["database"],
-            "redis": health_status["redis"],
-            "timestamp": "2024-01-15T10:30:00Z",
-        }
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {
-            "status": "unhealthy",
-            "database": "unknown",
-            "redis": "unknown",
-            "timestamp": "2024-01-15T10:30:00Z",
-            "error": "Health check failed",
-        }
-
-
-@router.get("/detailed")
-async def detailed_health_check(db: Session = Depends(get_db)):
-    """Detailed health check with database statistics."""
-    try:
-        health_status = await get_db_health()
-
-        if health_status["database"] != "healthy":
-            raise HTTPException(status_code=503, detail="Database connection failed")
-
-        # Basic database statistics
-        try:
-            # Test database connection with a simple query
-            result = db.execute("SELECT COUNT(*) FROM information_schema.tables")
-            table_count = result.scalar()
-            db_stats = {"table_count": table_count}
-        except Exception as e:
-            logger.warning(f"Could not get database statistics: {e}")
-            db_stats = {"error": "Database statistics unavailable"}
-
-        return {
-            "status": health_status["overall"],
-            "database": {
-                "connection": health_status["database"],
-                "redis": health_status["redis"],
-                "statistics": db_stats,
-            },
-            "timestamp": "2024-01-15T10:30:00Z",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Detailed health check failed: {e}")
-        raise HTTPException(
-            status_code=503, detail=public_message(e, "Health check failed")
-        )
+async def health():
+    """Same check as /health/ready. Compose and Gatus call this path."""
+    return await _dependencies()

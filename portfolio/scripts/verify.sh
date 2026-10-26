@@ -189,8 +189,9 @@ if [[ "${1:-}" == "--stack" ]]; then
   step "stack: up + smoke"
   docker compose up -d --wait --wait-timeout 300
   for url in "http://localhost:${PORTFOLIO_UI_PORT:-3200}/" \
-             "http://localhost:${PORTFOLIO_UI_PORT:-3200}/api/v1/health" \
-             "http://127.0.0.1:${PORTFOLIO_API_PORT:-8200}/health/"; do
+             "http://localhost:${PORTFOLIO_UI_PORT:-3200}/api/v1/" \
+             "http://127.0.0.1:${PORTFOLIO_API_PORT:-8200}/health/live" \
+             "http://127.0.0.1:${PORTFOLIO_API_PORT:-8200}/health/ready"; do
     for attempt in 1 2 3 4 5 6; do
       curl -fsS -o /dev/null --max-time 10 "$url" && break
       [[ $attempt == 6 ]] && { echo "FAIL $url"; exit 1; }

@@ -36,7 +36,6 @@ GET /api/v1/assets/{asset_id}/prices
 GET /api/v1/auth/me
 GET /api/v1/auth/me/profile
 GET /api/v1/auth/validate-reset-token/
-GET /api/v1/health
 GET /api/v1/market-data/market-status
 GET /api/v1/market-data/prices/bulk
 GET /api/v1/market-data/search
@@ -81,7 +80,8 @@ GET /api/v1/watchlists/public
 GET /api/v1/watchlists/stats
 GET /api/v1/watchlists/{watchlist_id}
 GET /health/
-GET /health/detailed
+GET /health/live
+GET /health/ready
 POST /api/v1/account-statements/instruments/resolve
 POST /api/v1/account-statements/parse
 POST /api/v1/account-statements/transactions/bulk-create

@@ -24,9 +24,10 @@ class TestCoreAPIEndpoints:
         assert "health" in data
 
     def test_health_endpoint(self, client: TestClient):
-        """Test health endpoint."""
-        response = client.get("/health")
+        """Liveness does not depend on Postgres or Redis."""
+        response = client.get("/health/live")
         assert response.status_code == 200
+        assert response.json()["status"] == "ok"
 
     def test_api_v1_root(self, client: TestClient):
         """Test API v1 root endpoint."""

@@ -177,7 +177,7 @@ There is no production data yet, so this is the cheapest moment to set up how re
 | ✅ 1.5 | Add a unit-of-work session dependency and a `get_owned_portfolio` dependency. Make DB endpoints `def`. **Done:** `get_db` commits when the request succeeds and rolls back when it raises. `get_owned_portfolio` is the active-portfolio ownership check (the analytics and transaction-summary copies now call it). API routes are plain `def` unless they await I/O, and the auth dependencies are sync too. |
 | ✅ 1.6 | **Alembic as the only schema authority.** Autogenerate a baseline migration from the models. There is no production data yet, so it simply runs on empty DBs in every env, with no `stamp`. Do this **before** the first prod release (R.4) so prod is born on Alembic. Remove every `create_all` and the auto-seeding on startup. A CI check fails on model/migration drift. **Done:** baseline in `e97c82868ff5_baseline.py`, no `create_all` at startup, `scripts/check_migrations.sh` (upgrade, `alembic check`, full downgrade, upgrade) in `verify.sh`. |
 | ✅ 1.7 | Models: move to SQLAlchemy 2 `Mapped[]`, make all DateTimes timezone-aware (in a migration), and widen price precision. **Done:** every model column is `mapped_column`. The live database already stores datetimes as `timestamp with time zone` (43 columns), so the migration does not change them. Prices and cash amounts are `Numeric(20, 8)` in `b8c1d4e27a90`; percent and ratio columns are unchanged. |
-| ⏳ 1.8 | Health endpoints: `/health/live` and `/health/ready` with real checks, returning 503 when unhealthy. Delete `health_router` (the test router) and the hardcoded timestamp. |
+| ✅ 1.8 | Health endpoints: `/health/live` and `/health/ready` with real checks, returning 503 when unhealthy. Delete `health_router` (the test router) and the hardcoded timestamp. **Done:** `/health/live` only checks that the process is serving. `/health/ready` checks Postgres and Redis and returns 503 when either is down, with a real UTC timestamp. `/health/` is the same check, so Compose and Gatus keep their current URL. The test router (`GET /api/v1/health`) is gone. |
 | 🟡 1.9 | Auth hardening: python-jose → PyJWT, passlib → bcrypt (or argon2) directly, hash refresh tokens at rest, dummy hash on unknown users, remove the no-op `require_admin`. Optional: refresh token in an httpOnly cookie (see Phase 4.6). **Now:** passlib → bcrypt done (wave 3); python-jose, plain refresh tokens remain. |
 
 ### Phase 2: Calculation engine and correctness (≈2–3 weeks, the core of the work)
@@ -333,6 +333,7 @@ Open:
 | 2026-10-26 | `feat/request-logging` | — | 1.4: one request id and one access line per request. Logging configured once. SQL echo off. Live containers not restarted |
 | 2026-10-26 | `feat/unit-of-work` | — | 1.5: request session commits or rolls back. `get_owned_portfolio` replaces the copied ownership queries. Database routes are sync unless they await I/O. Live containers not restarted |
 | 2026-10-26 | `feat/model-types` | — | 1.7: `Mapped[]` models. Prices and cash amounts widened to numeric(20, 8). Datetimes were already timezone-aware. Migration not applied to the live database |
+| 2026-10-26 | `feat/health-checks` | — | 1.8: `/health/live` and `/health/ready` (503 when Postgres or Redis is down). `/health/` is the same readiness check. Test router removed. Live containers not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -370,7 +371,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 1.8, live and ready health checks.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 1.9, auth hardening.
 
 ---
 

@@ -21,7 +21,8 @@ The tables below are the map. Request fields and the corner cases live in the fe
 | `/api/v1/statistical-indicators` | bearer; public indicator sets are readable | [indicators](../api/v1/statistical_indicators/CLAUDE.md) |
 | `/api/v1/stock/symbols` | optional; anonymous callers are limited to 10 searches an hour per IP | [market](../api/v1/market/CLAUDE.md) |
 | `/api/v1/market-data` | bearer | same |
-| `GET /health/` | public | compose healthcheck |
+| `GET /health/live` | public | process is up; does not check Postgres or Redis |
+| `GET /health/ready`, `GET /health/` | public | Postgres and Redis; 503 when either is down. Compose and Gatus call `/health/` |
 
 There is no `/api/v1/dashboard` router. The dashboard page calls portfolios, transactions, and market data itself.
 

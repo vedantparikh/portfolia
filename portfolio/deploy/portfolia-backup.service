@@ -1,0 +1,13 @@
+[Unit]
+Description=Dump the Portfolia production database
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=bubbly
+SupplementaryGroups=docker
+WorkingDirectory=/home/bubbly/server/appdata/portfolia/portfolio
+ExecStart=/home/bubbly/server/appdata/portfolia/portfolio/scripts/backup.sh prod
+TimeoutStartSec=30min
+Nice=10

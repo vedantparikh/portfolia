@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Portfolia database dump
+
+[Timer]
+OnCalendar=*-*-* 03:10:00
+AccuracySec=1min
+Persistent=true
+Unit=portfolia-backup.service
+
+[Install]
+WantedBy=timers.target

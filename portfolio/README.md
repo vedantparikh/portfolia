@@ -99,6 +99,8 @@ GitHub Actions publishes the production images to GHCR after this workflow is on
 
 Staging is a second project, `portfolio-staging`, on UI port 3100 with its own database. `scripts/staging-sync.sh` deploys the `edge` image only when its digest changes. The timer unit is `deploy/portfolia-staging.timer`. Enabling it is a host install; it is not started by pulling this repo.
 
+`scripts/backup.sh` dumps production Postgres to `/mnt/samsung_ufs/backups/portfolio/` and keeps 14 daily and 8 weekly copies. `scripts/restore.sh staging <dump>` loads one into staging. Production is restored only with `--allow-prod`. `scripts/restore-drill.sh` does that staging restore from the newest daily dump and checks the table count. Timer units are `deploy/portfolia-backup.timer` and `deploy/portfolia-restore-drill.timer`. An optional Nextcloud upload is configured in `env/backup.env` (see `deploy/backup.env.example`).
+
 ## Further reading
 
 [STARTUP_GUIDE.md](STARTUP_GUIDE.md), [python/app/docs/](python/app/docs/), and the index in [../docs/README.md](../docs/README.md).

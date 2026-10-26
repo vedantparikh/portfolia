@@ -16,6 +16,7 @@ step() { printf '\n== %s\n' "$*"; }
 step "deploy rollback"
 "$ROOT/scripts/test-deploy.sh"
 "$ROOT/scripts/test-staging-sync.sh"
+"$ROOT/scripts/test-backup.sh"
 
 step "release image tags"
 tags=$(IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" api version abcdef1 0.1.10)

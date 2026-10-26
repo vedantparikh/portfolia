@@ -14,17 +14,17 @@ python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
 |---|---|
 | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Database. In compose the host is `postgres`. |
 | `POOL_SIZE`, `MAX_OVERFLOW`, `POOL_TIMEOUT`, `POOL_RECYCLE` | SQLAlchemy pool. Defaults 20 / 30 / 30 / 3600. |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_PASSWORD` | Cache and reset tokens. Empty password is refused when `ENVIRONMENT` is production. |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`, `REDIS_PASSWORD` | Cache and reset tokens. The Redis client reads these from config. Empty password is refused when `ENVIRONMENT` is production. `REDIS_TTL_SECONDS` defaults to 8 hours. |
 | `WORKER_INTERVAL_SECONDS` | Watchlist refresh period. Default 900. |
 | `API_HOST`, `API_PORT`, `API_URL` | Bind address and the URL the seed script calls. Compose uses port 8000. |
 | `DEBUG`, `LOG_LEVEL`, `ENVIRONMENT` | `ENVIRONMENT` other than development/dev/local/test turns on the secret check. |
-| `SECRET_KEY`, `JWT_SECRET_KEY` | Required outside local development. At least 32 characters, not a placeholder. |
-| `JWT_ALGORITHM` | Default HS256. `config.py` also accepts `ALGORITHM`. |
+| `JWT_SECRET_KEY` | Signing key. Required outside local development, at least 32 characters, not a placeholder. `SECRET_KEY` is used only when this is unset. |
+| `JWT_ALGORITHM` | Default HS256. `ALGORITHM` is accepted when `JWT_ALGORITHM` is unset. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Default 15. |
-| `REFRESH_TOKEN_EXPIRE_MINUTES` | Default 30. This is the key `config.py` reads. `.env.example` still lists `REFRESH_TOKEN_EXPIRE_DAYS`, which the code ignores. |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Default 7. This is the refresh lifetime unless `REFRESH_TOKEN_EXPIRE_MINUTES` is set. |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_FROM` | Verification and password-reset mail. Default host `smtp-relay.brevo.com`, port 587. |
 | `ALLOWED_ORIGINS` or `FRONTEND_URL` | CORS. `*` is rejected outside local development. Default `http://localhost:3000`. |
-| `YAHOO_FINANCE_API_KEY`, `ALPHA_VANTAGE_API_KEY` | Present in the template. Yahoo is called without a key. `ALPHA_VANTAGE_API_KEY` in `config.py` is a constant empty string, not read from the environment. |
+| `YAHOO_FINANCE_API_KEY`, `ALPHA_VANTAGE_API_KEY` | Present in the template. Yahoo is called without a key. |
 | `STATIC_DIR` | Default `STATICS`. |
 | `LOG_FILE`, `LOG_DIR`, `LOG_JSON` | Read by `main.py`, not by `config.py`. See [LOGGING_CONFIGURATION.md](LOGGING_CONFIGURATION.md). |
 

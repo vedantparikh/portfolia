@@ -1,14 +1,13 @@
 import hashlib
 import json
 import logging
-import os
 import pickle
 from functools import wraps
 from typing import List
 
 import redis
-from environs import Env
 
+from config import settings
 from core.utils.singletonmeta import SingletonMeta
 
 logger = logging.getLogger(__name__)
@@ -67,10 +66,8 @@ class RedisClient(metaclass=SingletonMeta):
         self.host = host
         self.port = port
         self.db = db
-        # a global expiry time in seconds for all keys.
-        self._env = Env()
-        self.ex_seconds = self._env.int("REDIS_TTL_SECONDS", 8 * 60 * 60)
-        self.ex_seconds_model = self._env.int("REDIS_TTL_MODEL_SECONDS", 8 * 60 * 60)
+        self.ex_seconds = settings.REDIS_TTL_SECONDS
+        self.ex_seconds_model = settings.REDIS_TTL_MODEL_SECONDS
         self.connection_pool = redis.ConnectionPool(
             host=self.host,
             port=self.port,
@@ -86,18 +83,12 @@ class RedisClient(metaclass=SingletonMeta):
 
     @classmethod
     def make_from_env(cls):
-        """instantiate redis instance from env variables."""
-
-        redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = os.getenv("REDIS_PORT", 6379)
-        redis_cache_db = os.getenv("REDIS_CACHE_DB", 0)
-        redis_password = os.getenv("REDIS_PASSWORD") or None
-
+        """Build the client from application settings."""
         return cls(
-            host=redis_host,
-            port=redis_port,
-            db=redis_cache_db,
-            password=redis_password,
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            password=settings.REDIS_PASSWORD or None,
         )
 
     def set(self, key, value, ex_seconds=None):

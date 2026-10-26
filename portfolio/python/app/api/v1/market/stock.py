@@ -7,7 +7,6 @@ import time
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from yahooquery import search
 
 from core.auth.dependencies import (
     get_client_ip,
@@ -35,108 +34,26 @@ router = APIRouter(tags=["market-data"])
 
 
 @router.get("/symbols", response_model=List[SymbolSearchResult])
-def get_symbols(
+async def get_symbols(
     name: str,
     request: Request,
     current_user=Depends(get_optional_current_user),
 ):
-    """
-    Get stock symbols matching the search name.
-
-    Rate limited for unauthenticated users to prevent abuse.
-    """
-    start_time = time.time()
-    client_ip = get_client_ip(request) if request else "unknown"
-    user_id = current_user.id if current_user else None
-
-    # Log API request
-    log_api_request(
-        logger,
-        "GET",
-        f"/symbols?name={name}",
-        str(user_id) if user_id else None,
-        client_ip,
-        symbol=name,
-    )
-
-    logger.info(
-        f"🔍 Symbol search initiated for '{name}' | User: {user_id} | IP: {client_ip}"
-    )
-
-    # Rate limiting for unauthenticated users
+    """Yahoo matches for a name, ticker or ISIN. Anonymous callers are rate limited."""
     if not current_user:
-        logger.debug(f"Rate limiting check for unauthenticated user | IP: {client_ip}")
+        client_ip = get_client_ip(request) if request else "unknown"
         if is_rate_limited(
             client_ip, "symbol_search", max_attempts=10, window_seconds=3600
         ):
-            logger.warning(
-                f"🚫 Rate limit exceeded for symbol search | IP: {client_ip}"
-            )
             raise HTTPException(
                 status_code=429,
                 detail="Rate limit exceeded. Please authenticate or try again later.",
             )
-        logger.debug(f"Rate limit check passed | IP: {client_ip}")
 
-    # Search for symbols
-    logger.debug(f"Searching for symbols with yahooquery | Query: '{name}'")
-    search_start_time = time.time()
-    data = search(name)
-    search_time = time.time() - search_start_time
-
-    logger.debug(
-        f"Yahooquery search completed in {search_time:.4f}s | Results: {len(data.get('quotes', [])) if data and 'quotes' in data else 0}"
-    )
-
-    if not data or "quotes" not in data or len(data["quotes"]) == 0:
-        logger.info(f"❌ No symbols found for query '{name}'")
+    quotes = await market_data_service.search_quotes(name)
+    if not quotes:
         raise HTTPException(status_code=404, detail="No symbols found")
-
-    quotes = data.get("quotes", [])
-    if not isinstance(quotes, list):
-        logger.error(
-            f"🚨 Malformed response from yahooquery | Expected list, got {type(quotes)}"
-        )
-        raise HTTPException(
-            status_code=500, detail="Malformed response from symbol search"
-        )
-
-    response_time = time.time() - start_time
-    logger.info(
-        f"✅ Symbol search successful | Query: '{name}' | Results: {len(quotes)} | Time: {response_time:.4f}s"
-    )
-
-    # Log API response
-    log_api_response(
-        logger,
-        "GET",
-        f"/symbols?name={name}",
-        200,
-        response_time,
-        results_count=len(quotes),
-    )
-
-    # Convert to SymbolSearchResult objects
-    search_results = []
-    for quote in quotes:
-        search_results.append(
-            SymbolSearchResult(
-                symbol=quote.get("symbol", ""),
-                short_name=quote.get("shortName") or quote.get("shortname"),
-                long_name=quote.get("longName") or quote.get("longname"),
-                quote_type=quote.get("quoteType") or quote.get("quotetype"),
-                exchange=quote.get("exchDisp")
-                or quote.get("exchdisp")
-                or quote.get("exchange"),
-                market=quote.get("market"),
-                currency=quote.get("currency"),
-                sector=quote.get("sectorDisp") or quote.get("sector"),
-                industry=quote.get("industryDisp") or quote.get("industry"),
-                market_cap=quote.get("marketCap"),
-            )
-        )
-
-    return search_results
+    return [SymbolSearchResult(**quote) for quote in quotes]
 
 
 @router.get("/symbol-data", response_model=YFinanceDataResponse)

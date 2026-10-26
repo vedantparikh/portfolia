@@ -13,7 +13,6 @@ from core.database.models import User
 from core.schemas.market_data import (
     BulkPricesResponse,
     MarketStatusResponse,
-    StockSearchResponse,
     SupportedIntervalsResponse,
     SupportedPeriodsResponse,
     TickerDataResponse,
@@ -165,21 +164,6 @@ async def get_bulk_prices(
         requested_count=len(symbols),
         successful_count=len([p for p in prices.values() if p is not None]),
     )
-
-
-@router.get("/search", response_model=StockSearchResponse)
-async def search_symbols(
-    query: str = Query(..., description="Search query"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
-    _current_user: User = Depends(get_current_active_user),
-):
-    """
-    Search for stock symbols.
-    Note: This is a basic implementation that tries the query as a direct symbol.
-    """
-    results = await market_data_service.search_symbols(query, limit)
-
-    return StockSearchResponse(query=query, results=results, total_count=len(results))
 
 
 @router.get("/market-status", response_model=MarketStatusResponse)

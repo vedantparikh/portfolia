@@ -247,6 +247,20 @@ class RedisClient(metaclass=SingletonMeta):
             if client is not None:
                 return client.keys(f"*{pattern}*")
 
+    def mset(self, items: dict, ex_seconds=None):
+        """SET many keys in one pipeline. Keys and values are JSON, same as set()."""
+        if not items:
+            return
+        ex_seconds = ex_seconds or self.ex_seconds
+        if ex_seconds == -1:
+            ex_seconds = None
+        with self.RedisContextManager(self.connection_pool) as client:
+            if client is not None:
+                pipe = client.pipeline()
+                for key, value in items.items():
+                    pipe.set(json.dumps(key), json.dumps(value), ex=ex_seconds)
+                pipe.execute()
+
     def mget(self, keys: List[str]):
         """Returns cache key value pairs"""
         byte_list = [json.dumps(item).encode() for item in keys]

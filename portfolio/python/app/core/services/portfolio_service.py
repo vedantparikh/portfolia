@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, case, desc
@@ -15,13 +16,18 @@ from core.database.models import (
     TransactionStatus,
     TransactionType,
 )
+from core.domain.fx import (
+    MissingFxError,
+    canonical_currency,
+    convert_amount,
+    convert_trades,
+)
 from core.domain.positions import (
     OversellError,
     compute_position,
     day_change,
     to_trades,
 )
-from core.errors import ensure_same_currency
 from core.schemas.portfolio import (
     CurrencyTotals,
     PortfolioAssetCreate,
@@ -35,6 +41,7 @@ from core.schemas.portfolio import (
     TransactionCreate,
     TransactionUpdate,
 )
+from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
 
 __all__ = ["OversellError", "PortfolioService", "compute_position"]
@@ -342,15 +349,29 @@ class PortfolioService:
 
         symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
         market_prices = await self.market_data_service.get_current_prices(symbols)
+        rates = await load_rates(
+            self.market_data_service,
+            portfolio.currency,
+            [asset.currency for _, asset in portfolio_assets_with_info],
+            strict=False,
+        )
 
         result = []
         for portfolio_asset, asset_info in portfolio_assets_with_info:
             current_price = market_prices.get(asset_info.symbol)
+            if current_price is not None:
+                current_price = self._converted(
+                    current_price,
+                    asset_info.currency,
+                    portfolio.currency,
+                    date.today(),
+                    rates,
+                )
             current_value = None
             unrealized_pnl = None
             unrealized_pnl_percent = None
 
-            if current_price:
+            if current_price is not None:
                 current_value = current_price * portfolio_asset.quantity
                 unrealized_pnl = current_value - portfolio_asset.cost_basis_total
                 if portfolio_asset.cost_basis_total > 0:
@@ -405,11 +426,21 @@ class PortfolioService:
         asset = self._get_owned_asset(transaction_data.asset_id, user_id)
         if not asset:
             return None
-        ensure_same_currency(portfolio.currency, asset.currency, asset.symbol)
+        asset_major, _ = canonical_currency(asset.currency)
+        portfolio_major, _ = canonical_currency(portfolio.currency)
+        requested_major, _ = canonical_currency(
+            transaction_data.currency or asset.currency
+        )
+        # Cash the user typed in the portfolio currency stays there. A foreign
+        # listing otherwise records its own quote currency, which valuation converts.
+        if asset_major == portfolio_major or requested_major == portfolio_major:
+            cash_currency = portfolio_major
+        else:
+            cash_currency = asset_major
 
         values = transaction_data.dict()
         values["portfolio_id"] = portfolio_id
-        values["currency"] = portfolio.currency
+        values["currency"] = cash_currency
         values["total_amount"] = Transaction.compute_total_amount(
             transaction_data.transaction_type,
             transaction_data.quantity,
@@ -600,6 +631,14 @@ class PortfolioService:
             missing_prices=[h.symbol for h, _, _ in rows if h.current_value is None],
         )
 
+    def _converted(self, amount, currency, portfolio_currency, day, rates):
+        if amount is None:
+            return None
+        try:
+            return convert_amount(amount, currency, portfolio_currency, day, rates)
+        except MissingFxError:
+            return None
+
     async def _holding_rows(
         self, portfolio_id: int
     ) -> List[Tuple[PortfolioHolding, Optional[Decimal], Optional[Decimal]]]:
@@ -618,7 +657,12 @@ class PortfolioService:
             self.market_data_service.get_current_prices(symbols),
             self.market_data_service.get_yesterdays_closes(symbols),
         )
+        portfolio = (
+            self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+        )
+        portfolio_currency = portfolio.currency if portfolio else "USD"
         today = date.today()
+        yesterday = today - timedelta(days=1)
         session_start = today - timedelta(days=max(0, today.weekday() - 4))
         trades_today = defaultdict(list)
         for tx in (
@@ -633,11 +677,30 @@ class PortfolioService:
         ):
             trades_today[tx.asset_id].append(tx)
 
+        codes = [asset.currency for _, asset in portfolio_assets_with_info]
+        for txs in trades_today.values():
+            codes.extend(tx.currency for tx in txs)
+        rates = await load_rates(
+            self.market_data_service, portfolio_currency, codes, strict=False
+        )
+
         rows = []
         for portfolio_asset, asset_info in portfolio_assets_with_info:
             quantity = portfolio_asset.quantity
-            price = current_prices.get(asset_info.symbol)
-            prev_close = yesterdays_prices.get(asset_info.symbol)
+            price = self._converted(
+                current_prices.get(asset_info.symbol),
+                asset_info.currency,
+                portfolio_currency,
+                today,
+                rates,
+            )
+            prev_close = self._converted(
+                yesterdays_prices.get(asset_info.symbol),
+                asset_info.currency,
+                portfolio_currency,
+                yesterday,
+                rates,
+            )
             current_value = unrealized_pnl = unrealized_pnl_percent = None
             today_pnl = today_base = None
 
@@ -649,12 +712,30 @@ class PortfolioService:
                         unrealized_pnl / portfolio_asset.cost_basis_total * 100
                     )
                 if prev_close:
-                    today_pnl, today_base = day_change(
-                        quantity,
-                        prev_close,
-                        price,
-                        trades_today.get(portfolio_asset.asset_id, []),
-                    )
+                    priced_trades = []
+                    convertible = True
+                    for tx in trades_today.get(portfolio_asset.asset_id, []):
+                        trade_price = self._converted(
+                            tx.price,
+                            tx.currency,
+                            portfolio_currency,
+                            tx.transaction_date,
+                            rates,
+                        )
+                        if trade_price is None:
+                            convertible = False
+                            break
+                        priced_trades.append(
+                            SimpleNamespace(
+                                quantity=tx.quantity,
+                                transaction_type=tx.transaction_type,
+                                price=trade_price,
+                            )
+                        )
+                    if convertible:
+                        today_pnl, today_base = day_change(
+                            quantity, prev_close, price, priced_trades
+                        )
 
             holding = PortfolioHolding(
                 asset_id=portfolio_asset.asset_id,
@@ -824,6 +905,7 @@ class PortfolioService:
         price_error = None
         current_price = None
         splits = []
+        asset = None
         try:
             asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
             if asset:
@@ -857,7 +939,41 @@ class PortfolioService:
             )
             .all()
         )
-        position = compute_position(to_trades(transactions, {asset_id: splits}))
+        portfolio_row = (
+            self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+        )
+        portfolio_currency = portfolio_row.currency if portfolio_row else "USD"
+        raw_trades = to_trades(transactions, {asset_id: splits})
+        try:
+            rates = await load_rates(
+                self.market_data_service,
+                portfolio_currency,
+                [tx.currency for tx in transactions]
+                + ([asset.currency] if asset is not None else []),
+            )
+            position = compute_position(
+                convert_trades(
+                    raw_trades,
+                    {tx.id: tx.currency for tx in transactions},
+                    portfolio_currency,
+                    rates,
+                )
+            )
+            if current_price is not None and asset is not None:
+                current_price = float(
+                    convert_amount(
+                        current_price,
+                        asset.currency,
+                        portfolio_currency,
+                        date.today(),
+                        rates,
+                    )
+                )
+        except MissingFxError as exc:
+            print(f"No FX for asset {asset_id}: {exc}")
+            position = compute_position(raw_trades)
+            current_price = None
+            price_error = exc
         current_quantity = position["quantity"]
         total_cost = position["cost_basis_total"]
 

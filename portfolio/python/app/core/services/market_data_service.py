@@ -13,6 +13,7 @@ import pandas as pd  # type: ignore
 import yfinance as yf  # type: ignore
 
 from core.database.redis_client import get_redis
+from core.domain.fx import MissingFxError, canonical_currency
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +341,30 @@ class MarketDataService:
             )
             for name, values in cached.items()
         }
+
+    async def get_fx_rates(self, quote: str, portfolio: str) -> pd.Series:
+        """
+        Portfolio currency per 1 unit of `quote`, from Yahoo `{QUOTE}{PORTFOLIO}=X`.
+
+        Falls back to the inverse pair. Cached with the other daily history (6h).
+        Same currency is not a rate; callers skip the fetch.
+        """
+        quote_major, _ = canonical_currency(quote)
+        portfolio_major, _ = canonical_currency(portfolio)
+        if quote_major == portfolio_major:
+            return pd.Series(dtype=float)
+        direct = await self.get_daily_history(f"{quote_major}{portfolio_major}=X")
+        if direct is not None and not direct["close"].dropna().empty:
+            return direct["close"]
+        inverse = await self.get_daily_history(f"{portfolio_major}{quote_major}=X")
+        if inverse is not None:
+            close = inverse["close"].replace(0, pd.NA).dropna()
+            inverted = (
+                (1.0 / close).replace([float("inf"), float("-inf")], pd.NA).dropna()
+            )
+            if not inverted.empty:
+                return inverted
+        raise MissingFxError(quote_major, portfolio_major)
 
     async def search_listings(self, query: str) -> List[Dict[str, Any]]:
         """Yahoo listings (equities, ETFs, funds, crypto) matching a name, ticker or ISIN."""

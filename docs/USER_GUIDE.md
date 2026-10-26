@@ -55,7 +55,7 @@ The home page after sign-in.
 
 Read it top to bottom:
 
-1. **Total Value** is the sum of live holdings. Today's change is underneath. If you ever hold more than one currency, you see one amount per currency, not a single converted total.
+1. **Total Value** is the sum of live holdings, in the portfolio's currency. A USD listing inside an EUR portfolio is converted at Yahoo's daily rate. If you have separate portfolios in different currencies, you see one amount per currency: those portfolios are not added together.
 2. **Portfolios** and **Holdings** are counts. **US Market** is open or closed on the New York clock. It does not know US holidays.
 3. The yellow alert line jumps to the watchlist. The demo user has two alerts that were already true when the account was created.
 4. **Your Portfolios** is one row per book: value, today's P&L, total P&L versus cost, and a three-month sparkline. Open a row to go to that portfolio.
@@ -144,7 +144,7 @@ The four tiles:
 
 The chart's blue line is value. The yellow line is invested (value at the start of the window, plus later deposits, minus withdrawals). **Show cost basis** adds the FIFO cost line.
 
-**Compare with** lists total-return benchmarks for the portfolio's currency (for USD, the S&P 500 total-return index; for EUR, accumulating ETFs such as VWCE and EUNL) and also accepts any Yahoo ticker. The extra line is a shadow portfolio: your deposits buy the benchmark, your withdrawals sell it. A card underneath shows you, the shadow, and the difference in value, profit, TWR, and MWR. If you pick a ticker in another currency, the app compares the prices unconverted and says so. There is no FX yet.
+**Compare with** lists total-return benchmarks for the portfolio's currency (for USD, the S&P 500 total-return index; for EUR, accumulating ETFs such as VWCE and EUNL) and also accepts any Yahoo ticker. The extra line is a shadow portfolio: your deposits buy the benchmark, your withdrawals sell it. A card underneath shows you, the shadow, and the difference in value, profit, TWR, and MWR. A ticker quoted in another currency is converted into the portfolio currency first.
 
 **Risk** on this page is for the same window: max drawdown, volatility, Sharpe (3% risk-free), best day, worst day.
 

@@ -82,7 +82,7 @@ Percentages are shown as percents (`15.0` means 15%). The risk-free rate used fo
 
 ## Limits of the current version
 
-- A portfolio holds one currency. An EUR portfolio cannot contain a USD listing, and there is no FX conversion yet. Dashboard totals stay separate per currency.
+- A holding can be quoted in another currency. Closes and live prices are converted into the portfolio currency with Yahoo's daily rate. Cash is converted only when the transaction was recorded in a different currency. London pence (`GBp`) and agorot (`ILA`) are scaled to pounds and shekels. Dashboard totals still stay separate per portfolio currency: an EUR portfolio and a USD portfolio are not added together.
 - There is no cash account. Deposits, interest, card payments, and tax refunds are listed as skipped when you import a statement.
 - Splits are taken from market data. Importing a split row would double-count it, so those rows are skipped.
 - Watchlist alerts are in-app only. Nothing is emailed or pushed.
@@ -95,7 +95,6 @@ Percentages are shown as percents (`15.0` means 15%). The risk-free rate used fo
 
 Not built yet. The design notes are in [portfolio/REFACTOR_PLAN.md](portfolio/REFACTOR_PLAN.md).
 
-- Foreign-currency holdings, converted to the portfolio currency with historical rates
 - A cash balance, so deposits, withdrawals, and interest can be imported instead of skipped
 - Security transfers, swaps, and spin-offs
 - Withholding tax kept on Trade Republic PDF dividends (the pytr CSV import already stores it)

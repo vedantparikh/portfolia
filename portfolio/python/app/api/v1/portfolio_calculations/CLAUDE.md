@@ -12,7 +12,7 @@
 | `GET|POST /portfolio/{id}/performance?period=` | `metrics`: twr, mwr (both over the period), cagr (annualised TWR, plain TWR under a year), xirr (annual), volatility, max_drawdown; `current_value`. Switches to inception when the portfolio is younger than the period |
 | `GET /portfolio/{id}/multi-period?periods=` | The above for several periods; one memoised engine run per request |
 | `GET /benchmarks?currency=` | Suggested total-return benchmarks (`BENCHMARKS` in the service): EUR `EUNL.DE` (default), `VWCE.DE`, `SXR8.DE`, `SXRV.DE`; USD `^SP500TR` |
-| `GET /portfolio/{id}/benchmark?period=&symbol=` | Portfolio vs the same flows in `symbol` (default: the portfolio's primary `PortfolioBenchmark`, else the currency default). `points[]` value / benchmark_value / invested, `portfolio` and `shadow` = `period_summary`, `difference` (portfolio − shadow: end_value, profit, twr_pct and mwr_pct in pp), `warnings` (currency differs — no FX yet; benchmark paid dividends in the period, i.e. a price index; shadow shortfall), `error` |
+| `GET /portfolio/{id}/benchmark?period=&symbol=` | Portfolio vs the same flows in `symbol` (default: the portfolio's primary `PortfolioBenchmark`, else the currency default). `points[]` value / benchmark_value / invested, `portfolio` and `shadow` = `period_summary`, `difference` (portfolio − shadow: end_value, profit, twr_pct and mwr_pct in pp), `warnings` (benchmark currency unknown, so unconverted; benchmark paid dividends in the period, i.e. a price index; shadow shortfall), `error` |
 | `GET /portfolio/{id}/overview` | Inception `/performance` packed into `PortfolioPerformanceOverview` (current value, TWR, CAGR, volatility); per-asset lists and benchmark empty. No UI caller |
 
 Engine path: `get_transactions` (completed) → `get_market_history` (closes + splits via `MarketDataService.get_daily_history`) → `to_trades` → `daily_series` → `period_summary`. Memoised in `_series_cache` per service instance. First call for a portfolio fetches max history per symbol (~1–2 s each, cached 6 h in Redis).
@@ -28,6 +28,6 @@ Engine path: `get_transactions` (completed) → `get_market_history` (closes + s
 Portfolio → Performance Chart → pick a period → read profit vs invested and the period's return/risk; Performance Metrics for side-by-side periods.
 
 ## Known gaps / planned
-- Benchmark in another currency is compared unconverted (warning) until FX (2.3); benchmark history is cached 6 h like asset prices.
+- A benchmark in another currency is converted with the same Yahoo daily rate as holdings before `shadow_series`. Unknown currency is still compared unconverted, with a warning. History is cached 6 h.
 - Fill or drop the empty parts of `/overview`. Old helpers `_calculate_xirr`, `_calculate_cagr`, `_get_portfolio_value_at_date`, `get_current_portfolio_value` are legacy; `test_calculation_snapshots.py` still pins some of them.
-- FX (2.3), dividend tax (2.2) affect inputs.
+- Dividend tax (2.2) still affects imported cash. FX is applied in `get_portfolio_series`.

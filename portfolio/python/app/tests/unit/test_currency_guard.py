@@ -1,18 +1,19 @@
-"""A portfolio holds one currency until FX conversion exists."""
+"""Foreign listings are stored and converted; different portfolios are never summed."""
 
 from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from core.auth.dependencies import get_current_verified_user
 from core.database.models import Asset, Portfolio, Transaction, User
 from core.database.models.asset import AssetType
-from core.errors import CurrencyMismatchError
 from core.schemas.account_statements import BulkTransactionItem
 from core.schemas.portfolio import TransactionCreate
 from core.services.account_statement_service import AccountStatementService
+from core.services.market_data_service import MarketDataService
 from core.services.portfolio_service import PortfolioService
 from main import app
 
@@ -58,18 +59,21 @@ def _buy(asset, portfolio, currency="USD"):
 
 
 @pytest.mark.asyncio
-async def test_manual_transaction_in_another_currency_is_rejected(test_db, user):
+async def test_manual_transaction_in_another_currency_is_stored(
+    test_db, user, monkeypatch
+):
     eur = _portfolio(test_db, user, "EUR")
     aapl = _asset(test_db, user, "AAPL", "USD")
+    service = PortfolioService(test_db)
 
-    with pytest.raises(
-        CurrencyMismatchError, match="AAPL is in USD but the portfolio is in EUR"
-    ):
-        await PortfolioService(test_db).add_transaction(
-            eur.id, _buy(aapl, eur), user.id
-        )
+    async def recalc(*args, **kwargs):
+        return None
 
-    assert test_db.query(Transaction).count() == 0
+    monkeypatch.setattr(service, "recalculate_asset_state", recalc)
+    transaction = await service.add_transaction(eur.id, _buy(aapl, eur), user.id)
+
+    assert transaction.currency == "USD"
+    assert test_db.query(Transaction).count() == 1
 
 
 @pytest.mark.asyncio
@@ -91,31 +95,46 @@ async def test_manual_transaction_records_the_portfolio_currency(
     assert transaction.currency == "EUR"
 
 
-def test_api_answers_a_currency_mismatch_with_400(client, test_db, user):
+def test_api_accepts_a_foreign_listing(client, test_db, user, monkeypatch):
     eur = _portfolio(test_db, user, "EUR")
     aapl = _asset(test_db, user, "AAPL", "USD")
     app.dependency_overrides[get_current_verified_user] = lambda: user
+
+    async def no_history(self, symbol):
+        return None
+
+    async def no_price(self, symbol):
+        return None
+
+    async def rates(self, quote, portfolio):
+        return pd.Series([0.9], index=pd.to_datetime(["2020-01-01"]))
+
+    monkeypatch.setattr(MarketDataService, "get_daily_history", no_history)
+    monkeypatch.setattr(MarketDataService, "get_current_price", no_price)
+    monkeypatch.setattr(MarketDataService, "get_fx_rates", rates)
 
     response = client.post(
         f"/api/v1/portfolios/{eur.id}/transactions",
         json=_buy(aapl, eur).model_dump(mode="json"),
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"].startswith(
-        "AAPL is in USD but the portfolio is in EUR"
-    )
+    assert response.status_code == 201
+    assert response.json()["currency"] == "USD"
 
 
 @pytest.mark.asyncio
-async def test_import_does_not_create_an_asset_in_another_currency(test_db, user):
+async def test_import_creates_an_asset_in_another_currency(test_db, user, monkeypatch):
     eur = _portfolio(test_db, user, "EUR")
     service = AccountStatementService(test_db)
 
     async def ticker_info(symbol):
         return {"long_name": "Apple", "quote_type": "EQUITY", "currency": "USD"}
 
+    async def recalc(*args, **kwargs):
+        return None
+
     service.market_data = SimpleNamespace(get_ticker_info=ticker_info)
+    monkeypatch.setattr(service.portfolio_service, "recalculate_asset_state", recalc)
     _, summary = await service.create_bulk_transactions(
         eur.id,
         [
@@ -132,9 +151,10 @@ async def test_import_does_not_create_an_asset_in_another_currency(test_db, user
         user.id,
     )
 
-    assert (summary.total_created, summary.total_failed) == (0, 1)
-    assert "AAPL is in USD" in summary.errors[0]
-    assert test_db.query(Asset).filter(Asset.user_id == user.id).count() == 0
+    assert (summary.total_created, summary.total_failed) == (1, 0)
+    asset = test_db.query(Asset).filter(Asset.user_id == user.id).one()
+    assert asset.currency == "USD"
+    assert test_db.query(Transaction).one().currency == "EUR"
 
 
 def _holding(symbol, value):

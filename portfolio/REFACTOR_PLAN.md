@@ -185,7 +185,7 @@ Golden tests are written first for every item.
 
 | # | Work | Fixes |
 |---|---|---|
-| 🟡 2.1 | `domain/positions.py`: FIFO with fees, SPLIT, TRANSFER_IN/OUT and DIVIDEND (with a given amount and tax). Add schema validation: qty > 0 and price ≥ 0 per type. **Now:** `core/domain/positions.py`: completed-only, FIFO with fees, splits applied automatically from market data (trades in today's share units). TRANSFER_IN/OUT and per-type validation open. | C1, C2, M2, M3 |
+| ✅ 2.1 | `domain/positions.py`: FIFO with fees, SPLIT, TRANSFER_IN/OUT and DIVIDEND (with a given amount and tax). Add schema validation: qty > 0 and price ≥ 0 per type. **Done:** completed-only, FIFO with fees, splits from market data (trades in today's share units). A transfer in opens a lot at the given cost and a transfer out closes lots FIFO at the given proceeds; both are split-adjusted and count as a deposit or withdrawal. Buys, sells, transfers and splits require quantity > 0, and price cannot be negative. An imported dividend may have quantity 0 because its cash amount is the statement total. | C1, C2, M2, M3 |
 | ✅ 2.2 | Importer fix: the Trade Republic dividend amount and withholding tax are kept, and the currency is set. Run a data migration that recomputes affected rows. **Done:** dividends keep their cash amount, EUR currency and taxes stored, €1 trade fee split out (€0 savings plans), cash rows skipped with a reason. A real quarterly statement parses: split dates, page-break rows and dotted savings-plan quantities. No data migration (nothing imported from the old parser). Withholding tax is a separate statement row and stays skipped. | C2 |
 | ✅ 2.3 | `core/domain/fx.py` + `MarketDataService.get_fx_rates`. `assets.currency` is the quote currency (no second column). `GBp`/`GBX` and `ILA` scale to GBP/ILS. Yahoo `{QUOTE}{PORTFOLIO}=X` daily closes (inverse if needed), same 6h Redis cache as history. Closes and live prices convert every day; cash converts only when `transaction.currency` differs. Missing rate raises. Dashboard totals stay per portfolio currency. | C3 |
 | ✅ 2.4 | `MarketDataProvider` with one Yahoo implementation. **Done:** every Yahoo call goes through `YahooMarketDataProvider` (4 at a time, exponential backoff). Batch cache writes use one Redis pipeline. Symbol search is only `GET /stock/symbols` (the exact-ticker `/market-data/search` is gone). Valuation history is unchanged: split-adjusted closes (`auto_adjust=False`), plus splits and dividends, cached 6h. Requests still call Yahoo on a cache miss (3.3). | C1, H5, perf |
@@ -340,6 +340,7 @@ Open:
 | 2026-10-26 | `feat/stale-price-flags` | — | 2.5: a close older than 5 sessions is flagged on the valuation series and the chart. The last close is still the value. A missing price still raises. Live API not restarted |
 | 2026-10-26 | `feat/previous-close` | — | 2.8: today's P&L uses the last finished session, in the listing's timezone. Live API not restarted |
 | 2026-10-26 | `feat/derived-positions` | — | 2.10: position quantity and P&L are only rebuilt from transactions. The client update route is gone. Live API not restarted |
+| 2026-10-26 | `feat/transfer-lots` | — | 2.1: transfer in/out open and close FIFO lots at the given cost. Quantity and price are checked per type. Live API not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -377,7 +378,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.1, transfer lots and per-type validation.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.11, the broker-statement check.
 
 ---
 

@@ -28,10 +28,12 @@ from core.domain.returns import (
 )
 from core.domain.valuation import STALE_PRICE_DAYS, MissingPriceError, daily_series
 
-BUY, SELL, DIVIDEND = (
+BUY, SELL, DIVIDEND, TRANSFER_IN, TRANSFER_OUT = (
     TransactionType.BUY,
     TransactionType.SELL,
     TransactionType.DIVIDEND,
+    TransactionType.TRANSFER_IN,
+    TransactionType.TRANSFER_OUT,
 )
 
 
@@ -101,6 +103,62 @@ class TestToTrades:
         with pytest.raises(OversellError):
             compute_position(to_trades([tx(BUY, 1, 10, THU), tx(SELL, 2, 10, FRI)]))
 
+    def test_transfer_in_is_applied_before_transfer_out_the_same_day(self):
+        trades = to_trades(
+            [
+                tx(TRANSFER_OUT, 5, 10, THU, id=1),
+                tx(TRANSFER_IN, 5, 10, THU, id=2),
+            ]
+        )
+        assert [t.transaction_type for t in trades] == [TRANSFER_IN, TRANSFER_OUT]
+        position = compute_position(trades)
+        assert position["quantity"] == 0
+        assert position["realized_pnl"] == 0
+
+
+class TestTransfers:
+    def test_transfer_in_opens_a_lot_at_the_given_cost(self):
+        # 10 shares arrive at 50, plus a 5 fee: the lot costs 505
+        position = compute_position(to_trades([tx(TRANSFER_IN, 10, 50, THU, fees=5)]))
+        assert position["quantity"] == 10
+        assert position["cost_basis_total"] == 505
+        assert position["realized_pnl"] == 0
+
+    def test_transfer_out_closes_fifo_at_the_given_proceeds(self):
+        position = compute_position(
+            to_trades(
+                [
+                    tx(TRANSFER_IN, 10, 50, THU),  # cost 500
+                    tx(BUY, 10, 80, FRI),  # cost 800
+                    tx(TRANSFER_OUT, 15, 70, MON, fees=10),  # proceeds 1050 - 10
+                ]
+            )
+        )
+        # 10 of the first lot (500) and half of the second (400)
+        assert position["quantity"] == 5
+        assert position["cost_basis_total"] == 400
+        assert position["cost_of_sold"] == 900
+        assert position["realized_pnl"] == 1040 - 900
+
+    def test_transfer_out_beyond_the_holding_is_rejected(self):
+        with pytest.raises(OversellError):
+            compute_position(
+                to_trades([tx(TRANSFER_IN, 1, 10, THU), tx(TRANSFER_OUT, 2, 10, FRI)])
+            )
+
+    def test_transfer_before_a_split_is_in_todays_shares(self):
+        trades = to_trades(
+            [tx(TRANSFER_IN, 10, 100, THU)],
+            {1: [(date(2025, 1, 10), Decimal(2))]},
+        )
+        assert (trades[0].quantity, trades[0].price, trades[0].total_amount) == (
+            20,
+            50,
+            1000,
+        )
+        assert compute_position(trades)["quantity"] == 20
+        assert compute_position(trades)["cost_basis_total"] == 1000
+
 
 class TestDailySeries:
     def test_fees_in_cost_and_weekend_trade_counts_next_trading_day(self):
@@ -134,6 +192,25 @@ class TestDailySeries:
         assert last["outflow"] == 4485
         assert last["net_invested"] == 3000 - 4485
         assert last["value"] == 5 * 300
+
+    def test_transfer_is_a_deposit_and_a_withdrawal(self):
+        series = daily_series(
+            to_trades(
+                [
+                    tx(TRANSFER_IN, 10, 100, THU),
+                    tx(TRANSFER_OUT, 4, 110, FRI, fees=10),
+                ]
+            ),
+            {1: closes({THU: 100, FRI: 110})},
+            FRI,
+        )
+        assert series["inflow"].tolist() == [1000, 0]
+        assert series["outflow"].tolist() == [0, 430]
+        assert series["value"].tolist() == [1000, 660]
+        assert series["cost_basis"].tolist() == [1000, 600]
+        assert series["realized_pnl"].tolist() == [0, 30]
+        assert series["dividends"].tolist() == [0, 0]
+        assert series["net_invested"].tolist() == [1000, 570]
 
     def test_dividend_is_cash_returned(self):
         series = daily_series(
@@ -259,6 +336,18 @@ class TestDayChange:
             Decimal(15), Decimal(100), Decimal(105), [tx(BUY, 5, 104, THU)]
         )
         assert (pnl, base) == (55, 1000 + 520)
+
+    def test_transfer_in_today_counts_from_its_price(self):
+        pnl, base = day_change(
+            Decimal(15), Decimal(100), Decimal(105), [tx(TRANSFER_IN, 5, 104, THU)]
+        )
+        assert (pnl, base) == (55, 1000 + 520)
+
+    def test_transfer_out_today_realises_against_the_previous_close(self):
+        pnl, base = day_change(
+            Decimal(6), Decimal(100), Decimal(105), [tx(TRANSFER_OUT, 4, 102, THU)]
+        )
+        assert (pnl, base) == (38, 1000)
 
     def test_sell_today_realises_against_the_previous_close(self):
         # 10 held, 4 sold at 102 (+8), 6 left at 105 (+30)

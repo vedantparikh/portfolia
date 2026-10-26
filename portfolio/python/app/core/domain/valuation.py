@@ -118,10 +118,16 @@ def daily_series(
         ):
             trade = trades[next_trade]
             next_trade += 1
-            if trade.transaction_type == TransactionType.BUY:
+            if trade.transaction_type in (
+                TransactionType.BUY,
+                TransactionType.TRANSFER_IN,
+            ):
                 lots[trade.asset_id].buy(trade.quantity, trade.total_amount)
                 inflow += trade.total_amount
-            elif trade.transaction_type == TransactionType.SELL:
+            elif trade.transaction_type in (
+                TransactionType.SELL,
+                TransactionType.TRANSFER_OUT,
+            ):
                 sold = lots[trade.asset_id].sell(trade.quantity, trade.transaction_date)
                 realized += trade.total_amount - sold
                 outflow += trade.total_amount

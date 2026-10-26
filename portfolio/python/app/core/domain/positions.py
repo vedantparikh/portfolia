@@ -5,7 +5,8 @@ Market prices from Yahoo are split-adjusted back in time, so every trade is
 converted into *today's* share units: a buy of 10 shares before a 2:1 split
 becomes 20 shares at half the price. Quantity x adjusted close is then the true
 value on every date, and holdings show the current share count without anyone
-having to record SPLIT transactions.
+having to record SPLIT transactions. A transfer in opens a lot at the given
+cost. A transfer out closes lots at the given proceeds.
 """
 
 from dataclasses import dataclass
@@ -18,7 +19,15 @@ from core.errors import DomainError
 
 Split = Tuple[date, Decimal]
 
-_SAME_DAY_ORDER = {TransactionType.BUY: 0, TransactionType.SELL: 1}
+_SAME_DAY_ORDER = {
+    TransactionType.BUY: 0,
+    TransactionType.TRANSFER_IN: 0,
+    TransactionType.SELL: 1,
+    TransactionType.TRANSFER_OUT: 1,
+}
+
+_OPENING = (TransactionType.BUY, TransactionType.TRANSFER_IN)
+_CLOSING = (TransactionType.SELL, TransactionType.TRANSFER_OUT)
 
 
 class OversellError(DomainError):
@@ -57,7 +66,7 @@ def to_trades(
 ) -> List[Trade]:
     """
     Completed transactions as split-adjusted trades in canonical order:
-    by date, buys before sells on the same day, then by id.
+    by date, buys and transfer-ins before sells and transfer-outs on the same day, then by id.
     """
     splits_by_asset = splits_by_asset or {}
     trades = []
@@ -69,7 +78,7 @@ def to_trades(
         factor = split_factor(splits_by_asset.get(tx.asset_id, ()), day)
         quantity = Decimal(tx.quantity)
         price = Decimal(tx.price)
-        if tx.transaction_type in (TransactionType.BUY, TransactionType.SELL):
+        if tx.transaction_type in _OPENING or tx.transaction_type in _CLOSING:
             quantity *= factor
             price /= factor
         trades.append(
@@ -136,16 +145,18 @@ def compute_position(transactions: Iterable) -> Dict[str, Decimal]:
     """
     Rebuild one asset's position from its transactions (chronological, completed).
 
-    `total_amount` is the cash moved, so buy lots include fees and sell proceeds
-    are net of fees and taxes. Raises OversellError if a sell exceeds the holding.
+    `total_amount` is the cash or the given transfer cost, so opening lots include
+    fees and closing proceeds are net of fees and taxes. A transfer in opens a
+    lot at that cost. A transfer out closes lots FIFO and realises the given
+    proceeds against that cost. Raises OversellError if a close exceeds the holding.
     """
     lots = Lots()
     realized_pnl = Decimal(0)
     cost_of_sold = Decimal(0)
     for tx in transactions:
-        if tx.transaction_type == TransactionType.BUY:
+        if tx.transaction_type in _OPENING:
             lots.buy(Decimal(tx.quantity), Decimal(tx.total_amount))
-        elif tx.transaction_type == TransactionType.SELL:
+        elif tx.transaction_type in _CLOSING:
             sold = lots.sell(Decimal(tx.quantity), _as_date(tx.transaction_date))
             realized_pnl += Decimal(tx.total_amount) - sold
             cost_of_sold += sold
@@ -166,21 +177,21 @@ def day_change(
     """
     Today's P&L of one position and the capital it was earned on.
 
-    Shares held all day move from the previous close, shares bought today from
-    their purchase price, and shares sold today realise their price against
-    the previous close. The base is the start-of-day value plus cash invested
-    today, so a purchase is not counted as a gain.
+    Shares held all day move from the previous close. Shares bought or transferred
+    in today move from their own price, and shares sold or transferred out today
+    realise their price against the previous close. The base is the start-of-day
+    value plus the cost of shares added today, so an arrival is not a gain.
     """
     bought = sold = Decimal(0)
     pnl = Decimal(0)
     invested_today = Decimal(0)
     for trade in trades_today:
         quantity = Decimal(trade.quantity)
-        if trade.transaction_type == TransactionType.BUY:
+        if trade.transaction_type in _OPENING:
             bought += quantity
             pnl += quantity * (price_now - Decimal(trade.price))
             invested_today += quantity * Decimal(trade.price)
-        elif trade.transaction_type == TransactionType.SELL:
+        elif trade.transaction_type in _CLOSING:
             sold += quantity
             pnl += quantity * (Decimal(trade.price) - prev_close)
     held_all_day = quantity_now - bought

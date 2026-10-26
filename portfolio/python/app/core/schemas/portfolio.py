@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from core.database.models.asset import AssetType
 from core.database.models.transaction import TransactionStatus, TransactionType
@@ -209,6 +209,39 @@ class AssetPrice(BaseModel):
     data: List[AssetPriceData]
 
 
+# Buys, sells and transfers move shares, so the quantity has to be positive.
+# A split's quantity is the ratio. Dividends often arrive as a cash amount with
+# quantity 0 (the importer stores the statement total, not shares × rate).
+_POSITIVE_QUANTITY = {
+    TransactionType.BUY,
+    TransactionType.SELL,
+    TransactionType.TRANSFER_IN,
+    TransactionType.TRANSFER_OUT,
+    TransactionType.SPLIT,
+}
+
+
+def check_transaction_numbers(
+    transaction_type: Optional[TransactionType],
+    quantity: Optional[Decimal],
+    price: Optional[Decimal],
+    *,
+    quantity_set: bool = True,
+    price_set: bool = True,
+) -> None:
+    """Reject a quantity or price the transaction type cannot mean."""
+    if quantity_set and quantity is not None:
+        if transaction_type in _POSITIVE_QUANTITY:
+            if quantity <= 0:
+                raise ValueError(
+                    f"{transaction_type.value} quantity must be greater than 0"
+                )
+        elif quantity < 0:
+            raise ValueError("quantity must be zero or greater")
+    if price_set and price is not None and price < 0:
+        raise ValueError("price must be zero or greater")
+
+
 class TransactionBase(BaseModel):
     portfolio_id: int
     asset_id: int
@@ -230,6 +263,11 @@ class TransactionCreate(TransactionBase):
     # Computed server-side from quantity, price, fees and taxes; any value sent is ignored
     total_amount: Optional[Decimal] = None
 
+    @model_validator(mode="after")
+    def _numbers(self):
+        check_transaction_numbers(self.transaction_type, self.quantity, self.price)
+        return self
+
 
 class TransactionUpdate(BaseModel):
     transaction_type: Optional[TransactionType] = None
@@ -244,6 +282,17 @@ class TransactionUpdate(BaseModel):
     fees: Optional[Decimal] = Field(None)
     taxes: Optional[Decimal] = Field(None)
     status: Optional[TransactionStatus] = None
+
+    @model_validator(mode="after")
+    def _numbers(self):
+        check_transaction_numbers(
+            self.transaction_type,
+            self.quantity,
+            self.price,
+            quantity_set="quantity" in self.model_fields_set,
+            price_set="price" in self.model_fields_set,
+        )
+        return self
 
 
 class Transaction(TransactionBase):

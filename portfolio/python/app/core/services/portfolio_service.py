@@ -29,6 +29,7 @@ from core.domain.positions import (
     day_change,
     to_trades,
 )
+from core.errors import DomainError
 from core.schemas.portfolio import (
     CurrencyTotals,
     PortfolioAssetCreate,
@@ -40,6 +41,7 @@ from core.schemas.portfolio import (
     PortfolioUpdate,
     TransactionCreate,
     TransactionUpdate,
+    check_transaction_numbers,
 )
 from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
@@ -369,20 +371,28 @@ class PortfolioService:
         for field, value in update_data.items():
             setattr(transaction, field, value)
 
-        transaction.total_amount = Transaction.compute_total_amount(
-            transaction.transaction_type,
-            transaction.quantity,
-            transaction.price,
-            transaction.fees,
-            transaction.taxes,
-        )
-
         try:
+            check_transaction_numbers(
+                transaction.transaction_type, transaction.quantity, transaction.price
+            )
+            transaction.total_amount = Transaction.compute_total_amount(
+                transaction.transaction_type,
+                transaction.quantity,
+                transaction.price,
+                transaction.fees,
+                transaction.taxes,
+            )
             self.db.flush()
             await self.recalculate_asset_state(
                 transaction.portfolio_id, transaction.asset_id, commit=False
             )
             self.db.commit()
+        except DomainError:
+            self.db.rollback()
+            raise
+        except ValueError as exc:
+            self.db.rollback()
+            raise DomainError(str(exc)) from exc
         except Exception:
             self.db.rollback()
             raise
@@ -814,7 +824,9 @@ class PortfolioService:
 
         buy_first_sort_order = case(
             (Transaction.transaction_type == TransactionType.BUY, 1),
+            (Transaction.transaction_type == TransactionType.TRANSFER_IN, 1),
             (Transaction.transaction_type == TransactionType.SELL, 2),
+            (Transaction.transaction_type == TransactionType.TRANSFER_OUT, 2),
             else_=3,
         )
         transactions = (

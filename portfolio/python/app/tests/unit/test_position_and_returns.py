@@ -11,8 +11,14 @@ from types import SimpleNamespace
 
 import pandas as pd
 import pytest
+from pydantic import ValidationError
 
 from core.database.models import Transaction, TransactionType
+from core.schemas.portfolio import (
+    TransactionCreate,
+    TransactionUpdate,
+    check_transaction_numbers,
+)
 from core.services.portfolio_calculation_service import (
     PortfolioCalculationService,
     compute_daily_returns,
@@ -62,6 +68,14 @@ class TestComputeTotalAmount:
             DIVIDEND, Decimal("10"), Decimal("0.5"), Decimal("1")
         )
         assert total == Decimal("5.0")
+
+    def test_transfer_in_adds_fees_and_transfer_out_subtracts_them(self):
+        assert Transaction.compute_total_amount(
+            TransactionType.TRANSFER_IN, Decimal("10"), Decimal("50"), Decimal("5")
+        ) == Decimal("505")
+        assert Transaction.compute_total_amount(
+            TransactionType.TRANSFER_OUT, Decimal("10"), Decimal("50"), Decimal("5")
+        ) == Decimal("495")
 
 
 class TestComputePosition:
@@ -177,6 +191,8 @@ class TestXirrCashFlows:
         assert flow(tx(BUY, 1, 100, 1, fees=1)) == -101.0
         assert flow(tx(SELL, 1, 100, 1, fees=1)) == 99.0
         assert flow(tx(DIVIDEND, 1, 2, 1)) == 2.0
+        assert flow(tx(TransactionType.TRANSFER_IN, 1, 40, 1, fees=1)) == -41.0
+        assert flow(tx(TransactionType.TRANSFER_OUT, 1, 40, 1, fees=1)) == 39.0
         assert flow(tx(TransactionType.SPLIT, 2, 0, 1)) is None
 
     @pytest.mark.asyncio
@@ -252,3 +268,55 @@ class TestPortfolioHistory:
         # Worth 1000 at Friday's close, sold for 1100 on Monday: +10%, not -100%
         assert monday["daily_return"] == pytest.approx(0.10)
         assert calc_with_prices._calculate_twr(df) == pytest.approx(10.0)
+
+
+def _create(**overrides):
+    values = dict(
+        portfolio_id=1,
+        asset_id=1,
+        transaction_type=TransactionType.BUY,
+        quantity=Decimal("1"),
+        price=Decimal("10"),
+        currency="EUR",
+        transaction_date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+    )
+    values.update(overrides)
+    return TransactionCreate(**values)
+
+
+class TestTransactionNumbers:
+    def test_a_buy_can_be_free_but_not_empty(self):
+        assert _create(price=Decimal("0")).price == 0
+        with pytest.raises(ValidationError):
+            _create(quantity=Decimal("0"))
+        with pytest.raises(ValidationError):
+            _create(price=Decimal("-1"))
+
+    def test_transfers_need_a_positive_quantity(self):
+        _create(transaction_type=TransactionType.TRANSFER_IN, price=Decimal("0"))
+        with pytest.raises(ValidationError):
+            _create(
+                transaction_type=TransactionType.TRANSFER_OUT, quantity=Decimal("0")
+            )
+
+    def test_an_imported_dividend_may_have_no_share_count(self):
+        row = _create(
+            transaction_type=TransactionType.DIVIDEND,
+            quantity=Decimal("0"),
+            price=Decimal("0"),
+        )
+        assert row.quantity == 0
+
+    def test_a_partial_update_rejects_only_what_it_sends(self):
+        assert TransactionUpdate(notes="moved").notes == "moved"
+        with pytest.raises(ValidationError):
+            TransactionUpdate(price=Decimal("-1"))
+        with pytest.raises(ValidationError):
+            TransactionUpdate(
+                transaction_type=TransactionType.SELL, quantity=Decimal("0")
+            )
+
+    def test_a_merged_buy_cannot_keep_a_zero_quantity(self):
+        with pytest.raises(ValueError, match="quantity must be greater than 0"):
+            check_transaction_numbers(TransactionType.BUY, Decimal("0"), Decimal("10"))
+        check_transaction_numbers(TransactionType.DIVIDEND, Decimal("0"), Decimal("0"))

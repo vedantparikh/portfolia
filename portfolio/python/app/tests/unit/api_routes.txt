@@ -38,7 +38,6 @@ GET /api/v1/auth/me/profile
 GET /api/v1/auth/validate-reset-token/
 GET /api/v1/market-data/market-status
 GET /api/v1/market-data/prices/bulk
-GET /api/v1/market-data/search
 GET /api/v1/market-data/supported-intervals
 GET /api/v1/market-data/supported-periods
 GET /api/v1/market-data/ticker/{symbol}

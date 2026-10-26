@@ -31,4 +31,4 @@ Add Asset / Bulk Entry → assets appear with live detail → click for overview
 - Highest Growth card multiplies revenue growth by 100 (verify unit before trusting).
 
 ## Planned
-Plan 1.2/2.4: one `/assets/search` (delete duplicate search paths, fix route order), server-side search/sort/pagination with `total`, 4.4 TanStack Query instead of `assetCache`.
+Server-side search/sort/pagination with `total` is still open. Plan 4.4 replaces `assetCache` with TanStack Query. Symbol lookup is `GET /stock/symbols`, not these routes.

@@ -5,7 +5,7 @@ Demo seed via HTTP APIs (except DB bootstrap for the demo user credentials).
 End-to-end flow (like a user in the UI):
 1. DB bootstrap: verified user + password so login works.
 2. POST /api/v1/auth/login → JWT.
-3. For each instrument: GET /api/v1/stock/symbols?name=… (Yahoo search via yahooquery, same as app).
+3. For each instrument: GET /api/v1/stock/symbols?name=… (Yahoo search, same as the app).
    Pick the quote that matches the intended ticker (EQUITY/ETF preferred).
 4. POST /api/v1/assets/bulk-create with the resolved symbols. If yfinance fails, the request uses
    allow_minimal_on_market_data_failure (API) so demo assets are still created.
@@ -436,7 +436,7 @@ async def resolve_tickers_via_yahoo_search(
     delay_sec: float,
 ) -> Dict[str, str]:
     """
-    GET /api/v1/stock/symbols?name=… (yahooquery on the API) for each instrument.
+    GET /api/v1/stock/symbols?name=… (Yahoo search on the API) for each instrument.
     Returns map canonical_key (e.g. AAPL) -> symbol string for bulk-create (e.g. AAPL or BRK.B).
     """
     out: Dict[str, str] = {}

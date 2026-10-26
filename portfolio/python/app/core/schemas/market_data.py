@@ -56,7 +56,7 @@ class YFinanceDataResponse(BaseModel):
 
 
 class SymbolSearchResult(BaseModel):
-    """Symbol search result from yahooquery."""
+    """One Yahoo symbol-search hit."""
 
     symbol: str = Field(..., description="Stock symbol")
     short_name: Optional[str] = Field(None, description="Short name")

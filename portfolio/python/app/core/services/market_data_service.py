@@ -5,26 +5,32 @@ Handles fetching real-time market data from yfinance without database storage.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
-import yfinance as yf  # type: ignore
 
 from core.database.redis_client import get_redis
 from core.domain.fx import MissingFxError, canonical_currency
+from core.services.market_data.provider import MarketDataProvider
+from core.services.market_data.yahoo import YahooMarketDataProvider
 
 logger = logging.getLogger(__name__)
 
+_LISTING_TYPES = ("EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY")
+
 
 class MarketDataService:
-    """Service for managing market data operations using yfinance only."""
+    """Cached market data. Yahoo calls go through one provider."""
 
-    def __init__(self) -> None:
-        self.max_retries = 3
-        self.retry_delay = 5  # seconds
-        self.redis_client = get_redis()
+    def __init__(
+        self,
+        provider: Optional[MarketDataProvider] = None,
+        redis_client=None,
+    ) -> None:
+        self.provider = provider or YahooMarketDataProvider()
+        self.redis_client = redis_client if redis_client is not None else get_redis()
         # Define TTLs for different data types
         self.info_cache_ttl: int = 15 * 60  # 15 minutes for general info
         self.price_cache_ttl: int = 60  # 1 minute for current prices
@@ -75,39 +81,27 @@ class MarketDataService:
                 prices[symbol] = Decimal(str(cached_data[cache_key]))
                 symbols_to_fetch.remove(symbol)
 
-        # 2. Fetch missing symbols from yfinance
         if symbols_to_fetch:
             logger.info(
                 "Fetching current prices for %d symbols from API.",
                 len(symbols_to_fetch),
             )
-            tickers = yf.Tickers(" ".join(symbols_to_fetch))
+            try:
+                fetched = await self.provider.current_prices(list(symbols_to_fetch))
+            except Exception:
+                logger.error("Current price fetch failed for %s", symbols_to_fetch)
+                fetched = {}
             new_prices_to_cache: Dict[str, str] = {}
-
-            for ticker in tickers.tickers.values():
-                symbol = ticker.ticker
-                try:
-                    price = (
-                        ticker.info.get("regularMarketPrice")
-                        or ticker.info.get("currentPrice")
-                        or ticker.info.get("previousClose")
-                    )
-                    if price:
-                        prices[symbol] = Decimal(str(price))
-                        cache_key = self._get_price_cache_key(symbol)
-                        new_prices_to_cache[cache_key] = str(price)
-                except Exception:
-                    logger.warning("Could not retrieve price for %s", symbol)
-
-            # 3. Cache the newly fetched data by calling `set` in a loop
+            for symbol, price in fetched.items():
+                symbol = symbol.upper()
+                prices[symbol] = price
+                new_prices_to_cache[self._get_price_cache_key(symbol)] = str(price)
             if new_prices_to_cache:
-                for key, price_str in new_prices_to_cache.items():
-                    await asyncio.to_thread(
-                        self.redis_client.set,
-                        key,
-                        price_str,
-                        ex_seconds=self.price_cache_ttl,
-                    )
+                await asyncio.to_thread(
+                    self.redis_client.mset,
+                    new_prices_to_cache,
+                    self.price_cache_ttl,
+                )
         return prices
 
     async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
@@ -138,55 +132,28 @@ class MarketDataService:
                 closes[symbol] = Decimal(str(cached_data[cache_key]))
                 symbols_to_fetch.remove(symbol)
 
-        # 2. Fetch all missing symbols in a SINGLE API call
         if symbols_to_fetch:
             logger.info(
                 "Fetching yesterday's close for %d symbols from API in a single batch.",
                 len(symbols_to_fetch),
             )
             try:
-                # Use yf.download for a true batch request. Get last 2 days.
-                data = yf.download(
-                    tickers=list(symbols_to_fetch),
-                    period="2d",
-                    interval="1d",
-                    progress=False,
-                    group_by="ticker",
-                )
-
-                if not data.empty:
-                    new_closes_to_cache: Dict[str, str] = {}
-
-                    for symbol in symbols_to_fetch:
-                        symbol_upper = symbol.upper()
-                        # Check if the symbol's data is in the DataFrame and is valid
-                        if symbol_upper in data and not data[symbol_upper].empty:
-                            symbol_df = data[symbol_upper].sort_index()
-
-                            # Ensure we have at least two days and a 'Close' column
-                            if len(symbol_df) > 1 and "Close" in symbol_df.columns:
-                                # The previous close is the 'Close' of the first row
-                                previous_close = symbol_df["Close"].iloc[0]
-                                if pd.notna(previous_close):
-                                    closes[symbol_upper] = Decimal(str(previous_close))
-                                    cache_key = self._get_yesterdays_close_cache_key(
-                                        symbol_upper
-                                    )
-                                    new_closes_to_cache[cache_key] = str(previous_close)
-
-                    # 3. Cache new data (your logic is fine, just now truly batched)
-                    if new_closes_to_cache:
-                        for key, price_str in new_closes_to_cache.items():
-                            await asyncio.to_thread(
-                                self.redis_client.set,
-                                key,
-                                price_str,
-                                ex_seconds=self.close_cache_ttl,
-                            )
-
+                fetched = await self.provider.previous_closes(list(symbols_to_fetch))
             except Exception as e:
                 logger.error(
                     "Failed to fetch historical data for yesterdays's closes: %s", e
+                )
+                fetched = {}
+            new_closes_to_cache = {
+                self._get_yesterdays_close_cache_key(symbol): str(price)
+                for symbol, price in fetched.items()
+            }
+            closes.update(fetched)
+            if new_closes_to_cache:
+                await asyncio.to_thread(
+                    self.redis_client.mset,
+                    new_closes_to_cache,
+                    self.close_cache_ttl,
                 )
 
         return closes
@@ -195,37 +162,15 @@ class MarketDataService:
         self, symbols: List[str], period: str = "1y", interval: str = "1d"
     ) -> Dict[str, pd.DataFrame]:
         """
-        A new, optimized method for fetching historical data for multiple tickers.
-        Uses yf.download and returns a dictionary of DataFrames, one for each symbol.
+        Historical OHLCV for several tickers, one frame each.
         """
         if not symbols:
             return {}
-
-        def fetch_sync():
-            data = yf.download(
-                tickers=" ".join(symbols),
-                period=period,
-                interval=interval,
-                group_by="ticker",  # Crucial for separating data by ticker
-                progress=False,
-            )
-            return data
-
-        data = await asyncio.to_thread(fetch_sync)
-
-        # yf.download returns a MultiIndex DataFrame for multiple tickers
-        if isinstance(data.columns, pd.MultiIndex):
-            # Create a dictionary of dataframes for each symbol
-            return {
-                symbol: data[symbol].dropna(how="all").reset_index()
-                for symbol in symbols
-                if symbol in data
-            }
-        # For a single ticker, it returns a simple DataFrame
-        elif not data.empty:
-            return {symbols[0]: data.dropna(how="all").reset_index()}
-
-        return {}
+        try:
+            return await self.provider.download(symbols, period, interval)
+        except Exception as e:
+            logger.error("Historical download failed: %s", e)
+            return {}
 
     async def fetch_ticker_data(
         self,
@@ -246,48 +191,15 @@ class MarketDataService:
             end_date: End date (YYYY-MM-DD)
 
         Returns:
-            DataFrame with market data or None if failed
+            DataFrame with market data, or an empty frame if Yahoo has nothing
         """
-        for attempt in range(self.max_retries):
-            try:
-                logger.info("Fetching data for %s (attempt %d)", symbol, attempt + 1)
-
-                ticker = yf.Ticker(symbol)
-
-                if start_date and end_date:
-                    data = ticker.history(
-                        start=start_date, end=end_date, interval=interval
-                    )
-                else:
-                    data = ticker.history(period=period, interval=interval)
-
-                if not isinstance(data, pd.DataFrame) or data.empty:
-                    logger.warning("No data returned for %s", symbol)
-                    return pd.DataFrame()
-
-                logger.info("Successfully fetched %d records for %s", len(data), symbol)
-
-                # Reset index to make Date a column
-                data = data.reset_index()
-
-                # Ensure we have the expected columns
-                expected_columns = ["Date", "Open", "High", "Low", "Close", "Volume"]
-                if not all(col in data.columns for col in expected_columns):
-                    logger.warning("Missing expected columns in data for %s", symbol)
-                    return pd.DataFrame()
-
-                # Sort by date descending (most recent first)
-                data = data.sort_values(by="Date", ascending=False)
-
-                return data
-
-            except Exception as e:
-                logger.error("Attempt %d failed for %s: %s", attempt + 1, symbol, e)
-                if attempt < self.max_retries - 1:
-                    await asyncio.sleep(self.retry_delay)
-                else:
-                    logger.error("All attempts failed for %s", symbol)
-                    return pd.DataFrame()
+        try:
+            return await self.provider.history(
+                symbol, period, interval, start_date, end_date
+            )
+        except Exception as e:
+            logger.error("All attempts failed for %s: %s", symbol, e)
+            return pd.DataFrame()
 
     async def get_daily_history(self, symbol: str) -> Optional[Dict[str, pd.Series]]:
         """
@@ -299,30 +211,8 @@ class MarketDataService:
         key = f"yfinance:daily:{symbol.upper()}"
         cached = await asyncio.to_thread(self.redis_client.get, key)
         if not cached:
-
-            def fetch() -> Optional[Dict[str, Dict[str, float]]]:
-                data = yf.Ticker(symbol).history(
-                    period="max", interval="1d", auto_adjust=False, actions=True
-                )
-                if not isinstance(data, pd.DataFrame) or data.empty:
-                    return None
-                days = data.index.tz_localize(None).strftime("%Y-%m-%d")
-                out = {}
-                for column, name in (
-                    ("Close", "close"),
-                    ("Stock Splits", "splits"),
-                    ("Dividends", "dividends"),
-                ):
-                    values = data[column] if column in data else pd.Series(dtype=float)
-                    out[name] = {
-                        day: float(v)
-                        for day, v in zip(days, values)
-                        if pd.notna(v) and (name == "close" or v > 0)
-                    }
-                return out
-
             try:
-                cached = await asyncio.to_thread(fetch)
+                cached = await self.provider.daily_history(symbol)
             except Exception as e:
                 logger.error("Daily history fetch failed for %s: %s", symbol, e)
                 return None
@@ -366,37 +256,34 @@ class MarketDataService:
                 return inverted
         raise MissingFxError(quote_major, portfolio_major)
 
-    async def search_listings(self, query: str) -> List[Dict[str, Any]]:
-        """Yahoo listings (equities, ETFs, funds, crypto) matching a name, ticker or ISIN."""
-        key = f"yfinance:listings:{query.strip().lower()}"
+    async def search_quotes(self, query: str) -> List[Dict[str, Any]]:
+        """Every Yahoo match for a name, ticker or ISIN. Cached for 7 days."""
+        key = f"yfinance:search:{query.strip().lower()}"
         cached = await asyncio.to_thread(self.redis_client.get, key)
         if cached is not None:
             return cached
-
-        def fetch() -> List[Dict[str, Any]]:
-            quotes = yf.Search(query, max_results=20, news_count=0).quotes
-            return [
-                {
-                    "symbol": q["symbol"],
-                    "exchange": q.get("exchDisp") or q.get("exchange"),
-                    "quote_type": q.get("quoteType"),
-                    "name": q.get("longname") or q.get("shortname"),
-                }
-                for q in quotes
-                if q.get("symbol")
-                and q.get("quoteType")
-                in ("EQUITY", "ETF", "MUTUALFUND", "CRYPTOCURRENCY")
-            ]
-
         try:
-            listings = await asyncio.to_thread(fetch)
+            quotes = await self.provider.search(query)
         except Exception as e:
-            logger.warning("Listing search failed for %r: %s", query, e)
+            logger.warning("Symbol search failed for %r: %s", query, e)
             return []
         await asyncio.to_thread(
-            self.redis_client.set, key, listings, ex_seconds=self.listing_cache_ttl
+            self.redis_client.set, key, quotes, ex_seconds=self.listing_cache_ttl
         )
-        return listings
+        return quotes
+
+    async def search_listings(self, query: str) -> List[Dict[str, Any]]:
+        """Equities, ETFs, funds and crypto from the same search as the UI."""
+        return [
+            {
+                "symbol": quote["symbol"],
+                "exchange": quote.get("exchange"),
+                "quote_type": quote.get("quote_type"),
+                "name": quote.get("long_name") or quote.get("short_name"),
+            }
+            for quote in await self.search_quotes(query)
+            if quote.get("quote_type") in _LISTING_TYPES
+        ]
 
     async def get_daily_ranges(
         self, symbol: str, start: date, end: date
@@ -409,32 +296,8 @@ class MarketDataService:
         key = f"yfinance:ranges:{symbol.upper()}:{start}:{end}"
         cached = await asyncio.to_thread(self.redis_client.get, key)
         if cached is None:
-
-            def fetch() -> Dict[str, Any]:
-                ticker = yf.Ticker(symbol)
-                data = ticker.history(
-                    start=start, end=end + timedelta(days=1), auto_adjust=False
-                )
-                if not isinstance(data, pd.DataFrame) or data.empty:
-                    return {}
-                days = data.index.tz_localize(None).strftime("%Y-%m-%d")
-                splits = ticker.splits
-                return {
-                    "currency": (ticker.history_metadata or {}).get("currency"),
-                    "ranges": {
-                        day: [float(low), float(high)]
-                        for day, low, high in zip(days, data["Low"], data["High"])
-                        if pd.notna(low) and pd.notna(high)
-                    },
-                    "splits": {
-                        ts.strftime("%Y-%m-%d"): float(ratio)
-                        for ts, ratio in splits.items()
-                        if ratio > 0
-                    },
-                }
-
             try:
-                cached = await asyncio.to_thread(fetch)
+                cached = await self.provider.ranges(symbol, start, end)
             except Exception as e:
                 logger.info("No daily ranges for %s: %s", symbol, e)
                 cached = {}
@@ -442,44 +305,6 @@ class MarketDataService:
                 self.redis_client.set, key, cached, ex_seconds=self.range_cache_ttl
             )
         return cached or None
-
-    async def search_symbols(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:  # noqa: ARG002
-        """
-        Search for stock symbols using yfinance.
-        Note: This is a basic implementation. For production, consider using
-        a dedicated symbol search API.
-
-        Args:
-            query: Search query
-            limit: Maximum number of results
-
-        Returns:
-            List of matching symbols with basic info
-        """
-        try:
-            # This is a simple implementation - in production you might want
-            # to use a more sophisticated search API
-
-            # Try to get info for the query as a direct symbol
-            ticker_info = await self.get_ticker_info(query.upper())
-
-            if ticker_info:
-                return [
-                    {
-                        "symbol": ticker_info["symbol"],
-                        "name": ticker_info.get("longName")
-                        or ticker_info.get("shortName"),
-                        "exchange": ticker_info.get("exchange"),
-                        "currency": ticker_info.get("currency"),
-                        "type": ticker_info.get("quoteType"),
-                    }
-                ]
-            else:
-                return []
-
-        except Exception as e:
-            logger.error("Error searching symbols for query '%s': %s", query, e)
-            return []
 
     def get_supported_periods(self) -> List[str]:
         """Get list of supported period values."""
@@ -539,57 +364,6 @@ class MarketDataService:
             logger.error("Error getting market status: %s", e)
             return {"is_open": None, "error": "Market status unavailable"}
 
-    def _extract_ticker_information(
-        self, ticker_info: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        # Extract and normalize the information
-        ticker_data = {
-            "symbol": ticker_info.get("symbol").upper(),
-            "long_name": ticker_info.get("longName"),
-            "short_name": ticker_info.get("shortName"),
-            "sector": ticker_info.get("sector"),
-            "industry": ticker_info.get("industry"),
-            "exchange": ticker_info.get("exchangeDisp", ticker_info.get("exchange")),
-            "currency": ticker_info.get("currency"),
-            "country": ticker_info.get("country"),
-            "quote_type": ticker_info.get("quoteType"),
-            "market_cap": ticker_info.get("marketCap"),
-            "current_price": ticker_info.get(
-                "currentPrice", ticker_info.get("regularMarketPrice")
-            ),
-            "price_change_percentage_24h": ticker_info.get(
-                "regularMarketChangePercent", 0
-            ),
-            "previous_close": ticker_info.get("previousClose"),
-            "open": ticker_info.get("open"),
-            "day_low": ticker_info.get("dayLow"),
-            "low_52w": ticker_info.get("fiftyTwoWeekLow"),
-            "high_52w": ticker_info.get("fiftyTwoWeekHigh"),
-            "day_high": ticker_info.get("dayHigh"),
-            "volume": ticker_info.get("volume"),
-            "average_volume": ticker_info.get("averageVolume"),
-            "volume_24h": ticker_info.get("regularMarketVolume"),
-            "beta": ticker_info.get("beta"),
-            "trailing_PE": ticker_info.get("trailingPE"),
-            "forward_PE": ticker_info.get("forwardPE"),
-            "dividend_yield": ticker_info.get("dividendYield"),
-            "payout_ratio": ticker_info.get("payoutRatio"),
-            "book_value": ticker_info.get("bookValue"),
-            "price_to_book": ticker_info.get("priceToBook"),
-            "earnings_growth": ticker_info.get("earningsGrowth"),
-            "revenue_growth": ticker_info.get("revenueGrowth"),
-            "return_on_asset": ticker_info.get("returnOnAssets"),
-            "return_on_equity": ticker_info.get("returnOnEquity"),
-            "free_cashflow": ticker_info.get("freeCashflow"),
-            "operating_cashflow": ticker_info.get("operatingCashflow"),
-            "total_debt": ticker_info.get("totalDebt"),
-            "total_cash": ticker_info.get("totalCash"),
-            "long_business_summary": ticker_info.get("longBusinessSummary"),
-            "website": ticker_info.get("website"),
-            "full_time_employees": ticker_info.get("fullTimeEmployees"),
-        }
-        return ticker_data
-
     async def get_ticker_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """OPTIMIZED: Wraps the cached batch method."""
         results = await self.get_symbols_info([symbol])
@@ -620,38 +394,28 @@ class MarketDataService:
         if not symbols_to_fetch:
             return results
 
-        # 2. Fetch missing symbols
         logger.info(
             "Fetching info for %d symbols from API: %s",
             len(symbols_to_fetch),
             ", ".join(symbols_to_fetch),
         )
-        tickers = yf.Tickers(" ".join(symbols_to_fetch))
+        try:
+            fetched = await self.provider.infos(symbols_to_fetch)
+        except Exception as e:
+            logger.error("Ticker info fetch failed: %s", e)
+            return results
         new_data_to_cache: Dict[str, Dict[str, Any]] = {}
-
-        for symbol in symbols_to_fetch:
-            try:
-                info = tickers.tickers[symbol].info
-                if info and info.get("symbol"):
-                    extracted_data = self._extract_ticker_information(info)
-                    results.append(extracted_data)
-                    cache_key = self._get_info_cache_key(symbol)
-                    # Store the dict directly; your client's `set` will serialize it
-                    new_data_to_cache[cache_key] = extracted_data
-                else:
-                    logger.warning("Incomplete info fetched for symbol: %s", symbol)
-            except Exception as e:
-                logger.error("Error processing ticker info for %s: %s", symbol, e)
-
-        # 3. Cache new data by calling `set` in a loop
+        for extracted in fetched:
+            results.append(extracted)
+            symbol = extracted.get("symbol")
+            if symbol:
+                new_data_to_cache[self._get_info_cache_key(symbol)] = extracted
         if new_data_to_cache:
-            for key, data_dict in new_data_to_cache.items():
-                await asyncio.to_thread(
-                    self.redis_client.set,
-                    key,
-                    data_dict,
-                    ex_seconds=self.info_cache_ttl,
-                )
+            await asyncio.to_thread(
+                self.redis_client.mset,
+                new_data_to_cache,
+                self.info_cache_ttl,
+            )
         return results
 
 

@@ -91,6 +91,10 @@ Imports are rooted at `python/app` (`from core...`, `from api.v1...`).
 
 Single-file bind mounts (`main.py`, `config.py`, `start_api.py`) go stale in the container if a tool replaces the file. `docker compose restart api` after editing those. Directory mounts (`core/`, `api/`) are fine.
 
+## Releases
+
+GitHub Actions publishes the production images to GHCR after this workflow is on `master`. A green CI run on `master` pushes `edge` and `sha-<short>`. Merging the release-please PR tags `vX.Y.Z` and pushes `X.Y.Z`, `X.Y` and `sha-<short>`. Both images are linux/arm64, with an SBOM and provenance. The Jetson keeps running the local `:prod` tags until `scripts/deploy.sh` (plan R.4).
+
 ## Further reading
 
 [STARTUP_GUIDE.md](STARTUP_GUIDE.md), [python/app/docs/](python/app/docs/), and the index in [../docs/README.md](../docs/README.md).

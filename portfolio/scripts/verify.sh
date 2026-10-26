@@ -13,6 +13,19 @@ PROJECT=$COMPOSE_PROJECT_NAME
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "release image tags"
+tags=$(IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" api version abcdef1 0.1.10)
+[ "$tags" = "ghcr.io/example/portfolia-api:0.1.10
+ghcr.io/example/portfolia-api:0.1
+ghcr.io/example/portfolia-api:sha-abcdef1" ]
+tags=$(IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" web edge abcdef1234567)
+[ "$tags" = "ghcr.io/example/portfolia-web:edge
+ghcr.io/example/portfolia-web:sha-abcdef1" ]
+if IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" api version abcdef1 v0.1.0 >/dev/null; then
+  echo "FAIL release-tags accepted a v prefix"
+  exit 1
+fi
+
 step "compose config"
 docker compose -f compose.dev.yaml config -q
 docker compose -f compose.yaml config -q

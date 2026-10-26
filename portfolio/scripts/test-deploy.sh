@@ -14,7 +14,9 @@ cat >"$tmp/bin/docker" <<'EOF'
 printf '%s\n' "$*" >> "$DEPLOY_LOG"
 case "$*" in
   *' ps '*)
-    printf '%s\n' postgres redis api
+    if [ "${DEPLOY_FAKE_PS:-running}" != empty ]; then
+      printf '%s\n' postgres redis api
+    fi
     ;;
   image' 'ls*)
     printf '%s\n' \
@@ -120,4 +122,28 @@ set +e
 status=$?
 set -e
 [ "$status" -eq 2 ] || fail "prod edge was accepted"
+
+# First staging boot has no database: create it before migrate, and do not dump it.
+log=$tmp/first.log
+: >"$log"
+"${common[@]}" DEPLOY_FAKE_PS=empty DEPLOY_LOG="$log" "$script" staging edge >"$tmp/first.out"
+grep -q 'skipping backup' "$tmp/first.out" || fail "first staging boot tried to dump"
+awk '
+  /up -d --wait --wait-timeout 180 postgres redis/ { if (!up) up=NR }
+  /run --rm --no-deps migrate/ { if (!mig) mig=NR }
+  END { exit !(up && mig && up < mig) }
+' "$log" || fail "staging database was not created before migrate"
+
+# Prod still refuses to create a database.
+log=$tmp/nopg.log
+: >"$log"
+set +e
+"${common[@]}" DEPLOY_FAKE_PS=empty DEPLOY_LOG="$log" "$script" prod 0.1.3 >"$tmp/nopg.out" 2>&1
+status=$?
+set -e
+[ "$status" -ne 0 ] || fail "prod created a database"
+grep -q 'refusing to create it' "$tmp/nopg.out" || fail "prod missing refusal"
+if grep -q ' up ' "$log"; then
+  fail "prod up ran without postgres"
+fi
 echo "deploy checks passed"

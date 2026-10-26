@@ -97,6 +97,8 @@ GitHub Actions publishes the production images to GHCR after this workflow is on
 
 `scripts/deploy.sh prod X.Y.Z` is how the Jetson switches to one of those tags. It backs up Postgres, runs migrations, and restarts the API, worker, and UI. Postgres and Redis containers are left as they are. A failed health check puts the previous version back. Until you run that command, the stack stays on the local `:prod` images.
 
+Staging is a second project, `portfolio-staging`, on UI port 3100 with its own database. `scripts/staging-sync.sh` deploys the `edge` image only when its digest changes. The timer unit is `deploy/portfolia-staging.timer`. Enabling it is a host install; it is not started by pulling this repo.
+
 ## Further reading
 
 [STARTUP_GUIDE.md](STARTUP_GUIDE.md), [python/app/docs/](python/app/docs/), and the index in [../docs/README.md](../docs/README.md).

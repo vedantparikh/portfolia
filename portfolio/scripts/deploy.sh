@@ -108,6 +108,10 @@ backup() {
   echo "backup $out"
 }
 
+postgres_running() {
+  compose ps --status running --services | grep -qx postgres
+}
+
 up_services() {
   if [ "$env_name" = prod ]; then
     local running
@@ -203,7 +207,15 @@ deploy_version() {
   compose pull api app worker || return 1
   compose --profile migrate pull migrate || return 1
   phase=backup
-  backup || return 1
+  if postgres_running; then
+    backup || return 1
+  elif [ "$env_name" = prod ]; then
+    echo "prod postgres is not running; refusing to create it" >&2
+    return 1
+  else
+    echo "no staging database yet; skipping backup"
+    compose up -d --wait --wait-timeout 180 postgres redis || return 1
+  fi
   if [ "${ROLLBACK:-}" != 1 ]; then
     phase=migrate
     compose --profile migrate run --rm --no-deps migrate || return 1

@@ -88,6 +88,45 @@ def test_cash_rows_and_unknown_trades_are_skipped_with_a_reason(parsed):
     assert all(s.reason for s in skipped)
 
 
+REAL_LAYOUT = """
+01 Juli 2025 - 30 Sept. 2025
+UMSATZÜBERSICHT
+DATUM TYP BESCHREIBUNG ZAHLUNGSEINGANG ZAHLUNGSAUSGANG SALDO
+01 Juli
+2025 Handel Buy trade US0378331005 Apple Inc., quantity: 2 301,00 € 1.699,00 €
+02 Juli
+2025 Handel Savings plan execution IE00B4L5Y983 iShares Core, quantity: 0.056721 10,00 € 1.689,00 €
+03 Juli
+2025 Erträge Cash Dividend for ISIN US0378331005 0,37 € 1.689,37 €
+29 Aug. 2025 Überweisung Incoming transfer 2.000,00 € 3.689,37 € 01 Sept. 2025 Handel Sell trade US0378331005 Apple Inc., quantity: 1 159,00 € 3.848,37 €TRADE REPUBLIC BANK GMBH
+BARMITTELÜBERSICHT
+"""
+
+
+def test_real_statement_layout_keeps_every_row():
+    parser = TradeRepublicParser()
+    transactions, skipped, warnings = parser._extract_transactions(REAL_LAYOUT)
+    period = parser._extract_statement_period(REAL_LAYOUT)
+
+    assert warnings == []
+    assert (period.start_date, period.end_date) == ("2025-07-01", "2025-09-30")
+    assert [
+        (t.transaction_date, t.transaction_type.value, t.symbol) for t in transactions
+    ] == [
+        ("2025-07-01", "buy", "US0378331005"),
+        ("2025-07-02", "buy", "IE00B4L5Y983"),
+        ("2025-07-03", "dividend", "US0378331005"),
+        ("2025-09-01", "sell", "US0378331005"),
+    ]
+    savings = transactions[1]
+    assert savings.quantity == Decimal("0.056721")
+    assert savings.fees == Decimal("0")
+    assert savings.price == Decimal("10.00") / Decimal("0.056721")
+    assert [(s.kind, s.amount) for s in skipped] == [
+        ("Überweisung", Decimal("2000.00"))
+    ]
+
+
 def test_parse_reports_counts(monkeypatch):
     parser = TradeRepublicParser()
     monkeypatch.setattr(

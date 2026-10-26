@@ -2,7 +2,7 @@
 
 **Purpose:** turn a broker PDF into reviewed transactions and create them in one atomic batch.
 
-**State (2026-10-16):** ✅ pytr CSV: parse, ISIN → listing matching in the review table, assets created on import (checked in the browser with a real 939-row export; not yet saved into a real portfolio). Trade Republic PDF: trades, savings plans and dividends import in EUR; cash rows are listed as skipped. Tested on synthetic statement text only; a real PDF check is open (the text-layout assumptions in `_extract_transactions` are unverified). Re-importing a file skips rows already in the portfolio. Not exercised by the demo data.
+**State (2026-10-26):** ✅ pytr CSV: parse, ISIN → listing matching in the review table, assets created on import (checked in the browser with a real 939-row export; not yet saved into a real portfolio). Trade Republic PDF: trades, savings plans and dividends import in EUR; cash rows are listed as skipped. Checked against one real quarterly statement: the day and month are on their own line, a page break continues the next row on the same line, and savings-plan quantities use a dot. Re-importing a file skips rows already in the portfolio. Not exercised by the demo data.
 
 ## Backend — `router.py` (prefix `/api/v1/account-statements`), `core/services/account_statement_service.py`, `core/services/parsers/`
 | Endpoint | Behaviour |
@@ -27,7 +27,7 @@
 - Keys are per provider: the same trades from a TR PDF and a pytr CSV don't match each other (only the keyless fallback could).
 
 ## Trade Republic rules (`parsers/trade_republic.py`, tests `tests/unit/test_trade_republic_import.py`)
-- Rows come from the `UMSATZÜBERSICHT` block; the second-to-last amount on a line is the transaction amount, the last is the balance. Dates like `06 März 2025` / `09 Sept. 2025` are matched by month prefix.
+- Rows come from the `UMSATZÜBERSICHT` block; the second-to-last amount on a line is the transaction amount, the last is the balance. A row may be `01 Juli` on one line and `2025 Handel ...` on the next, and after a page break the next dated row continues on the same line. Dates like `06 März 2025` / `09 Sept. 2025` are matched by month prefix. Savings-plan quantities such as `0.056721` keep the dot; `1,5` stays a German comma.
 - **Handel** → buy/sell (ISIN as symbol). The statement shows only the total, so the fee is assumed: `TRADE_FEE` = €1 per buy/sell trade, €0 for savings plan executions. `price = (total − fee) / qty` for buys, `(total + fee) / qty` for sells; `total_amount` stays the printed total.
 - **Erträge** → dividend with `total_amount` = cash received, quantity and price 0. Bulk-create keeps that amount (it no longer recomputes qty × price for dividends) and rejects a dividend ≤ 0.
 - **Zinszahlung, Überweisung, Kartentransaktion, Steuern** and unrecognised trades → `skipped[]` with a reason (`CASH_ROW_REASONS`); portfolios have no cash account. The review table lists them under "statement rows not imported".
@@ -48,7 +48,7 @@ TR fills in EUR on LS Exchange, which Yahoo doesn't carry; Yahoo's ISIN search u
 - Dry run on a real 2024–2026 export: 37/60 ISINs matched (778/939 rows); Nvidia/Netflix 96/100 % after split adjustment.
 
 ## Known gaps
-- No real statement in the test suite; layout drift (column order, extra amounts on a line) would show up as warnings or wrong amounts.
+- The test fixture copies the real PDF's line breaks. A column-order change, or an extra amount on a line, would still show up as a warning or a wrong amount.
 - In/out direction is not read (the type implies it for trades and dividends).
 - Withholding tax is not printed per dividend, so `taxes` stays 0 for TR dividends.
 - ISIN matching is the instrument panel (`POST /instruments/resolve`). Per-row hand mapping still exists for a row marked manual.

@@ -34,7 +34,7 @@ Transactions → New Transaction (pick portfolio + asset via search, buy/sell/di
 
 ## Known gaps
 - `transactionAPI.bulkCreateTransactions` targets a nonexistent `/transactions/bulk-create` (dead).
-- Bulk-create success toast uses `total_created || transactionData.length` (claims success on 0).
+- Bulk-create toasts use `summary.total_created` and say nothing was created when that is 0.
 - PDF export hard-codes `$`; currency defaults to USD and is never converted (plan 2.3, 3.5).
 - Dividend `taxes` are not netted out of `total_amount` (plan 2.2).
 

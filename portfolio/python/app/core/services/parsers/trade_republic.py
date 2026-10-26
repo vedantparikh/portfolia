@@ -75,6 +75,12 @@ class TradeRepublicParser(PDFParser):
         )
         return Decimal(cleaned_str)
 
+    def _parse_quantity(self, num_str: str) -> Decimal:
+        """Share counts use a dot when the statement prints a fraction."""
+        if "," in num_str:
+            return self._parse_german_number(num_str)
+        return Decimal(num_str)
+
     def parse(self, pdf_content: bytes) -> ParsedData:
         """Parse Trade Republic PDF statement."""
         warnings = []
@@ -111,11 +117,10 @@ class TradeRepublicParser(PDFParser):
 
     def _extract_statement_period(self, text: str) -> StatementPeriod:
         """Extract statement period from PDF text."""
-        # Made regex more flexible with \s* to handle missing spaces.
+        head = text.split("UMSATZÜBERSICHT", 1)[0]
         period_match = re.search(
-            r"DATUM\s*([\d]{2}\s\w+\s\d{4})\s*-\s*([\d]{2}\s\w+\s\d{4})",
-            text,
-            re.IGNORECASE,
+            r"(\d{1,2}\s+\w+\.?\s+\d{4})\s*-\s*(\d{1,2}\s+\w+\.?\s+\d{4})",
+            head,
         )
         if period_match:
             start_date_str, end_date_str = period_match.groups()
@@ -124,9 +129,33 @@ class TradeRepublicParser(PDFParser):
             return StatementPeriod(start_date=start_date, end_date=end_date)
         return StatementPeriod(start_date="", end_date="")
 
+    def _transaction_lines(self, content: str) -> List[str]:
+        """One string per statement row.
+
+        The PDF puts the day and month on their own line (`01 Juli` / `2025 Handel
+        ...`) and, after a page break, the next row continues on the same line.
+        """
+        content = re.sub(r"TRADE REPUBLIC.*", "", content)
+        content = re.sub(r"Seite \d+ von \d+", "", content)
+        content = re.sub(r"(?m)^\s*DATUM\b.*$", "", content)
+        joined: List[str] = []
+        for line in content.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            if re.match(r"^\d{1,2}\s+\w+\.?", line):
+                joined.append(line)
+            elif joined:
+                joined[-1] = f"{joined[-1]} {line}"
+        rows: List[str] = []
+        splitter = re.compile(r"(?<!\d)(?=\d{1,2}\s+\w+\.?\s+\d{4})")
+        for line in joined:
+            rows.extend(part.strip() for part in splitter.split(line) if part.strip())
+        return rows
+
     def _extract_transactions(
         self, full_text: str
-    ) -> Tuple[List[ParsedTransaction], List[str]]:
+    ) -> Tuple[List[ParsedTransaction], List[SkippedRow], List[str]]:
         """Extract transactions from PDF text."""
         transactions: List[ParsedTransaction] = []
         skipped: List[SkippedRow] = []
@@ -140,30 +169,17 @@ class TradeRepublicParser(PDFParser):
         if not transaction_block_match:
             return [], [], ["Could not find the 'UMSATZÜBERSICHT' transaction block."]
 
-        content = transaction_block_match.group(1)
-        content = re.sub(r".*?TRADE REPUBLIC.*|Seite \d+ von \d+", "", content)
-        content = re.sub(
-            r"^\s*DATUM\s+TYP\s+BESCHREIBUNG.*$", "", content, flags=re.MULTILINE
-        )
+        processed_lines = self._transaction_lines(transaction_block_match.group(1))
 
-        lines = content.strip().split("\n")
-        processed_lines = []
-        for line in lines:
-            if re.match(r"^\d{2}\s\w+\.?", line.strip()):
-                processed_lines.append(line)
-            elif processed_lines:
-                processed_lines[-1] += f" {line.strip()}"
-
-        # Switched to a robust, multi-step parsing logic that doesn't rely on consistent whitespace.
         known_types = (
             r"^(Handel|Zinszahlung|Erträge|Steuern|Überweisung|Kartentransaktion)"
         )
 
         for i, line in enumerate(processed_lines):
-            line = line.replace("€", "").strip()
+            line = line.replace("€", "").replace("\xa0", " ").strip()
 
             # Step 1: Find the date at the start of the line
-            date_match = re.match(r"^(?P<date>\d{2}\s\w+\.?\s\d{4})", line)
+            date_match = re.match(r"^(?P<date>\d{1,2}\s+\w+\.?\s+\d{4})", line)
             if not date_match:
                 continue
 
@@ -252,7 +268,7 @@ class TradeRepublicParser(PDFParser):
             if not trade:
                 return "Trade description not recognised"
             kind, isin, name, quantity_str = trade.groups()
-            quantity = self._parse_german_number(quantity_str)
+            quantity = self._parse_quantity(quantity_str)
             if not quantity:
                 return "Trade without a quantity"
             savings_plan = kind.lower() == "savings plan execution"

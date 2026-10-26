@@ -105,14 +105,13 @@ else
 fi
 
 echo ""
-echo "Validating docker-compose.yml..."
+echo "Validating compose files..."
 
-# Validate docker-compose configuration
-if docker-compose config > /dev/null 2>&1; then
-    print_success "docker-compose.yml is valid"
+if docker compose -f compose.dev.yaml config -q && docker compose -f compose.yaml config -q; then
+    print_success "compose.dev.yaml and compose.yaml are valid"
 else
-    print_error "docker-compose.yml has errors"
-    print_info "Run 'docker-compose config' to see details"
+    print_error "compose files have errors"
+    print_info "Run 'docker compose -f compose.dev.yaml config -q' to see details"
     HAS_ERRORS=1
 fi
 

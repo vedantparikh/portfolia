@@ -27,26 +27,28 @@ docker network create homepage_proxy-network
 ## Start
 
 ```bash
-docker compose up -d --wait
+docker compose -f compose.dev.yaml up -d --wait
 ```
+
+That is project `portfolio-dev`. `compose.yaml` is production (project `portfolio`, UI :3000). A bare `docker compose up` selects that file. Use `compose.dev.yaml` when you want the dev stack.
 
 | Check | Expected |
 |---|---|
-| UI | <http://localhost:3000> returns the sign-in page |
-| API | `curl -f http://127.0.0.1:8000/health/` |
-| API docs | <http://127.0.0.1:8000/docs> |
-| Worker | `docker compose ps` shows `worker` healthy |
+| UI | <http://localhost:3200> returns the sign-in page |
+| API | `curl -f http://127.0.0.1:8200/health/` |
+| API docs | <http://127.0.0.1:8200/docs> |
+| Worker | `docker compose -f compose.dev.yaml ps` shows `worker` healthy |
 
 The API runs `alembic upgrade head` on startup and exits if the migration fails. Postgres and Redis have no host port.
 
 Logs:
 
 ```bash
-docker compose logs -f api
-docker compose logs -f worker
+docker compose -f compose.dev.yaml logs -f api
+docker compose -f compose.dev.yaml logs -f worker
 ```
 
-Port overrides, if 3000 or 8000 is taken: `PORTFOLIO_UI_PORT` and `PORTFOLIO_API_PORT`.
+Dev defaults are UI 3200 and API 8200. Override with `PORTFOLIO_UI_PORT` and `PORTFOLIO_API_PORT`.
 
 ## Demo login
 
@@ -55,10 +57,10 @@ Username `demo`, password `DemoApp!234`. What that account contains, and how not
 ## Stop
 
 ```bash
-docker compose stop
+docker compose -f compose.dev.yaml stop
 ```
 
-`docker compose down -v` deletes the database volume. Do not use it on a stack that has data you want to keep.
+`docker compose down -v` deletes the database volume of whichever file Compose selects. Do not use it on the production project `portfolio`.
 
 ## When something fails
 

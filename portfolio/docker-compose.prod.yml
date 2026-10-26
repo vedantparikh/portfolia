@@ -1,3 +1,5 @@
+# Override for docker-compose.yml. compose.yaml is the production file going
+# forward; this override is what api, worker and app are running from today.
 services:
   api:
     image: portfolia-api:prod

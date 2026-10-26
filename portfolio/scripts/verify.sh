@@ -5,12 +5,91 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
-PROJECT=${COMPOSE_PROJECT_NAME:-portfolio}
+# Dev file and project, so this gate never selects compose.yaml and never
+# attaches to the live `portfolio` project (production data).
+export COMPOSE_FILE="${COMPOSE_FILE:-compose.dev.yaml}"
+export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-portfolio-dev}"
+PROJECT=$COMPOSE_PROJECT_NAME
 
 step() { printf '\n== %s\n' "$*"; }
 
 step "compose config"
-docker compose config -q
+docker compose -f compose.dev.yaml config -q
+docker compose -f compose.yaml config -q
+docker compose -f compose.yaml -f compose.staging.yaml config -q
+python3 - <<'PY'
+import json, os, subprocess, sys
+
+def rendered(files):
+    # The dev project name is exported for the rest of this script. It must
+    # not override the name: field in the prod and staging files.
+    env = os.environ.copy()
+    env.pop("COMPOSE_PROJECT_NAME", None)
+    env.pop("COMPOSE_FILE", None)
+    cmd = ["docker", "compose"]
+    for f in files:
+        cmd += ["-f", f]
+    cmd += ["config", "--format", "json"]
+    return json.loads(subprocess.check_output(cmd, text=True, env=env))
+
+# Postgres and Redis keep the build definitions of the live containers so a
+# later `up` does not recreate them. Every other service is images only.
+DATA_SERVICES = {"postgres", "redis"}
+
+def binds_or_builds(data):
+    bad = []
+    for name, svc in data.get("services", {}).items():
+        if svc.get("build") and name not in DATA_SERVICES:
+            bad.append(f"{name}: build")
+        for vol in svc.get("volumes") or []:
+            if isinstance(vol, dict) and vol.get("type") == "bind":
+                bad.append(f"{name}: bind {vol.get('target')}")
+    return bad
+
+def service_hash(files, service):
+    env = os.environ.copy()
+    env.pop("COMPOSE_PROJECT_NAME", None)
+    env.pop("COMPOSE_FILE", None)
+    cmd = ["docker", "compose"]
+    for f in files:
+        cmd += ["-f", f]
+    cmd += ["config", "--hash", service]
+    line = subprocess.check_output(cmd, text=True, env=env).strip().split()
+    return line[-1]
+
+prod = rendered(["compose.yaml"])
+bad = binds_or_builds(prod)
+if bad:
+    print("FAIL compose.yaml has build or bind mounts")
+    print("\n".join(bad))
+    sys.exit(1)
+for svc in ("postgres", "redis"):
+    live = service_hash(["docker-compose.yml"], svc)
+    new = service_hash(["compose.yaml"], svc)
+    if live != new:
+        sys.exit(f"FAIL {svc} config hash would recreate the live container")
+if prod.get("name") != "portfolio":
+    sys.exit("FAIL compose.yaml project name")
+staging = rendered(["compose.yaml", "compose.staging.yaml"])
+bad = binds_or_builds(staging)
+if bad:
+    print("FAIL staging compose has build or bind mounts")
+    print("\n".join(bad))
+    sys.exit(1)
+if staging.get("name") != "portfolio-staging":
+    sys.exit("FAIL staging project name")
+prod_db = (prod["services"]["postgres"].get("environment") or {}).get("POSTGRES_DB")
+stg_db = (staging["services"]["postgres"].get("environment") or {}).get("POSTGRES_DB")
+if not prod_db or not stg_db:
+    sys.exit("FAIL postgres env file did not load")
+if prod_db == stg_db:
+    sys.exit("FAIL staging database name matches production")
+prod_vol = prod["services"]["postgres"]["volumes"][0]["source"]
+stg_vol = staging["services"]["postgres"]["volumes"][0]["source"]
+if prod_vol == stg_vol:
+    sys.exit("FAIL staging postgres volume matches production")
+print("prod compose: app services have no bind mounts; database hashes match")
+PY
 
 step "build images"
 docker compose build -q api app postgres worker
@@ -76,9 +155,9 @@ trap - EXIT
 if [[ "${1:-}" == "--stack" ]]; then
   step "stack: up + smoke"
   docker compose up -d --wait --wait-timeout 300
-  for url in "http://localhost:${PORTFOLIO_UI_PORT:-3000}/" \
-             "http://localhost:${PORTFOLIO_UI_PORT:-3000}/api/v1/health" \
-             "http://127.0.0.1:${PORTFOLIO_API_PORT:-8000}/health/"; do
+  for url in "http://localhost:${PORTFOLIO_UI_PORT:-3200}/" \
+             "http://localhost:${PORTFOLIO_UI_PORT:-3200}/api/v1/health" \
+             "http://127.0.0.1:${PORTFOLIO_API_PORT:-8200}/health/"; do
     for attempt in 1 2 3 4 5 6; do
       curl -fsS -o /dev/null --max-time 10 "$url" && break
       [[ $attempt == 6 ]] && { echo "FAIL $url"; exit 1; }

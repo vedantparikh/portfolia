@@ -17,6 +17,9 @@ jobs:
     name: verify (arm64, same as the Jetson)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
+    env:
+      COMPOSE_FILE: compose.dev.yaml
+      COMPOSE_PROJECT_NAME: portfolio-dev
     defaults:
       run:
         working-directory: portfolio

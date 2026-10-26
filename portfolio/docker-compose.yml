@@ -1,5 +1,8 @@
 name: portfolio
 
+# Live project file the current containers were started from, together with
+# docker-compose.prod.yml. Bare `docker compose` in this directory now prefers
+# compose.yaml (production images). Dev side-by-side is compose.dev.yaml.
 # Shared Jetson host: cap memory, rotate logs, publish only the UI.
 x-logging: &logging
   driver: json-file

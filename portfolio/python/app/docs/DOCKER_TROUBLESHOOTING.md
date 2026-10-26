@@ -1,11 +1,11 @@
 # Docker troubleshooting
 
-Compose project: `portfolio`, file `portfolio/docker-compose.yml`. Services: `app`, `api`, `worker`, `postgres`, `redis`.
+Dev project: `portfolio-dev`, file `portfolio/compose.dev.yaml`. Production project: `portfolio`, file `portfolio/compose.yaml`. Services: `app`, `api`, `worker`, `postgres`, `redis`. Commands below are the dev stack. Prefix production with `-f compose.yaml` and do not recreate its Postgres or Redis.
 
 ```bash
-docker compose ps
-docker compose logs --tail 100 api
-docker compose logs --tail 100 worker
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs --tail 100 api
+docker compose -f compose.dev.yaml logs --tail 100 worker
 ```
 
 ## The UI loads and /api returns 404
@@ -14,11 +14,11 @@ The Vite dev server proxies `/api` using `js/vite.config.js`, which is bind-moun
 
 ## Code changes do not appear in the API
 
-`main.py`, `config.py`, `start_api.py`, and `start_api.sh` are single-file mounts. A tool that writes a temp file and renames it leaves the container on the old inode. `docker compose restart api`. Edits under `core/` and `api/` are directory mounts and do not have this problem.
+`main.py`, `config.py`, `start_api.py`, and `start_api.sh` are single-file mounts. A tool that writes a temp file and renames it leaves the container on the old inode. `docker compose -f compose.dev.yaml restart api`. Edits under `core/` and `api/` are directory mounts and do not have this problem. Production images have no bind mounts; a code change needs a rebuilt image.
 
 ## API container exits on start
 
-`start_api.sh` waits for Postgres and Redis, then runs `alembic upgrade head`. A migration error is fatal on purpose. Read `docker compose logs api` before restarting in a loop.
+`start_api.sh` waits for Postgres and Redis, then runs `alembic upgrade head`. A migration error is fatal on purpose. Read `docker compose -f compose.dev.yaml logs api` before restarting in a loop. Production does not migrate on startup; run `docker compose -f compose.yaml --profile migrate run --rm migrate`.
 
 ## `network homepage_proxy-network not found`
 
@@ -30,13 +30,13 @@ docker network create homepage_proxy-network
 
 ## Port already in use
 
-UI defaults to 3000, API to `127.0.0.1:8000`. Override with `PORTFOLIO_UI_PORT` and `PORTFOLIO_API_PORT`. Do not publish Postgres to free a port.
+Dev UI defaults to 3200, API to `127.0.0.1:8200`. Production stays on 3000 and `127.0.0.1:8000`. Override with `PORTFOLIO_UI_PORT` and `PORTFOLIO_API_PORT`. Do not publish Postgres to free a port.
 
 ## Healthcheck flapping
 
 - API: `GET http://localhost:8000/health/` from inside the container.
 - Worker: `/tmp/worker-heartbeat` must be newer than two intervals. A worker that crashes before the first pass stays unhealthy for the start period (120s) and then fails.
-- UI: `curl http://localhost:3000` inside `app`.
+- Dev UI: `curl http://localhost:3000` inside `app`. Production `app` is nginx on 8080 and has no curl.
 
 ## Out of memory
 
@@ -44,4 +44,4 @@ Limits are 1 GB UI, 2 GB API, 384 MB worker, 1 GB Postgres, 256 MB Redis. The AP
 
 ## Do not
 
-`docker compose down -v` deletes `postgres_data`. `docker compose up -d` without a service name is safe here only because this compose file has no other project's services; still prefer `docker compose up -d --wait` when you mean the whole stack, and a single service name when you changed one.
+`docker compose down -v` deletes the database volume of the selected project. Never run it against production `portfolio`. Prefer `docker compose -f compose.dev.yaml up -d --wait` for the dev stack, and a single service name when you changed one.

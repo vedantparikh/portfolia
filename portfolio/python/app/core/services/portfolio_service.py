@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
@@ -43,6 +44,8 @@ from core.schemas.portfolio import (
 )
 from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["OversellError", "PortfolioService", "compute_position"]
 
@@ -247,9 +250,10 @@ class PortfolioService:
                 portfolio_asset.today_pnl = None
                 portfolio_asset.today_pnl_percent = None
 
-        except Exception as e:
-            print(
-                f"Error refreshing market data for asset {portfolio_asset.asset_id}: {e}"
+        except Exception:
+            logger.exception(
+                "Error refreshing market data for asset %s",
+                portfolio_asset.asset_id,
             )
 
         return portfolio_asset
@@ -970,7 +974,7 @@ class PortfolioService:
                     )
                 )
         except MissingFxError as exc:
-            print(f"No FX for asset {asset_id}: {exc}")
+            logger.warning("No FX for asset %s: %s", asset_id, exc)
             position = compute_position(raw_trades)
             current_price = None
             price_error = exc
@@ -1010,7 +1014,11 @@ class PortfolioService:
 
         if current_quantity > 0:
             if price_error is not None:
-                print(f"Error fetching market data for asset {asset_id}: {price_error}")
+                logger.warning(
+                    "Error fetching market data for asset %s: %s",
+                    asset_id,
+                    price_error,
+                )
                 portfolio_asset.current_value = None
                 portfolio_asset.unrealized_pnl = None
                 portfolio_asset.unrealized_pnl_percent = None

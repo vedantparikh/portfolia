@@ -26,13 +26,21 @@ _CODES = {
 
 
 def error_response(
-    status_code: int, message: str, *, details: object = None
+    status_code: int,
+    message: str,
+    *,
+    details: object = None,
+    request: Request | None = None,
 ) -> JSONResponse:
     code = _CODES.get(status_code, f"http_{status_code}")
     error = {"code": code, "message": message}
     if details is not None:
         error["details"] = details
-    return JSONResponse(status_code=status_code, content={"error": error})
+    body: dict = {"error": error}
+    request_id = getattr(getattr(request, "state", None), "request_id", None)
+    if request_id:
+        body["request_id"] = request_id
+    return JSONResponse(status_code=status_code, content=body)
 
 
 def _message(detail: object) -> str:
@@ -56,25 +64,30 @@ def _message(detail: object) -> str:
 
 async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     status_code = 404 if isinstance(exc, NotFoundError) else 400
-    return error_response(status_code, str(exc))
+    return error_response(status_code, str(exc), request=request)
 
 
 async def http_exception_handler(
     request: Request, exc: StarletteHTTPException
 ) -> JSONResponse:
-    return error_response(exc.status_code, _message(exc.detail))
+    return error_response(exc.status_code, _message(exc.detail), request=request)
 
 
 async def validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     details = jsonable_encoder(exc.errors())
-    return error_response(422, _message(details), details=details)
+    return error_response(422, _message(details), details=details, request=request)
 
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-    return error_response(500, "Something went wrong")
+    logger.exception(
+        "Unhandled error on %s %s request_id=%s",
+        request.method,
+        request.url.path,
+        getattr(request.state, "request_id", "-"),
+    )
+    return error_response(500, "Something went wrong", request=request)
 
 
 def install_error_handlers(application) -> None:

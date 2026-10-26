@@ -1,6 +1,10 @@
+import logging
+
 import polars as pl
 
 from utils.indicators import BaseIndicator
+
+logger = logging.getLogger(__name__)
 
 
 class MomentumIndicators(BaseIndicator):
@@ -242,7 +246,7 @@ def calculate_macd(
     pl.DataFrame({"Close": prices})
     # This would need a trend indicators class
     # For now, return empty DataFrame as in original
-    print("MACD is a trend indicator; this is a stub function.")
+    logger.warning("MACD is a trend indicator; this is a stub function.")
     return pl.DataFrame()
 
 

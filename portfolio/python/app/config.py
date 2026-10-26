@@ -140,7 +140,9 @@ class Settings(BaseSettings):
 
         problems = []
         if self.SECRET_KEY in INSECURE_SECRET_DEFAULTS or len(self.SECRET_KEY) < 32:
-            problems.append("SECRET_KEY is unset, a placeholder, or shorter than 32 chars")
+            problems.append(
+                "SECRET_KEY is unset, a placeholder, or shorter than 32 chars"
+            )
         if self.POSTGRES_PASSWORD in INSECURE_SECRET_DEFAULTS:
             problems.append("POSTGRES_PASSWORD is unset or a placeholder")
         if not self.REDIS_PASSWORD:

@@ -21,13 +21,13 @@ class NotFoundError(DomainError):
 
 
 class CurrencyMismatchError(DomainError):
-    """An asset or cash amount in a currency other than the portfolio's (no FX yet)."""
+    """A caller asked to reject a currency instead of converting it."""
 
 
 def ensure_same_currency(
     portfolio_currency: str, currency: str | None, what: str
 ) -> None:
-    """Portfolios hold one currency until FX conversion exists."""
+    """Hard reject. Valuation converts, so the transaction write path does not call this."""
     if (currency or "").upper() != (portfolio_currency or "").upper():
         raise CurrencyMismatchError(
             f"{what} is in {currency or 'an unknown currency'} but the portfolio is in "

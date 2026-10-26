@@ -16,7 +16,7 @@
 | `POST/GET /{id}/transactions` | Portfolio-scoped transaction create/list (create triggers `recalculate_asset_state`) |
 | `GET /search?search_term=&currency=`, `GET /public/discover` | Own portfolios by name/currency; discover lists public portfolios. No UI for either |
 
-`PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position(to_trades(txs, splits))` + live price. Prices: `MarketDataService.get_current_prices` (Redis 60s), previous close `get_yesterdays_closes` (12h).
+`PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Prices: `MarketDataService.get_current_prices` (Redis 60s), previous close `get_yesterdays_closes` (12h), both multiplied by the FX rate on that day.
 
 ## Frontend — `js/src/components/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):

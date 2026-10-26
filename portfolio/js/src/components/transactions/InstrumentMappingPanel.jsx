@@ -4,6 +4,13 @@ import { accountStatementsAPI } from "../../services/api";
 
 const BATCH = 10;
 
+const majorCurrency = (code) => {
+  if (!code) return "";
+  if (code === "GBp" || code.toUpperCase() === "GBX") return "GBP";
+  if (code.toUpperCase() === "ILA") return "ILS";
+  return code.toUpperCase();
+};
+
 const STATUS = {
   existing: { label: "Your asset", icon: CheckCircle, tone: "text-success-400" },
   matched: { label: "Matched", icon: CheckCircle, tone: "text-success-400" },
@@ -132,10 +139,10 @@ const InstrumentMappingPanel = ({ instruments, mapping, onChange, portfolioCurre
                         {portfolioCurrency &&
                           choice?.currency &&
                           !choice.excluded &&
-                          choice.currency !== portfolioCurrency && (
-                            <p className="text-xs text-danger-400">
-                              {choice.symbol} trades in {choice.currency}; the portfolio is in{" "}
-                              {portfolioCurrency}. Pick a {portfolioCurrency} listing or leave it out.
+                          majorCurrency(choice.currency) !== majorCurrency(portfolioCurrency) && (
+                            <p className="text-xs text-warning-400">
+                              {choice.symbol} is quoted in {choice.currency}. Values are converted
+                              into {portfolioCurrency}.
                             </p>
                           )}
                         <input

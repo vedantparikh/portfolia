@@ -473,15 +473,24 @@ const ParsedDataTable = ({
     const portfolioCurrency = portfolios.find(
       (p) => String(p.id) === String(selectedPortfolio)
     )?.currency;
-    const wrongCurrency = Object.values(mapping).filter(
-      (c) => !c.excluded && c.currency && portfolioCurrency && c.currency !== portfolioCurrency
+    const major = (code) => {
+      if (!code) return "";
+      if (code === "GBp" || code.toUpperCase() === "GBX") return "GBP";
+      if (code.toUpperCase() === "ILA") return "ILS";
+      return code.toUpperCase();
+    };
+    const foreign = Object.values(mapping).filter(
+      (c) =>
+        !c.excluded &&
+        c.currency &&
+        portfolioCurrency &&
+        major(c.currency) !== major(portfolioCurrency)
     );
-    if (wrongCurrency.length > 0) {
-      toast.error(
-        `${wrongCurrency.map((c) => c.symbol).join(", ")} trade in another currency than this ${portfolioCurrency} portfolio. Pick ${portfolioCurrency} listings or leave them out.`,
-        { duration: 6000 }
+    if (foreign.length > 0) {
+      toast(
+        `${foreign.map((c) => c.symbol).join(", ")} will be converted into ${portfolioCurrency}.`,
+        { duration: 5000 }
       );
-      return;
     }
     const toSave = transactions.filter((t) => !t.excluded && !isImported(t));
     if (toSave.length === 0) {

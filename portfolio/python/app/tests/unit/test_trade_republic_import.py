@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+import pandas as pd
 import pytest
 
 from core.database.models import Asset, Portfolio, Transaction, User
@@ -127,11 +128,18 @@ def _item(asset, **fields):
 
 
 @pytest.mark.asyncio
-async def test_bulk_create_keeps_dividend_amount_taxes_and_rejects_other_currencies(
-    test_db, portfolio
+async def test_bulk_create_keeps_dividend_amount_taxes_and_foreign_cash(
+    test_db, portfolio, monkeypatch
 ):
     portfolio, asset = portfolio
     service = AccountStatementService(test_db)
+
+    async def rates(quote, portfolio_currency):
+        return pd.Series([1.0], index=pd.to_datetime(["2020-01-01"]))
+
+    monkeypatch.setattr(
+        service.portfolio_service.market_data_service, "get_fx_rates", rates
+    )
 
     created, summary = await service.create_bulk_transactions(
         portfolio.id,
@@ -165,12 +173,12 @@ async def test_bulk_create_keeps_dividend_amount_taxes_and_rejects_other_currenc
         portfolio.user_id,
     )
 
-    assert (summary.total_created, summary.total_failed) == (2, 1)
-    assert "The statement is in USD but the portfolio is in EUR" in summary.errors[0]
+    assert (summary.total_created, summary.total_failed) == (3, 0)
     rows = test_db.query(Transaction).order_by(Transaction.id).all()
     assert [(r.transaction_type.value, r.total_amount, r.currency) for r in rows] == [
         ("buy", Decimal("301"), "EUR"),
         ("dividend", Decimal("0.37"), "EUR"),
+        ("dividend", Decimal("1"), "USD"),
     ]
     assert rows[1].taxes == Decimal("0.13")
 

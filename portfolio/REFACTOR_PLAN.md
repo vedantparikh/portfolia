@@ -12,7 +12,7 @@ Target host: NVIDIA Jetson AGX Xavier home server shared with ~35 other containe
 
 | Area | State | Most important issues |
 |---|---|---|
-| **Calculation correctness** | 🟡 Core fixed (2026-10-16) | *Fixed:* one engine in `core/domain` (FIFO with fees, automatic splits, completed-only, no cost fallback for missing prices, correct today's P&L, one risk-free rate); chart, performance, multi-period, risk, summary, holdings, overview, allocation and rebalancing all read it and agree; verified to the cent against an independent replay. *Open:* FX (EUR vs USD), Trade Republic dividends/tax/fees/currency, benchmark maths, legacy analytics snapshot metrics, indicator formulas. |
+| **Calculation correctness** | 🟡 Core fixed (2026-10-16) | *Fixed:* one engine in `core/domain` (FIFO with fees, automatic splits, completed-only, no cost fallback for missing prices, correct today's P&L, one risk-free rate, Yahoo FX into the portfolio currency); chart, performance, multi-period, risk, summary, holdings, overview, allocation and rebalancing all read it and agree; verified to the cent against an independent replay. *Open:* Trade Republic dividends/tax/fees on a real statement, legacy analytics snapshot metrics, indicator formulas. |
 | **Backend architecture** | ⚠️ Inconsistent | Every endpoint is `async def` but uses a sync SQLAlchemy session, so it blocks the event loop. There is no repository layer, and routers (analytics, assets, auth) run queries and commits directly. Domain errors and leak-free details since 1.3 (🟡). Three config systems are stacked. Alembic owns the schema (1.6 ✅). `/assets/search` is shadowed by `/{asset_id}`. Symbol search exists in 5 places. The dashboard router is dead and never mounted. |
 | **Frontend** | 🟡 Cleaner, still hard to extend | *Done:* modernised dashboard/portfolio screens, shared `StatCard`/`Sparkline`/charts, financial maths removed from the main views, React 19/Vite 8/Tailwind 4, Sentry removed. *Open:* zero tests, `api.js` 1,731 lines, no data-fetching layer, tokens in localStorage, `dangerouslySetInnerHTML`, hard-coded `$`, 24 hand-rolled modals. |
 | **Tests** | 🟡 Green gate, thin coverage | Gate: 165 passed, 42 quarantined xfail, 8 quarantined uncollectable files. Golden tests for the engine (`test_domain_engine.py`), SQLite service tests for positions/summary/series, characterisation snapshots. Still no frontend or e2e tests; integration tests mostly quarantined. |
@@ -187,11 +187,11 @@ Golden tests are written first for every item.
 |---|---|---|
 | 🟡 2.1 | `domain/positions.py`: FIFO with fees, SPLIT, TRANSFER_IN/OUT and DIVIDEND (with a given amount and tax). Add schema validation: qty > 0 and price ≥ 0 per type. **Now:** `core/domain/positions.py`: completed-only, FIFO with fees, splits applied automatically from market data (trades in today's share units). TRANSFER_IN/OUT and per-type validation open. | C1, C2, M2, M3 |
 | 🟡 2.2 | Importer fix: the Trade Republic dividend amount and withholding tax are kept, and the currency is set. Run a data migration that recomputes affected rows. **Now:** `fix/tr-import`: dividends keep their cash amount, EUR currency and taxes stored, €1 trade fee split out (€0 savings plans), cash rows skipped with a reason, March/June dates and the confidence crash fixed. No data migration needed (no real data). Open: check against a real statement. | C2 |
-| ⏳ 2.3 | `modules/fx`: historical FX provider and cache. Add `asset.quote_currency`, and normalise GBp. **Interim (2026-10-16):** one currency per portfolio, enforced on every transaction write; per-currency dashboard totals. Design agreed: Yahoo daily pair closes, convert asset closes into the portfolio currency per day, convert cash only when the transaction currency differs. | C3 |
+| ✅ 2.3 | `core/domain/fx.py` + `MarketDataService.get_fx_rates`. `assets.currency` is the quote currency (no second column). `GBp`/`GBX` and `ILA` scale to GBP/ILS. Yahoo `{QUOTE}{PORTFOLIO}=X` daily closes (inverse if needed), same 6h Redis cache as history. Closes and live prices convert every day; cash converts only when `transaction.currency` differs. Missing rate raises. Dashboard totals stay per portfolio currency. | C3 |
 | 🟡 2.4 | `MarketDataProvider` interface with one Yahoo implementation: unadjusted closes and corporate-action feed, Redis pipeline cache, concurrency limit and backoff. Delete the 4 duplicate search paths so a single `/assets/search` remains. **Now:** `get_daily_history` (split-adjusted, not dividend-adjusted closes + splits/dividends, Redis 6h) is the valuation source. Provider interface, backoff and single search open. | C1, H5, perf |
-| 🟡 2.5 | `domain/valuation.py`: daily holdings × unadjusted price × FX on a trading calendar, with explicit stale/missing flags. **Now:** `core/domain/valuation.py` `daily_series` on the trading-day calendar; missing price raises instead of cost fallback. FX and stale-after-N-days flags open. | H4, H6, M5 |
+| 🟡 2.5 | `domain/valuation.py`: daily holdings × unadjusted price × FX on a trading calendar, with explicit stale/missing flags. **Now:** `daily_series` on the trading-day calendar; missing price raises instead of cost fallback; FX is applied by the caller (`fx.py`) before this. Stale-after-N-days flags open. | H4, H6, M5 |
 | ✅ 2.6 | `domain/returns.py` and `domain/risk.py`: TWR, XIRR (with opening value), CAGR, calendar-date period returns, and risk metrics with a single risk-free rate and percent units. **Now:** `core/domain/returns.py`: TWR, XIRR (period + annual), CAGR, calendar periods, `period_summary`, one `RISK_FREE_RATE`; chart, /performance, /multi-period and risk agree exactly. | H1, H3, M6, M10 |
-| ✅ 2.7 | Benchmark shadow portfolio built on the same functions, with a total-return index. **Done:** `core/domain/benchmark.py` `shadow_series` + `GET /portfolios/calculations/portfolio/{id}/benchmark`, Performance Chart "Compare with"; old benchmark endpoints and ~560 lines of legacy helpers removed. FX for foreign-currency benchmarks waits on 2.3. | C4, H2 |
+| ✅ 2.7 | Benchmark shadow portfolio built on the same functions, with a total-return index. **Done:** `core/domain/benchmark.py` `shadow_series` + `GET /portfolios/calculations/portfolio/{id}/benchmark`, Performance Chart "Compare with"; old benchmark endpoints and ~560 lines of legacy helpers removed. A foreign-currency benchmark is converted with 2.3 before the shadow is built. | C4, H2 |
 | 🟡 2.8 | Today's P&L formula and a correct previous close (time-aware rather than `iloc[0]` of 2 days). **Now:** `day_change` implemented and used by holdings/summary/overview; previous close still `yf.download(2d)` first row, 12h cache. | H5 |
 | ✅ 2.9 | Allocation and rebalancing in shares. Fix the indicator formulas (Wilder RSI/ATR/ADX, population-std Bollinger, CCI, StochRSI). **Done (2026-10-16):** all 17 indicators match `ta` (reference test), real PSAR, configuration UI wired. **Now:** Allocation from live holdings, rebalancing in shares with the stored threshold. Indicator formulas open (PSAR stub, non-Wilder RSI/ATR/ADX, sample-std Bollinger). | M8, Low |
 | 🟡 2.10 | `PortfolioAsset` becomes a derived cache, rebuilt on every transaction write. Remove the client-writable quantity and P&L fields. **Now:** Rebuilt on every transaction write and on refresh; client-writable `PUT /portfolios/{id}/assets/{asset_id}` remains. | M1 |
@@ -268,13 +268,14 @@ Answered:
 - **Compose intent:** drop the `/media` bind mount and keep DB/Redis private. Done in 0.1.
 - **GPU:** use it via shared GPU services (ollama) and an optional GPU worker profile only where benchmarks justify it (§1b).
 
+- **Multi-currency:** yes. Source is Yahoo `{QUOTE}{PORTFOLIO}=X` daily closes (free), inverted when only the reverse pair exists. ECB rates were not used.
+
 Open:
-1. **Multi-currency:** do you need full FX support (EUR portfolio holding USD assets)? That is my recommendation, given Trade Republic. Which FX source: Yahoo `EURUSD=X` (free) or ECB rates?
-2. **Sync vs async DB:** I recommend sync SQLAlchemy with `def` endpoints, which is simpler and fits the Jetson. The alternative is a full AsyncSession/asyncpg migration.
-3. **TypeScript migration on the frontend:** gradual (recommended) or not at all.
-4. **Refresh token in an httpOnly cookie:** this changes the auth flow between frontend and backend. Recommended, but it is optional.
-5. **Public hostname:** Tailscale-only (`*.ts.net`, recommended) or exposed to the internet?
-6. **Staging auto-deploy:** a systemd timer pulling `edge` (recommended), or manual `deploy.sh staging edge` only?
+1. **Sync vs async DB:** I recommend sync SQLAlchemy with `def` endpoints, which is simpler and fits the Jetson. The alternative is a full AsyncSession/asyncpg migration.
+2. **TypeScript migration on the frontend:** gradual (recommended) or not at all.
+3. **Refresh token in an httpOnly cookie:** this changes the auth flow between frontend and backend. Recommended, but it is optional.
+4. **Public hostname:** Tailscale-only (`*.ts.net`, recommended) or exposed to the internet?
+5. **Staging auto-deploy:** a systemd timer pulling `edge` (recommended), or manual `deploy.sh staging edge` only?
 
 ## 5. Risks
 
@@ -318,6 +319,7 @@ Open:
 | 2026-10-16 | `feat/indicators` | — | 2.9: RSI/StochRSI/MACD/ADX/Aroon/CCI/BB/ATR/Keltner/VPT/VWAP fixed and PSAR implemented, all pinned to `ta`; data now calculated oldest-first with ~400 days warm-up; second indicator class no longer dropped; saved configurations drive the chart (manager modal, configuration_id, list); one pane per oscillator; private configurations no longer readable by others |
 | 2026-10-20 | `feat/import-dedup` | — | Re-importing a statement is safe: each parsed row gets a `source_key` (stored on `transactions`, unique per portfolio, migration `a3f1c9d2e7b4`); bulk-create skips known rows (`total_skipped`) and keys older keyless imports it matches by date/type/ISIN/qty/amount; `/transactions/imported` lets the review table mark and leave out rows already in the chosen portfolio |
 | 2026-10-26 | `docs/product-guide` | — | Root README, user guide with screenshots of the `demo` account, and the stale guides under `python/app/docs/` rewritten to the current stack. `setup-docker.sh` left as a host check |
+| 2026-10-26 | `feat/fx-yahoo-rates` | — | 2.3: Yahoo daily FX into the portfolio currency (`core/domain/fx.py`). Closes and live prices convert; cash converts only when the transaction currency differs. `GBp`/`ILA` scaled. Foreign listings and imports are accepted. Per-portfolio dashboard totals unchanged |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -351,7 +353,7 @@ Open:
 ### Next up (suggested order)
 1. ✅ Benchmark comparison (2.7).
 2. **Trade Republic import fixes** (2.2) plus the import UI counter.
-3. **FX** (2.3): decide the source (open decision 1).
+3. ✅ FX (2.3): Yahoo daily pair closes.
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).

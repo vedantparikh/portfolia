@@ -133,6 +133,12 @@ async def test_service_compares_against_the_shadow(test_db, monkeypatch, portfol
             [50.0, 50.0, 55.0, 60.5],
             index=days.insert(0, days[0] - pd.Timedelta(days=3)),
         ),
+        # The book is EUR and the listing is USD. A rate of 1 keeps the hand
+        # numbers; the conversion itself is covered in test_fx.py.
+        "USDEUR=X": pd.Series(
+            [1.0, 1.0, 1.0, 1.0],
+            index=days.insert(0, days[0] - pd.Timedelta(days=3)),
+        ),
     }
     service = PortfolioCalculationService(test_db)
 
@@ -162,7 +168,7 @@ async def test_service_compares_against_the_shadow(test_db, monkeypatch, portfol
     assert result["shadow"]["twr_pct"] == pytest.approx(21.0)
     assert result["portfolio"]["twr_pct"] == pytest.approx(21.0)
     assert result["difference"]["profit"] == pytest.approx(0.0)
-    assert any("quoted in USD" in w for w in result["warnings"])
+    assert not any("quoted in USD" in w for w in result["warnings"])
     assert any("paid 1 dividends" in w for w in result["warnings"])
 
 

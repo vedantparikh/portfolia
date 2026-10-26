@@ -29,10 +29,12 @@ from core.database.models import (
     TransactionType,
 )
 from core.domain.benchmark import shadow_series
+from core.domain.fx import convert_closes, convert_trades
 from core.domain.positions import OversellError, Split, to_trades
 from core.domain.returns import compute_daily_returns, period_summary, split_period
 from core.domain.valuation import MissingPriceError, daily_series
 from core.errors import NotFoundError
+from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
 from core.services.utils import PeriodType
 
@@ -596,16 +598,20 @@ class PortfolioCalculationService:
 
     async def get_market_history(
         self, asset_ids
-    ) -> Tuple[Dict[int, pd.Series], Dict[int, List[Split]], Dict[int, str]]:
+    ) -> Tuple[
+        Dict[int, pd.Series], Dict[int, List[Split]], Dict[int, str], Dict[int, str]
+    ]:
         """Split-adjusted closes, split events and symbols for the given assets."""
         closes: Dict[int, pd.Series] = {}
         splits: Dict[int, List[Split]] = {}
         symbols: Dict[int, str] = {}
+        currencies: Dict[int, str] = {}
         for asset_id in asset_ids:
             asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
             if not asset:
                 raise NotFoundError(f"Asset {asset_id} not found")
             symbols[asset_id] = asset.symbol
+            currencies[asset_id] = getattr(asset, "currency", None) or "USD"
             history = await self.market_data_service.get_daily_history(asset.symbol)
             if history is None:
                 continue
@@ -614,7 +620,7 @@ class PortfolioCalculationService:
                 (day.date(), Decimal(str(ratio)))
                 for day, ratio in history["splits"].items()
             ]
-        return closes, splits, symbols
+        return closes, splits, symbols, currencies
 
     async def get_portfolio_series(
         self, all_transactions: List[Transaction], end_date: datetime
@@ -626,8 +632,41 @@ class PortfolioCalculationService:
         )
         if key not in self._series_cache:
             asset_ids = sorted({t.asset_id for t in all_transactions})
-            closes, splits, symbols = await self.get_market_history(asset_ids)
-            trades = to_trades(all_transactions, splits)
+            closes, splits, symbols, currencies = await self.get_market_history(
+                asset_ids
+            )
+            portfolio_id = getattr(all_transactions[0], "portfolio_id", None)
+            portfolio = (
+                self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+                if portfolio_id is not None
+                else None
+            )
+            portfolio_currency = getattr(portfolio, "currency", None) or "USD"
+            cash_currency = {
+                (getattr(tx, "id", None) or 0): getattr(tx, "currency", None)
+                or portfolio_currency
+                for tx in all_transactions
+            }
+            rates = await load_rates(
+                self.market_data_service,
+                portfolio_currency,
+                list(currencies.values()) + list(cash_currency.values()),
+            )
+            closes = {
+                asset_id: convert_closes(
+                    series,
+                    currencies.get(asset_id, portfolio_currency),
+                    portfolio_currency,
+                    rates,
+                )
+                for asset_id, series in closes.items()
+            }
+            trades = convert_trades(
+                to_trades(all_transactions, splits),
+                cash_currency,
+                portfolio_currency,
+                rates,
+            )
             self._series_cache[key] = daily_series(
                 trades, closes, end_date.date(), symbols
             )
@@ -708,10 +747,9 @@ class PortfolioCalculationService:
             "points": [],
             "warnings": [],
         }
-        if currency and currency != portfolio.currency:
+        if currency is None:
             result["warnings"].append(
-                f"{symbol} is quoted in {currency} and the portfolio in "
-                f"{portfolio.currency}; values are compared without currency conversion"
+                f"{symbol} has no known currency; its prices are compared unconverted"
             )
         transactions = self.get_transactions(portfolio_id, None, end)
         if not transactions:
@@ -723,7 +761,15 @@ class PortfolioCalculationService:
         try:
             series = await self.get_portfolio_series(transactions, end)
             start_day = start.date() if start else None
-            shadow = shadow_series(series, history["close"], start_day)
+            benchmark_close = history["close"]
+            if currency:
+                rates = await load_rates(
+                    self.market_data_service, portfolio.currency, [currency]
+                )
+                benchmark_close = convert_closes(
+                    benchmark_close, currency, portfolio.currency, rates
+                )
+            shadow = shadow_series(series, benchmark_close, start_day)
         except (MissingPriceError, OversellError) as e:
             result["error"] = str(e)
             return result

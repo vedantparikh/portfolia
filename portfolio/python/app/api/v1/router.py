@@ -7,7 +7,6 @@ from api.v1.analytics.router import router as analytics_router
 from api.v1.assets.router import router as assets_router
 from api.v1.assets.search_router import router as asset_search_router
 from api.v1.auth.router import router as auth_router
-from api.v1.health_router import router as test_router
 from api.v1.market.routers import router as market_router
 from api.v1.portfolio.router import router as portfolio_router
 from api.v1.portfolio_calculations.router import router as calculations_router
@@ -20,7 +19,6 @@ from api.v1.watchlist.router import router as watchlist_router
 def build_v1_router() -> APIRouter:
     """Mount every v1 router. Registration order is the match order."""
     router = APIRouter(prefix="/api/v1")
-    router.include_router(test_router)
     router.include_router(auth_router)
     router.include_router(market_router)
     router.include_router(indicators_router)

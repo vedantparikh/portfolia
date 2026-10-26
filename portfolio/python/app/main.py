@@ -81,7 +81,7 @@ async def root():
         "message": "Welcome to Portfolia API",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health",
+        "health": "/health/ready",
     }
 
 
@@ -89,7 +89,7 @@ async def api_root():
     """API root endpoint."""
     return {
         "message": "Portfolia API v1",
-        "endpoints": {"health": "/health", "test": "/api/v1/test", "docs": "/docs"},
+        "endpoints": {"health": "/health/ready", "docs": "/docs"},
     }
 
 

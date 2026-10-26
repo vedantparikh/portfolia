@@ -137,8 +137,9 @@ smoke() {
   local url attempt
   local -a urls=(
     "http://127.0.0.1:${PORTFOLIO_UI_PORT}/"
-    "http://127.0.0.1:${PORTFOLIO_UI_PORT}/api/v1/health"
-    "http://127.0.0.1:${PORTFOLIO_API_PORT}/health/"
+    "http://127.0.0.1:${PORTFOLIO_UI_PORT}/api/v1/"
+    "http://127.0.0.1:${PORTFOLIO_API_PORT}/health/live"
+    "http://127.0.0.1:${PORTFOLIO_API_PORT}/health/ready"
   )
   for url in "${urls[@]}"; do
     attempt=1

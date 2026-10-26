@@ -5,7 +5,7 @@
 | Method | Used for | Redis TTL |
 |---|---|---|
 | `get_current_prices` | Holdings and summaries. `regularMarketPrice`, then `currentPrice`, then `previousClose` | 60 s |
-| `get_yesterdays_closes` | Today's P&L. `yf.download` over 2 days, first row | 12 h |
+| `get_yesterdays_closes` | Today's P&L. Last session before the current one, in the bar's timezone | 12 h, UTC-date key |
 | `get_daily_history` | Valuation. Closes are split-adjusted and not dividend-adjusted (`auto_adjust=False`), plus split and dividend events | 6 h |
 | `fetch_ticker_data` | Charts, indicators, benchmark history. Dividend-adjusted by default | none |
 | `get_ticker_info` | Asset detail | 15 min |

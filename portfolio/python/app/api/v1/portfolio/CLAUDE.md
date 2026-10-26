@@ -16,7 +16,7 @@
 | `POST/GET /{id}/transactions` | Portfolio-scoped transaction create/list (create triggers `recalculate_asset_state`) |
 | `GET /search?search_term=&currency=`, `GET /public/discover` | Own portfolios by name/currency; discover lists public portfolios. No UI for either |
 
-`PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Prices: `MarketDataService.get_current_prices` (Redis 60s), previous close `get_yesterdays_closes` (12h), both multiplied by the FX rate on that day.
+`PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Prices: `MarketDataService.get_current_prices` (Redis 60s), previous close `get_yesterdays_closes` (last finished session, 12h, UTC-date key), both multiplied by the FX rate on that day.
 
 ## Frontend — `js/src/components/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):
@@ -35,7 +35,6 @@ Create portfolio → add transactions (Transactions page, PDF import, or Add Pos
 - `PUT /{id}/assets/{asset_id}` lets clients write quantity/cost/P&L directly (bypasses transactions) — plan 2.10.
 - `PortfolioSummary()` returned bare for a foreign portfolio (validation error path).
 - No FX yet (plan 2.3): a portfolio holds only assets quoted in its own currency — `add_transaction` raises `CurrencyMismatchError` (400) otherwise, and records the portfolio currency on the transaction.
-- Today's P&L previous close: `yf.download(period="2d")` first row, cached 12h.
 - Delete flows have no undo; holdings include zero-quantity rows in the table.
 
 ## Planned

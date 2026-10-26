@@ -17,7 +17,7 @@
 
 ## Who calls it
 - `PortfolioCalculationService.get_portfolio_series` (memoised per request) → `/portfolios/calculations/.../performance`, `/performance/series`, `/multi-period`, `/benchmark` (+ `shadow_series`), analytics `/performance/history`, `/risk`, `/advance-risk` (via `get_portfolio_history`).
-- `PortfolioService.recalculate_asset_state` → `compute_position` (cached `PortfolioAsset`), `_holding_rows` → `day_change`.
+- `PortfolioService.recalculate_asset_state` → `compute_position` (cached `PortfolioAsset`), `_holding_rows` → `day_change`. The previous close is the last session before the current one (`market_data/sessions.py`), in the bar's timezone.
 - Prices: `MarketDataService.get_daily_history` (split-adjusted, not dividend-adjusted closes + split/dividend events; Redis 6h). FX: `get_fx_rates` reads `{QUOTE}{PORTFOLIO}=X` through that same cache (inverse pair if the direct one is missing). `load_rates` (`core/services/fx.py`) fetches; this package only multiplies.
 
 ## Rules for changes

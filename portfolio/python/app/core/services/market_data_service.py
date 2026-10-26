@@ -5,7 +5,7 @@ Handles fetching real-time market data from yfinance without database storage.
 
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -49,7 +49,8 @@ class MarketDataService:
 
     def _get_yesterdays_close_cache_key(self, symbol: str) -> str:
         """Generates a consistent cache key for yesterday's close price."""
-        return f"yfinance:yesterday_close:{symbol.upper()}"
+        day = datetime.now(timezone.utc).date().isoformat()
+        return f"yfinance:yesterday_close:{symbol.upper()}:{day}"
 
     async def get_current_price(self, symbol: str) -> Optional[float]:
         """OPTIMIZED: Wraps the batch method for efficiency."""

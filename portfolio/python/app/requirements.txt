@@ -21,7 +21,7 @@ pyarrow==26.0.0
 httpx==0.28.1
 
 # Authentication and Security
-python-jose[cryptography]==3.5.0
+PyJWT==2.15.1
 bcrypt==5.0.0
 pydantic==2.14.1
 pydantic-settings==2.16.0

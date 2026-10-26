@@ -2,14 +2,17 @@
 Authentication utilities for password hashing, JWT tokens, and security.
 """
 
+import hashlib
+import hmac
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Union
 
 import bcrypt
+import jwt
 from fastapi import HTTPException, status
-from jose import JWTError, jwt
+from jwt.exceptions import PyJWTError as JWTError
 from pytz import utc
 
 from config import settings
@@ -30,6 +33,23 @@ REFRESH_TOKEN_EXPIRE_MINUTES = settings.REFRESH_TOKEN_EXPIRE_MINUTES
 def _bcrypt_input(password: str) -> bytes:
     # bcrypt only uses the first 72 bytes; passlib truncated silently, bcrypt>=5 raises
     return password.encode("utf-8")[:72]
+
+
+# Fixed hash so an unknown username still costs one bcrypt check.
+DUMMY_PASSWORD_HASH = "$2b$12$ZLY92caJi5WyyoKcQcyI0uLxvOnZ3ecO/cotYxa/Pb9IEO/9kSyYi"
+
+
+def hash_refresh_token(token: str) -> str:
+    """SHA-256 hex of a refresh token. The database stores this, not the token."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def refresh_token_matches(stored: str, presented: str) -> bool:
+    """True when `stored` is the hash of `presented`."""
+    digest = hash_refresh_token(presented)
+    if len(stored) != len(digest):
+        return False
+    return hmac.compare_digest(stored, digest)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

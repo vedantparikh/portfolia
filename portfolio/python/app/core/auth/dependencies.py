@@ -5,9 +5,10 @@ Authentication dependencies for FastAPI routes.
 from datetime import datetime, timezone
 from typing import Optional
 
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jwt.exceptions import PyJWTError as JWTError
 from sqlalchemy.orm import Session
 
 from core.auth.utils import ALGORITHM, SECRET_KEY, verify_token
@@ -174,22 +175,6 @@ def require_permission(permission: str):
         return current_user
 
     return permission_checker
-
-
-def require_admin():
-    """Require admin privileges."""
-
-    def admin_checker(current_user: User = Depends(get_current_user)):
-        # For now, we'll implement basic admin checking
-        # In a full RBAC system, this would check admin role
-        if not current_user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user"
-            )
-        # Add admin role check here when implemented
-        return current_user
-
-    return admin_checker
 
 
 def get_token_data(token: str) -> TokenData:

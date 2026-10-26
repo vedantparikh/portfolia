@@ -15,8 +15,16 @@ from fastapi.testclient import TestClient
 
 import api.v1.auth.router as auth_router
 import core.database.redis_client as redis_client_module
+from core.auth.utils import DUMMY_PASSWORD_HASH, hash_refresh_token
 from core.database.connection import get_db
-from core.database.models import Asset, Portfolio, PortfolioAsset, Transaction, User
+from core.database.models import (
+    Asset,
+    Portfolio,
+    PortfolioAsset,
+    Transaction,
+    User,
+    UserSession,
+)
 from core.services.market_data_service import MarketDataService
 from main import app
 
@@ -178,6 +186,33 @@ class TestPasswordReset:
 
 
 class TestSessions:
+    def test_unknown_username_still_checks_a_password(self, api, monkeypatch):
+        seen = []
+        real = auth_router.verify_password
+
+        def spy(plain, hashed):
+            seen.append(hashed)
+            return real(plain, hashed)
+
+        monkeypatch.setattr(auth_router, "verify_password", spy)
+        response = api.post(
+            "/api/v1/auth/login",
+            json={"username": "nobody", "password": STRONG_PASSWORD},
+        )
+        assert response.status_code == 401
+        assert seen == [DUMMY_PASSWORD_HASH]
+
+    def test_refresh_token_is_stored_as_a_hash(self, api, test_db):
+        user, tokens = register_and_login(api, test_db, "alice")
+        stored = (
+            test_db.query(UserSession)
+            .filter(UserSession.user_id == user.id)
+            .one()
+            .refresh_token
+        )
+        assert stored == hash_refresh_token(tokens["refresh_token"])
+        assert stored != tokens["refresh_token"]
+
     def test_refresh_rotates_and_detects_reuse(self, api, test_db):
         _, tokens = register_and_login(api, test_db, "alice")
 

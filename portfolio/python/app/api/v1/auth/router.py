@@ -19,6 +19,7 @@ from core.auth.dependencies import (
     validate_refresh_token,
 )
 from core.auth.utils import (
+    DUMMY_PASSWORD_HASH,
     REFRESH_TOKEN_EXPIRE_MINUTES,
     consume_reset_token,
     create_tokens,
@@ -27,8 +28,10 @@ from core.auth.utils import (
     generate_session_id,
     generate_verification_token,
     get_password_hash,
+    hash_refresh_token,
     is_password_strong,
     mark_verification_token_used,
+    refresh_token_matches,
     sanitize_username,
     store_reset_token,
     store_verification_token,
@@ -267,10 +270,12 @@ def login_user(
         username, "login_user", LOGIN_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_SECONDS
     )
 
-    # Find user by username
+    # Find user by username. An unknown name still runs bcrypt against a fixed hash.
     user = db.query(User).filter(User.username == username).first()
+    password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    password_ok = verify_password(user_credentials.password, password_hash)
 
-    if not user or not verify_password(user_credentials.password, user.password_hash):
+    if user is None or not password_ok:
         # Log failed login attempt
         log_security_event(
             logger,
@@ -296,7 +301,7 @@ def login_user(
     user_session = UserSession(
         user_id=user.id,
         session_id=session_id,
-        refresh_token=tokens["refresh_token"],
+        refresh_token=hash_refresh_token(tokens["refresh_token"]),
         expires_at=datetime.now(timezone.utc)
         + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES),
         ip_address=client_ip,
@@ -351,7 +356,9 @@ def refresh_access_token(
     if not user_session:
         raise invalid
 
-    if user_session.refresh_token != refresh_request.refresh_token:
+    if not refresh_token_matches(
+        user_session.refresh_token, refresh_request.refresh_token
+    ):
         # Token reuse: an old refresh token was presented. Assume theft and revoke.
         user_session.is_active = False
         db.commit()
@@ -369,7 +376,7 @@ def refresh_access_token(
         raise invalid
 
     tokens = create_tokens(user.id, user.email, user.username, session_id)
-    user_session.refresh_token = tokens["refresh_token"]
+    user_session.refresh_token = hash_refresh_token(tokens["refresh_token"])
     user_session.expires_at = now + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
     db.commit()
 

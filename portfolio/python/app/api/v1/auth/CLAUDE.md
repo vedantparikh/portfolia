@@ -2,14 +2,14 @@
 
 **Purpose:** accounts with JWT access/refresh tokens, email verification and password reset.
 
-**State (2026-10-16):** ✅ register/login/refresh/logout/verify/reset work. ⚠️ no profile/settings UI; tokens in localStorage.
+**State (2026-10-26):** ✅ register/login/refresh/logout/verify/reset work. Access tokens are PyJWT. The database stores the SHA-256 of the refresh token, not the token. An unknown username still runs one bcrypt check. ⚠️ no profile/settings UI; tokens in localStorage.
 
 ## Backend — `router.py` (prefix `/api/v1/auth`), `core/auth/utils.py`, `core/auth/dependencies.py`
 | Endpoint | Behaviour |
 |---|---|
 | `POST /register` | Creates user + profile, sends verification email (Brevo SMTP). Rate limited |
-| `POST /login` | Username/email + password (bcrypt, 72-byte truncation) → access + refresh token. Rate limited |
-| `POST /refresh` | Single-use rotation; reusing a refresh token revokes the session |
+| `POST /login` | Username/email + password (bcrypt, 72-byte truncation) → access + refresh token. Unknown usernames check a dummy hash. Rate limited |
+| `POST /refresh` | Single-use rotation; the session stores the token's SHA-256. Reuse revokes the session |
 | `POST /logout` | Revokes the session |
 | `GET /me`, `GET /me/profile`, `PUT /me`, `DELETE /me` | Current user / profile |
 | `POST /change-password`, `POST /forgot-password`, `GET /validate-reset-token/`, `POST /reset-password` | Reset tokens kept in Redis |
@@ -29,4 +29,4 @@ Register → email link → `/verify-email` → login (tokens in localStorage) �
 - `core/database/models/auth.py` is a dead duplicate of the user tables; `generate_two_factor_code` unused (no 2FA).
 
 ## Planned
-Plan 1.9 (python-jose → PyJWT, hashed refresh tokens at rest, dummy hash on unknown users), 4.6 (refresh token in httpOnly cookie, access token in memory), a settings page (profile, password, delete account).
+Plan 4.6 (refresh token in an httpOnly cookie, access token in memory), a settings page (profile, password, delete account).

@@ -13,6 +13,34 @@ PROJECT=$COMPOSE_PROJECT_NAME
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "release image tags"
+tags=$(IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" api version abcdef1 0.1.10)
+[ "$tags" = "ghcr.io/example/portfolia-api:0.1.10
+ghcr.io/example/portfolia-api:0.1
+ghcr.io/example/portfolia-api:sha-abcdef1" ]
+tags=$(IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" web edge abcdef1234567)
+[ "$tags" = "ghcr.io/example/portfolia-web:edge
+ghcr.io/example/portfolia-web:sha-abcdef1" ]
+if IMAGE_PREFIX=ghcr.io/example "$ROOT/scripts/release-tags.sh" api version abcdef1 v0.1.0 >/dev/null 2>&1; then
+  echo "FAIL release-tags accepted a v prefix"
+  exit 1
+fi
+
+# CI has no secrets. Prod and staging env files live outside the repo.
+step "compose env files"
+env_dir="$ROOT/../env"
+mkdir -p "$env_dir"
+chmod 700 "$env_dir"
+if [ ! -f "$env_dir/prod.env" ]; then
+  cp "$ROOT/python/app/.env.example" "$env_dir/prod.env"
+  chmod 600 "$env_dir/prod.env"
+fi
+if [ ! -f "$env_dir/staging.env" ]; then
+  sed 's/^POSTGRES_DB=portfolio$/POSTGRES_DB=portfolio_staging/' \
+    "$ROOT/python/app/.env.example" > "$env_dir/staging.env"
+  chmod 600 "$env_dir/staging.env"
+fi
+
 step "compose config"
 docker compose -f compose.dev.yaml config -q
 docker compose -f compose.yaml config -q

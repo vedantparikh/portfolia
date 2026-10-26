@@ -8,7 +8,7 @@
 | Endpoint | Behaviour |
 |---|---|
 | `GET /periods` | Period codes for the Performance Metrics dropdown (3m … inception). `1m` is accepted everywhere but not listed |
-| `GET /portfolio/{id}/performance/series?period=` | **Chart source.** `points[]` per trading day: `value`, `invested` (= value at period start + deposits − withdrawals since), `cost_basis` (FIFO); `summary` = `period_summary`; `error` on missing price/oversell |
+| `GET /portfolio/{id}/performance/series?period=` | **Chart source.** `points[]` per trading day: `value`, `invested` (= value at period start + deposits − withdrawals since), `cost_basis` (FIFO), `stale_price` and `stale_symbols` when a holding's close is more than 5 sessions old (the last close is still the value); `summary` = `period_summary`; `error` on missing price/oversell |
 | `GET|POST /portfolio/{id}/performance?period=` | `metrics`: twr, mwr (both over the period), cagr (annualised TWR, plain TWR under a year), xirr (annual), volatility, max_drawdown; `current_value`. Switches to inception when the portfolio is younger than the period |
 | `GET /portfolio/{id}/multi-period?periods=` | The above for several periods; one memoised engine run per request |
 | `GET /benchmarks?currency=` | Suggested total-return benchmarks (`BENCHMARKS` in the service): EUR `EUNL.DE` (default), `VWCE.DE`, `SXR8.DE`, `SXRV.DE`; USD `^SP500TR` |
@@ -18,7 +18,7 @@
 Engine path: `get_transactions` (completed) → `get_market_history` (closes + splits via `MarketDataService.get_daily_history`) → `to_trades` → `daily_series` → `period_summary`. Memoised in `_series_cache` per service instance. First call for a portfolio fetches max history per symbol (~1–2 s each, cached 6 h in Redis).
 
 ## Frontend
-- **Performance Chart** view: `js/src/components/portfolio/PortfolioChart.jsx` — period pills 1M…All, StatCards (Value, Profit, Return TWR, Return money-weighted), `PerformanceSeriesChart` (lightweight-charts: Value area, Invested line, optional Cost basis), Risk card (drawdown, volatility, Sharpe, best/worst day), Money in and out card.
+- **Performance Chart** view: `js/src/components/portfolio/PortfolioChart.jsx` — period pills 1M…All, StatCards (Value, Profit, Return TWR, Return money-weighted), `PerformanceSeriesChart` (lightweight-charts: Value area, Invested line, optional Cost basis; an amber note when the hovered day is `stale_price`), Risk card (drawdown, volatility, Sharpe, best/worst day), Money in and out card.
 - `ValueVsInvestedChart.jsx` (Holdings Detail) and dashboard sparklines (`period=3m`) read the same series.
 - **Performance Metrics** view: `PortfolioPerformanceMetrics.jsx` — `/performance` + `/multi-period`; tiles labelled "this period" / "per year"; MWR-vs-TWR timing insight; a note points to the benchmark comparison.
 - **Benchmark**: in the Performance Chart view, "Compare with" (suggested options for the portfolio currency, or any Yahoo ticker) adds a purple "Same money in X" line to `PerformanceSeriesChart` and a "Versus …" card (You / benchmark / Difference for value, profit, TWR, money-weighted) with the backend warnings.

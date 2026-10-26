@@ -23,11 +23,24 @@ def test_secure_production_config_passes():
     make_settings().validate_secrets()
 
 
+def test_short_unused_secret_key_is_ignored():
+    make_settings(SECRET_KEY="short").validate_secrets()
+
+
+def test_short_fallback_secret_is_rejected(monkeypatch):
+    monkeypatch.delenv("JWT_SECRET_KEY", raising=False)
+    values = dict(GOOD)
+    values.pop("JWT_SECRET_KEY")
+    values["SECRET_KEY"] = "short"
+    with pytest.raises(RuntimeError):
+        Settings(**values).validate_secrets()
+
+
 @pytest.mark.parametrize(
     "override",
     [
         {"JWT_SECRET_KEY": "your-jwt-secret-key-change-in-production"},
-        {"SECRET_KEY": "short"},
+        {"JWT_SECRET_KEY": "short"},
         {"POSTGRES_PASSWORD": "password"},
         {"REDIS_PASSWORD": ""},
         {"ALLOWED_ORIGINS": ["*"]},

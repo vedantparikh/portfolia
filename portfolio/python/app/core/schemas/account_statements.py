@@ -3,9 +3,10 @@ from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from core.database.models.transaction import TransactionType
+from core.schemas.portfolio import check_transaction_numbers
 
 
 class SupportedFormat(str, Enum):
@@ -154,6 +155,11 @@ class BulkTransactionItem(BaseModel):
         max_length=64,
         description="Statement row id from /parse; a row already in the portfolio is skipped",
     )
+
+    @model_validator(mode="after")
+    def _numbers(self):
+        check_transaction_numbers(self.transaction_type, self.quantity, self.price)
+        return self
 
 
 class BulkTransactionCreate(BaseModel):

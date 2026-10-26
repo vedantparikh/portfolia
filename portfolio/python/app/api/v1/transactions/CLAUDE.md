@@ -12,10 +12,11 @@
 | `POST /transactions/pdf/export`, `/export/download`, `/export/preview` | `core/services/transaction_pdf_export_service.py` (ReportLab). UI uses preview + download |
 
 Rules:
-- `total_amount` is always computed by the server: `Transaction.compute_total_amount`. BUY is qty×price+fees+taxes, SELL is qty×price−fees−taxes, and every other type is qty×price. A client-sent total is ignored.
+- `total_amount` is always computed by the server: `Transaction.compute_total_amount`. Buys and transfer-ins are qty×price+fees+taxes. Sells and transfer-outs are qty×price−fees−taxes. Every other type is qty×price. A client-sent total is ignored. An imported dividend is the exception: the statement amount is kept.
 - `OversellError` maps to 400 (handler in `main.py`).
 - Statuses: pending, completed, cancelled, failed. Only completed transactions count anywhere.
-- Types beyond buy/sell/dividend (split, transfer, fee, …) are stored but ignored by the maths. Splits come from market data.
+- A transfer in opens a lot at its cost (quantity × price + fees + taxes) and a transfer out closes FIFO lots at its proceeds (quantity × price − fees − taxes). Both count in today's P&L and in the performance series like a buy or a sell. Split, fee and the other corporate types are stored and ignored. Splits come from market data.
+- Buys, sells, transfers and splits need quantity > 0. Price is never negative. A dividend may have quantity 0: an imported dividend keeps the statement amount, not shares × rate.
 
 ## Frontend — `js/src/components/transactions/`
 - Route `/transactions` → `Transactions.jsx`:
@@ -39,4 +40,4 @@ Transactions → New Transaction (pick portfolio + asset via search, buy/sell/di
 - Dividend `taxes` are not netted out of `total_amount` (plan 2.2).
 
 ## Planned
-Plan 2.1 (schema validation per type, TRANSFER_IN/OUT lots), 2.2, 2.3, 3.5 (export in portfolio currency), server-side filtering/pagination.
+Plan 3.5 (export in portfolio currency), server-side filtering/pagination.

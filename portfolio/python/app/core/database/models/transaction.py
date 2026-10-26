@@ -164,15 +164,15 @@ class Transaction(Base):
         """
         Cash actually moved by a transaction, which is what `total_amount` stores.
 
-        BUY:  quantity * price + fees + taxes  (cash paid; becomes the cost basis)
-        SELL: quantity * price - fees - taxes  (net proceeds received)
+        BUY, TRANSFER_IN:  quantity * price + fees + taxes  (cost of the lot)
+        SELL, TRANSFER_OUT: quantity * price - fees - taxes  (proceeds leaving)
         Other types: quantity * price
         """
         gross = Decimal(quantity) * Decimal(price)
         costs = Decimal(fees or 0) + Decimal(taxes or 0)
-        if transaction_type == TransactionType.BUY:
+        if transaction_type in (TransactionType.BUY, TransactionType.TRANSFER_IN):
             return gross + costs
-        if transaction_type == TransactionType.SELL:
+        if transaction_type in (TransactionType.SELL, TransactionType.TRANSFER_OUT):
             return gross - costs
         return gross
 

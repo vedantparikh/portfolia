@@ -289,10 +289,14 @@ class PortfolioCalculationService:
         Cash flow from the investor's point of view: money in is negative, money
         back (sale proceeds, dividends) is positive. None for non-cash transactions.
         """
-        if transaction.transaction_type == TransactionType.BUY:
+        if transaction.transaction_type in (
+            TransactionType.BUY,
+            TransactionType.TRANSFER_IN,
+        ):
             return -float(transaction.total_amount)
         if transaction.transaction_type in (
             TransactionType.SELL,
+            TransactionType.TRANSFER_OUT,
             TransactionType.DIVIDEND,
         ):
             return float(transaction.total_amount)
@@ -343,9 +347,15 @@ class PortfolioCalculationService:
                 if asset_id not in holdings:
                     holdings[asset_id] = 0.0
 
-                if transaction.transaction_type == TransactionType.BUY:
+                if transaction.transaction_type in (
+                    TransactionType.BUY,
+                    TransactionType.TRANSFER_IN,
+                ):
                     holdings[asset_id] += quantity
-                elif transaction.transaction_type == TransactionType.SELL:
+                elif transaction.transaction_type in (
+                    TransactionType.SELL,
+                    TransactionType.TRANSFER_OUT,
+                ):
                     holdings[asset_id] -= quantity
 
             # Remove zero holdings

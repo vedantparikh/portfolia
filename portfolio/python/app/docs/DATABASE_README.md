@@ -1,297 +1,38 @@
-# 🗄️ Portfolia Database Documentation
+# Database
 
-## Overview
-
-This document describes the database architecture and setup for the Portfolia portfolio management application.
-
-## 🏗️ Database Architecture (Updated September 2024)
-
-### 🚀 Recent Changes
-
-- **Removed Market Data Tables**: `asset_prices`, `market_data`, `ticker_info`, `data_update_log`
-- **Enhanced Analytics**: Added comprehensive portfolio analytics tables
-- **Schema Alignment**: All database models now perfectly match API schemas
-- **yfinance Integration**: Market data now fetched directly from external APIs
-
-### Core Tables
-
-#### 1. **Users & Authentication**
-
-- `users` - User account information with email verification
-- `user_profiles` - Extended user profile data and preferences
-- `user_sessions` - JWT session management and tracking
-
-#### 2. **Portfolio Management**
-
-- `portfolios` - User investment portfolios with metadata
-- `portfolio_assets` - Assets within portfolios with real-time valuations
-- `transactions` - Complete transaction history with full details
-
-#### 3. **Asset Management**
-
-- `assets` - Financial instruments (stocks, bonds, ETFs, etc.)
-- `market_indices` - Market benchmark indices for comparisons
-- **Note**: Price data now fetched from yfinance APIs in real-time
-
-#### 4. **Portfolio Analytics** (New)
-
-- `portfolio_performance_history` - Historical performance snapshots
-- `asset_performance_metrics` - Technical indicators and metrics
-- `portfolio_allocations` - Target allocations and rebalancing rules
-- `portfolio_risk_metrics` - Risk analysis and VaR calculations
-- `asset_correlations` - Asset correlation matrices
-- `portfolio_benchmarks` - Benchmark comparisons and tracking
-- `rebalancing_events` - Portfolio rebalancing history
-
-#### 5. **Watchlist Management**
-
-- `watchlists` - User watchlists with real-time tracking
-- `watchlist_items` - Individual stocks in watchlists
-- `watchlist_alerts` - Price alerts and notifications
-- `watchlist_performance` - Historical performance tracking
-
-#### 6. **Transaction Tracking**
-
-- `transactions` - Enhanced transaction model with all fields
-- `manual_entries` - Manual transaction entry audit trail
-
-## 🔧 Setup Instructions
-
-### Prerequisites
-
-1. **PostgreSQL 16.2+** running on port 5432
-2. **Redis** running on port 6379 (optional but recommended)
-3. **Python 3.12+** with virtual environment
-
-### Quick Setup
+Postgres 16 in the `postgres` compose service. Data is the named volume `postgres_data` (on this host, under the Docker data-root on `/mnt/samsung_ufs`). No host port. Connect with:
 
 ```bash
-# The API container runs `alembic upgrade head` on start (start_api.sh)
-docker compose up -d --wait
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
-### Manual Setup
+The URL the API uses is built in `config.py` from `POSTGRES_*`. Tests use SQLite via `TEST_DATABASE_URL` and never this server.
 
-```bash
-# 1. Activate virtual environment
-source .venv/bin/activate
+## Tables
 
-# 2. Install dependencies
-pip install -r requirements.txt
+Models are in `core/database/models/`. `core/database/models/auth.py` duplicates the user tables and is unused; the live ones are in `user.py`.
 
-# 3. Create or update the schema (Alembic is the only schema authority)
-alembic upgrade head
-```
+| Model | Table role |
+|---|---|
+| `User`, `UserProfile`, `UserSession` | Accounts, profile, refresh sessions |
+| `Portfolio`, `PortfolioAsset` | Books, and the position cache rebuilt from transactions |
+| `Transaction` | Buys, sells, dividends, and the other stored types. `source_key` makes a re-import skip the row |
+| `Asset`, `MarketIndex` | Symbols the user tracks. Unique on user + symbol |
+| `PortfolioPerformanceHistory` | Old snapshot rows. New charts do not read these |
+| `PortfolioAllocation`, `RebalancingEvent`, `PortfolioBenchmark` | Targets, stored rebalance events, benchmark names |
+| `Watchlist`, `WatchlistItem`, `WatchlistAlert`, `WatchlistPerformance` | Lists, items, fired alerts, one price row per item per day |
+| `AnalysisConfiguration` | Saved indicator sets |
 
-## 📊 Database Schema Details
+Prices are not stored as a history table. Yahoo history is cached in Redis (see [MARKET_DATA_SERVICE.md](MARKET_DATA_SERVICE.md)).
 
-### Users Table
+## Migrations
 
-```sql
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_login TIMESTAMP WITH TIME ZONE
-);
-```
+[development/MIGRATION_GUIDE.md](development/MIGRATION_GUIDE.md). Short version: Alembic on API startup, baseline `e97c82868ff5`, and the gate fails if models drift from the migrations.
 
-### Portfolios Table
+## Pool
 
-```sql
-CREATE TABLE portfolios (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    currency VARCHAR(3) DEFAULT 'USD',
-    is_active BOOLEAN DEFAULT TRUE,
-    is_public BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
+`POOL_SIZE` 20, `MAX_OVERFLOW` 30, `POOL_TIMEOUT` 30, `POOL_RECYCLE` 3600, all overridable. That pool is sized for a single personal user on a shared host, not for a public deployment.
 
-### Transactions Table
+## Backups
 
-```sql
-CREATE TABLE transactions (
-    id SERIAL PRIMARY KEY,
-    portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
-    asset_id INTEGER REFERENCES assets(id) ON DELETE CASCADE,
-    transaction_type transaction_type_enum NOT NULL,
-    status transaction_status_enum DEFAULT 'completed',
-    quantity NUMERIC(20,8) NOT NULL,
-    price NUMERIC(20,4) NOT NULL,
-    total_amount NUMERIC(20,4) NOT NULL,
-    currency VARCHAR(3) DEFAULT 'USD',
-    transaction_date TIMESTAMP WITH TIME ZONE NOT NULL,
-    settlement_date TIMESTAMP WITH TIME ZONE,
-    notes TEXT,
-    reference_number VARCHAR(100),
-    fees NUMERIC(20,4) DEFAULT 0,
-    taxes NUMERIC(20,4) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-## 🔐 Security Features
-
-### Authentication
-
-- JWT-based authentication with refresh tokens
-- Password hashing using bcrypt
-- Session management with Redis
-- Role-based access control (RBAC)
-
-### Data Protection
-
-- Foreign key constraints with CASCADE deletion
-- Input validation and sanitization
-- SQL injection prevention via SQLAlchemy ORM
-- Encrypted sensitive data storage
-
-## 📈 Performance Optimizations
-
-### Indexes
-
-- Primary keys on all tables
-- Foreign key indexes for joins
-- Composite indexes for common queries
-- Date-based indexes for time-series data
-
-### Connection Pooling
-
-- SQLAlchemy connection pooling
-- Configurable pool size and overflow
-- Connection recycling and timeout handling
-
-### Caching
-
-- Redis for session storage
-- Redis for frequently accessed data
-- Query result caching
-
-## 🚀 Migration Management
-
-### Using Alembic
-
-```bash
-# Create a new migration
-alembic revision --autogenerate -m "Description of changes"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback migration
-alembic downgrade -1
-
-# View migration history
-alembic history
-
-# Check current migration status
-alembic current
-```
-
-### Migration Best Practices
-
-1. **Always backup** before running migrations
-2. **Test migrations** in development first
-3. **Use descriptive names** for migration files
-4. **Review auto-generated migrations** before applying
-5. **Keep migrations small** and focused
-
-## 🔍 Health Monitoring
-
-### Health Check Endpoints
-
-```bash
-# Basic health check
-curl http://localhost:8080/health
-
-# Detailed health check with statistics
-curl http://localhost:8080/health/detailed
-```
-
-### Database Utilities
-
-```python
-from database.utils import (
-    get_database_stats,
-    validate_database_integrity,
-    cleanup_expired_sessions,
-    calculate_portfolio_value,
-)
-
-# Get database statistics
-stats = get_database_stats(db)
-
-# Validate database integrity
-integrity = validate_database_integrity(db)
-
-# Clean up expired sessions
-cleaned = cleanup_expired_sessions(db)
-```
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-#### Connection Errors
-
-```bash
-# Check PostgreSQL status
-pg_isready -h localhost -p 5432 -U username
-
-# Check Redis status
-redis-cli -h localhost -p 6379 ping
-```
-
-#### Migration Issues
-
-```bash
-# Reset migrations (DANGEROUS - only in development)
-alembic downgrade base
-alembic upgrade head
-
-# Check migration status
-alembic current
-alembic history
-```
-
-#### Performance Issues
-
-```bash
-# Check database statistics
-curl http://localhost:8080/health/detailed
-
-# Monitor slow queries
-# Enable SQLAlchemy echo in database/connection.py
-```
-
-## 📚 Additional Resources
-
-- [SQLAlchemy Documentation](https://docs.sqlalchemy.org/)
-- [Alembic Documentation](https://alembic.sqlalchemy.org/)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Redis Documentation](https://redis.io/documentation)
-
-## 🤝 Contributing
-
-When making database changes:
-
-1. **Update models** in `database/models/`
-2. **Create migration** using Alembic
-3. **Update documentation** in this file
-4. **Test thoroughly** before committing
-5. **Follow naming conventions** consistently
-
----
-
-**Note**: This database setup is designed for development and testing. For production deployment, additional security measures and performance optimizations should be implemented.
+Nothing in this repo dumps the database. Copying the volume of a running Postgres is not a backup. A dump belongs in the planned deploy flow, which is not built.

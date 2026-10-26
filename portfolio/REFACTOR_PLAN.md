@@ -1,6 +1,6 @@
 # Portfolia — Production Refactor Plan
 
-Status: **in progress**. Phases 0, 2 and 4 partly done; see the status marks and §6/§6b · Updated: 2026-10-16
+Status: **in progress**. Phases 0, 2 and 4 partly done; see the status marks and §6/§6b · Updated: 2026-10-26
 
 Legend: ✅ done · 🟡 partly done (**Now:** says what is left) · ⏳ not started
 Scope: `portfolio/` (FastAPI backend `python/app`, React frontend `js`, Docker, CI at git root)
@@ -16,7 +16,7 @@ Target host: NVIDIA Jetson AGX Xavier home server shared with ~35 other containe
 | **Backend architecture** | ⚠️ Inconsistent | Every endpoint is `async def` but uses a sync SQLAlchemy session, so it blocks the event loop. There is no repository layer, and routers (analytics, assets, auth) run queries and commits directly. Domain errors and leak-free details since 1.3 (🟡). Three config systems are stacked. Alembic owns the schema (1.6 ✅). `/assets/search` is shadowed by `/{asset_id}`. Symbol search exists in 5 places. The dashboard router is dead and never mounted. |
 | **Frontend** | 🟡 Cleaner, still hard to extend | *Done:* modernised dashboard/portfolio screens, shared `StatCard`/`Sparkline`/charts, financial maths removed from the main views, React 19/Vite 8/Tailwind 4, Sentry removed. *Open:* zero tests, `api.js` 1,731 lines, no data-fetching layer, tokens in localStorage, `dangerouslySetInnerHTML`, hard-coded `$`, 24 hand-rolled modals. |
 | **Tests** | 🟡 Green gate, thin coverage | Gate: 165 passed, 42 quarantined xfail, 8 quarantined uncollectable files. Golden tests for the engine (`test_domain_engine.py`), SQLite service tests for positions/summary/series, characterisation snapshots. Still no frontend or e2e tests; integration tests mostly quarantined. |
-| **Infra / CI** | ⚠️ Gated, still dev-only | *Fixed:* CI now runs `verify.sh --stack` on arm64, compose is hardened for the shared host, and secrets are out of images. *Open:* there is a single dev compose (reload, bind mounts, DEBUG), the API image is 1.9 GB and runs as root, there is no release or deploy process, and the remaining docs are stale. |
+| **Infra / CI** | ⚠️ Gated, still dev-only | *Fixed:* CI now runs `verify.sh --stack` on arm64, compose is hardened for the shared host, and secrets are out of images. Product docs rewritten 2026-10-26 (`README.md`, `docs/USER_GUIDE.md`). *Open:* there is a single dev compose (reload, bind mounts, DEBUG), the API image is large and runs as root, and there is no release or deploy process. |
 
 > ✅ **Resolved:** the staged `docker-compose.yml` change.
 > - The broken `3000:5173` port is fixed.
@@ -148,7 +148,7 @@ Each step is roughly one PR. The order matters: **safety net → release platfor
 |---|---|---|
 | ✅ 0.1 | ✅ Compose for the shared host: UI port fixed, API on loopback only, DB/Redis not published, named volumes, memory limits, log rotation (`fe0e6c3`) | Stack healthy, UI :3000 → 200 |
 | 🟡 0.2 | ✅ `.env.example` templates and `.dockerignore` files, so secrets are no longer baked into images (`f5579c3`). ⏳ **Still to do:** rotate the Brevo SMTP password (Sentry was removed on 2026-10-15), check history commits `508abfd`/`51bdb8d`, and add gitleaks to CI. | gitleaks clean, secrets rotated |
-| 🟡 0.3 | ✅ Repo hygiene: 59 dead or stray files removed (`a1b50e4`). ⏳ Rewrite the root README and `STARTUP_GUIDE.md`, and fix or delete `setup-docker.sh` (`scripts/setup_database.sh` deleted in 1.6). | README accurate |
+| 🟡 0.3 | ✅ Repo hygiene: 59 dead or stray files removed (`a1b50e4`). ✅ Root README, `STARTUP_GUIDE.md`, and the guides under `python/app/docs/` rewritten 2026-10-26. ⏳ `setup-docker.sh` is still only a host check. | README accurate |
 | ⏳ 0.4 | One import root and one dependency file. Use a single `pyproject.toml` with uv and a lock file. Split dev and prod deps. Add `ta` for tests. Drop `schedule`, `requests`, `scipy` and `PyPDF2`. Set `requires-python >= 3.12`. Delete the empty `python/app/app/` dir, which shadows the `app` package. **Now:** Still `requirements.txt` + `pyproject.toml`, empty `python/app/app/`, `ta` installed ad hoc by the gate. | `pytest --collect-only` collects with **0 errors** |
 | 🟡 0.5 | **Burn down `tests/quarantine.txt`** (50 entries: 8 uncollectable files, 42 xfail). Fix the `/app/v1` → `/api/v1` prefix and delete tests for removed APIs. Then turn on blocking lint: ruff on changed files via pre-commit, and eslint once `react/prop-types` is solved by TS or disabled. **Now:** Lint is gating (ruff + eslint, 0 warnings, 2026-10-15). Quarantine unchanged: 50 entries. | Quarantine file empty, lint is a required check |
 | 🟡 0.6 | ✅ CI gate: `scripts/verify.sh --stack` on `ubuntu-24.04-arm` for every PR and every push to master (`e30df0f`). ⏳ Turn on GitHub branch protection: require the `verify` check, squash-merge only, no direct pushes to `master`. **Now:** CI runs `verify.sh --stack` on arm64; branch protection not confirmed. | A red check blocks merge |
@@ -257,7 +257,7 @@ js/e2e/       Playwright specs
 | 🟡 6.1 | Add a worker service (prices, FX, snapshots) to the release images and compose files, with its own memory limit. **Now:** `worker` service in the dev compose (384 MB, heartbeat healthcheck); prod images/compose still to come with R.1/R.2. |
 | ⏳ 6.2 | Redis requires a password. Add a Trivy scan to the release workflow, which fails on critical CVEs. Run Playwright e2e against the release images in staging before promotion. |
 | ⏳ 6.3 | Optional GPU profile (§1b): `portfolio-gpu-worker` and the ollama `LLMProvider`, only once a feature needs them. |
-| 🟡 6.4 | Docs: one root README (quick start, architecture diagram, dev/staging/prod commands, runbooks for deploy, rollback and restore), `docs/adr/` (sync DB, calc engine conventions, FX source, GPU strategy, release strategy), and `CONTRIBUTING.md` ("how to add a feature module"). **Now:** Per-feature `CLAUDE.md` docs added (2026-10-16); root README still stale. |
+| 🟡 6.4 | Docs: one root README (quick start, architecture diagram, dev/staging/prod commands, runbooks for deploy, rollback and restore), `docs/adr/` (sync DB, calc engine conventions, FX source, GPU strategy, release strategy), and `CONTRIBUTING.md` ("how to add a feature module"). **Now:** Root README and `docs/USER_GUIDE.md` rewritten 2026-10-26 (screenshots, demo user, workflows). Per-feature `CLAUDE.md` docs remain the endpoint reference. Open: `docs/adr/`, `CONTRIBUTING.md`, deploy/rollback runbooks (they wait on Phase R). |
 
 ---
 
@@ -317,6 +317,7 @@ Open:
 | 2026-10-16 | `feat/watchlist-alerts` | — | Alerts work: thresholds now save, pure `check_alerts`, notify-once-per-crossing events, `worker` service (prices + alerts every 15 min), `/watchlists/alerts` + acknowledge, in-app alerts panel/bell/dashboard link; migration `acknowledged_at` |
 | 2026-10-16 | `feat/indicators` | — | 2.9: RSI/StochRSI/MACD/ADX/Aroon/CCI/BB/ATR/Keltner/VPT/VWAP fixed and PSAR implemented, all pinned to `ta`; data now calculated oldest-first with ~400 days warm-up; second indicator class no longer dropped; saved configurations drive the chart (manager modal, configuration_id, list); one pane per oscillator; private configurations no longer readable by others |
 | 2026-10-20 | `feat/import-dedup` | — | Re-importing a statement is safe: each parsed row gets a `source_key` (stored on `transactions`, unique per portfolio, migration `a3f1c9d2e7b4`); bulk-create skips known rows (`total_skipped`) and keys older keyless imports it matches by date/type/ISIN/qty/amount; `/transactions/imported` lets the review table mark and leave out rows already in the chosen portfolio |
+| 2026-10-26 | `docs/product-guide` | — | Root README, user guide with screenshots of the `demo` account, and the stale guides under `python/app/docs/` rewritten to the current stack. `setup-docker.sh` left as a host check |
 
 
 ## 6b. Findings and to-do (2026-10-16)

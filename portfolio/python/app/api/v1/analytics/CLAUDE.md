@@ -2,7 +2,7 @@
 
 **Purpose:** risk metrics, target allocations with drift and rebalancing trades, benchmark records, and the daily value history.
 
-**State (2026-10-16):** ✅ risk, advance-risk, allocation analysis, rebalancing, history. ⚠️ benchmarks are records only (no comparison). ⚠️ `/summary`, `/performance/snapshot`, `/performance/comparison` use legacy snapshot metrics. ⚠️ `/users/dashboard` responds but uses legacy metrics.
+**State (2026-10-26):** ✅ risk, advance-risk, allocation analysis, rebalancing, history. Benchmark *comparison* is the shadow portfolio on the performance chart (`GET /portfolios/calculations/.../benchmark`), not these records. The Benchmarks tab still shows "comparison is coming". ⚠️ `/summary`, `/performance/snapshot`, `/performance/comparison` use legacy snapshot metrics. ⚠️ `/users/dashboard` responds but uses legacy metrics.
 
 ## Backend — `router.py` (prefix `/api/v1/analytics`)
 | Endpoint | Service | Behaviour |
@@ -22,12 +22,12 @@
 - **Analytics** `PortfolioAnalytics.jsx`: Risk Metrics + Advanced Metrics cards with plain-language hints, period select, risk-level modal (renders `reasoning` HTML via `dangerouslySetInnerHTML` — XSS item 4.6).
 - **Allocations** `PortfolioAllocationManager.jsx`: edit targets.
 - **Rebalancing** `RebalancingRecommendations.jsx`: summary, actions ("SELL 95.88 META ≈ $70,639 · 169.52 → 73.64 shares at $736.72"), current → target allocation.
-- **Benchmarks** `BenchmarkComparison.jsx`: list/add benchmarks; comparison replaced by a "coming" note.
+- **Benchmarks** `BenchmarkComparison.jsx`: list/add benchmarks. The comparison note on this tab is stale: the chart's "Compare with" is the live comparison. This tab does not call `/portfolios/calculations/.../benchmark`.
 - `AssetAnalyticsView.jsx` / `IndicatorConfigurationManager.jsx` belong to indicators (see `api/v1/statistical_indicators/CLAUDE.md`).
 - `analyticsAPI` in `services/api.js`.
 
 ## Known gaps / planned
-- Benchmark comparison via shadow portfolio (plan 2.7); beta should use a total-return index.
+- Point the Benchmarks tab at the shadow comparison (plan 2.7 is done on the chart). Beta should use a total-return index.
 - Delete or rebuild the legacy snapshot endpoints on the engine; snapshots should be written by a worker (plan 3.3), not in requests.
 - Risk endpoints are slow cold (Yahoo); acceptable for now per user.
 - `risk_assessment.reasoning` is HTML from the backend.

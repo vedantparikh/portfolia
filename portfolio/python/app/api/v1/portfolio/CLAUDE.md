@@ -12,7 +12,7 @@
 | `GET /{id}/summary` | Sum of the same holding rows (open positions only): value, cost, unrealized (priced positions only), today's P&L / % on start-of-day value + cash invested today, `total_realized_pnl`, `missing_prices` |
 | `GET /statistics/overview` | Same rows across active portfolios, summed **per currency** in `totals[]` (value, holdings, today's P&L/%); `total_value`/`currency`/`today_pnl` only when all portfolios share one currency; missing prices. Dashboard "Total Value" tile |
 | `POST /{id}/refresh` | Rebuilds every position from transactions (picks up new splits) and re-prices |
-| `POST/GET /{id}/assets`, `GET /{id}/assets/details`, `PUT/DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | Position records (`PortfolioAsset`) |
+| `POST/GET /{id}/assets`, `GET /{id}/assets/details`, `DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | `POST` and legacy `POST` add a holding by creating a buy. `DELETE` removes the holding and its transactions. There is no update: quantity and P&L are not writable |
 | `POST/GET /{id}/transactions` | Portfolio-scoped transaction create/list (create triggers `recalculate_asset_state`) |
 | `GET /search?search_term=&currency=`, `GET /public/discover` | Own portfolios by name/currency; discover lists public portfolios. No UI for either |
 
@@ -32,10 +32,9 @@
 Create portfolio → add transactions (Transactions page, PDF import, or Add Position) → positions rebuild automatically → Holdings Detail shows live value; Refresh rebuilds/re-prices.
 
 ## Known gaps
-- `PUT /{id}/assets/{asset_id}` lets clients write quantity/cost/P&L directly (bypasses transactions) — plan 2.10.
 - `PortfolioSummary()` returned bare for a foreign portfolio (validation error path).
 - No FX yet (plan 2.3): a portfolio holds only assets quoted in its own currency — `add_transaction` raises `CurrencyMismatchError` (400) otherwise, and records the portfolio currency on the transaction.
 - Delete flows have no undo; holdings include zero-quantity rows in the table.
 
 ## Planned
-Plan 2.10 (PortfolioAsset fully derived, no client writes), 3.1 (module consolidation), 3.3 (worker refreshes prices), 2.3 FX.
+Plan 3.1 (module consolidation), 3.3 (worker refreshes prices), 2.3 FX.

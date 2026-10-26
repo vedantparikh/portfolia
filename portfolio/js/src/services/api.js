@@ -424,19 +424,6 @@ export const portfolioAPI = {
   },
 
   /* 
-      UPDATE PORTFOLIO ASSET - Update an asset in a portfolio
-      Parameters: portfolioId (string or number), assetId (string or number), assetData (object)
-      Returns: Server response with updated asset data
-    */
-  updatePortfolioAsset: async (portfolioId, assetId, assetData) => {
-    const response = await api.put(
-      `/portfolios/${portfolioId}/assets/${assetId}`,
-      assetData
-    );
-    return response.data;
-  },
-
-  /* 
       REMOVE ASSET FROM PORTFOLIO - Remove an asset from a portfolio
       Parameters: portfolioId (string or number), assetId (string or number)
       Returns: Server response confirming removal

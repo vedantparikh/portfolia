@@ -58,16 +58,6 @@ class PortfolioAssetCreate(BaseModel):
     cost_basis: Decimal = Field(...)
 
 
-class PortfolioAssetUpdate(BaseModel):
-    quantity: Optional[Decimal] = Field(None)
-    cost_basis: Optional[Decimal] = Field(None)
-    current_value: Optional[Decimal] = Field(None)
-    unrealized_pnl: Optional[Decimal] = Field(None)
-    unrealized_pnl_percent: Optional[Decimal] = Field(None)
-    realized_pnl: Optional[Decimal] = Field(None)
-    realized_pnl_percent: Optional[Decimal] = Field(None)
-
-
 class PortfolioAsset(PortfolioAssetBase):
     id: int
     last_updated: datetime

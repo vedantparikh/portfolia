@@ -18,7 +18,6 @@ from core.schemas.portfolio import (
     Portfolio,
     PortfolioAsset,
     PortfolioAssetCreate,
-    PortfolioAssetUpdate,
     PortfolioAssetWithDetails,
     PortfolioCreate,
     PortfolioHolding,
@@ -240,28 +239,6 @@ async def get_portfolio_assets_with_details(
         portfolio_id, current_user.id
     )
     return assets
-
-
-@router.put("/{portfolio_id}/assets/{asset_id}", response_model=PortfolioAsset)
-async def update_portfolio_asset(
-    portfolio_id: int,
-    asset_id: int,
-    asset_update: PortfolioAssetUpdate,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Update an asset in a portfolio (user must own the portfolio)."""
-    portfolio_service = PortfolioService(db)
-    portfolio_asset = await portfolio_service.update_portfolio_asset(
-        portfolio_id, asset_id, asset_update, current_user.id
-    )
-
-    if not portfolio_asset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found in portfolio"
-        )
-
-    return portfolio_asset
 
 
 @router.delete(

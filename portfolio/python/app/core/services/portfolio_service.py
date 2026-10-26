@@ -6,7 +6,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import and_, case, desc
+from sqlalchemy import case, desc
 from sqlalchemy.orm import Session
 
 from core.database.models import (
@@ -32,7 +32,6 @@ from core.domain.positions import (
 from core.schemas.portfolio import (
     CurrencyTotals,
     PortfolioAssetCreate,
-    PortfolioAssetUpdate,
     PortfolioAssetWithDetails,
     PortfolioCreate,
     PortfolioHolding,
@@ -184,118 +183,6 @@ class PortfolioService:
             .filter_by(portfolio_id=portfolio_id, asset_id=asset_data.asset_id)
             .first()
         )
-
-    async def _refresh_asset_market_data(
-        self, portfolio_asset: PortfolioAsset
-    ) -> PortfolioAsset:
-        """
-        FIXED: Refreshes only market-dependent values (current price, unrealized P&L).
-        It no longer calculates realized P&L, which is now handled exclusively
-        by recalculate_asset_state to prevent redundancy.
-        """
-        if portfolio_asset.quantity <= 0:
-            return portfolio_asset
-
-        try:
-            asset = (
-                self.db.query(Asset)
-                .filter(Asset.id == portfolio_asset.asset_id)
-                .first()
-            )
-            if not asset:
-                return portfolio_asset
-
-            current_price = await self.market_data_service.get_current_price(
-                symbol=asset.symbol
-            )
-            last_trading_day_price = (
-                await self.market_data_service.get_yesterdays_close(symbol=asset.symbol)
-            )
-
-            if current_price:
-                current_value = float(current_price) * float(portfolio_asset.quantity)
-                portfolio_asset.current_value = Decimal(str(current_value))
-
-                cost_basis_total = float(portfolio_asset.cost_basis_total)
-                unrealized_pnl = current_value - cost_basis_total
-                portfolio_asset.unrealized_pnl = Decimal(str(unrealized_pnl))
-
-                if cost_basis_total > 0:
-                    pnl_percent = (unrealized_pnl / cost_basis_total) * 100
-                    portfolio_asset.unrealized_pnl_percent = Decimal(str(pnl_percent))
-                else:
-                    portfolio_asset.unrealized_pnl_percent = Decimal("0")
-
-                if last_trading_day_price:
-                    previous_day_value = float(last_trading_day_price) * float(
-                        portfolio_asset.quantity
-                    )
-                    today_pnl_value = current_value - previous_day_value
-                    portfolio_asset.today_pnl = Decimal(str(today_pnl_value))
-
-                    if previous_day_value > 0:
-                        today_pnl_percent = (today_pnl_value / previous_day_value) * 100
-                        portfolio_asset.today_pnl_percent = Decimal(
-                            str(today_pnl_percent)
-                        )
-                    else:
-                        portfolio_asset.today_pnl_percent = Decimal("0")
-                else:
-                    portfolio_asset.today_pnl = Decimal("0")
-                    portfolio_asset.today_pnl_percent = Decimal("0")
-            else:
-                portfolio_asset.current_value = None
-                portfolio_asset.unrealized_pnl = None
-                portfolio_asset.unrealized_pnl_percent = None
-                portfolio_asset.today_pnl = None
-                portfolio_asset.today_pnl_percent = None
-
-        except Exception:
-            logger.exception(
-                "Error refreshing market data for asset %s",
-                portfolio_asset.asset_id,
-            )
-
-        return portfolio_asset
-
-    async def update_portfolio_asset(
-        self,
-        portfolio_id: int,
-        asset_id: int,
-        asset_data: PortfolioAssetUpdate,
-        user_id: int,
-    ) -> Optional[PortfolioAsset]:
-        """Update an asset in a portfolio."""
-        portfolio_asset = (
-            self.db.query(PortfolioAsset)
-            .filter(
-                and_(
-                    PortfolioAsset.portfolio_id == portfolio_id,
-                    PortfolioAsset.asset_id == asset_id,
-                )
-            )
-            .first()
-        )
-
-        if not portfolio_asset:
-            return None
-
-        portfolio = self.get_portfolio(portfolio_id, user_id)
-        if not portfolio:
-            return None
-
-        update_data = asset_data.dict(exclude_unset=True)
-        # This method should generally be avoided in favor of creating new transactions.
-        # If used, it's a manual override.
-        for field, value in update_data.items():
-            setattr(portfolio_asset, field, value)
-
-        if asset_data.current_value is None and asset_data.unrealized_pnl is None:
-            portfolio_asset = await self._refresh_asset_market_data(portfolio_asset)
-
-        self.db.commit()
-        self.db.refresh(portfolio_asset)
-        return portfolio_asset
 
     def remove_asset_from_portfolio(
         self, portfolio_id: int, asset_id: int, user_id: int

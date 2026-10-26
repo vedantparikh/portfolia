@@ -703,6 +703,8 @@ class PortfolioCalculationService:
                 "value": row["value"],
                 "invested": invested[day],
                 "cost_basis": row["cost_basis"],
+                "stale_price": bool(row["stale_price"]),
+                "stale_symbols": list(row["stale_symbols"]),
             }
             for day, row in window.iterrows()
         ]
@@ -782,6 +784,8 @@ class PortfolioCalculationService:
                 "value": row["value"],
                 "benchmark_value": float(shadow.at[day, "value"]),
                 "invested": invested[day],
+                "stale_price": bool(row["stale_price"]),
+                "stale_symbols": list(row["stale_symbols"]),
             }
             for day, row in window.iterrows()
         ]

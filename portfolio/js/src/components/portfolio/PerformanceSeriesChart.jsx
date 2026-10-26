@@ -89,6 +89,12 @@ const PerformanceSeriesChart = ({
           </span>
         ))}
       </div>
+      {shown?.stale_price && (
+        <p className="mb-2 text-xs text-amber-300">
+          Valued at a close older than 5 sessions
+          {shown.stale_symbols?.length ? `: ${shown.stale_symbols.join(", ")}` : ""}.
+        </p>
+      )}
       <div ref={containerRef} className={height} />
     </div>
   );

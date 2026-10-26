@@ -26,7 +26,7 @@ from core.domain.returns import (
     period_summary,
     xirr_pct,
 )
-from core.domain.valuation import MissingPriceError, daily_series
+from core.domain.valuation import STALE_PRICE_DAYS, MissingPriceError, daily_series
 
 BUY, SELL, DIVIDEND = (
     TransactionType.BUY,
@@ -152,6 +152,26 @@ class TestDailySeries:
             MON,
         )
         assert series["value"].tolist() == [60, 61, 67]
+        assert series["stale_price"].tolist() == [False, False, False]
+
+    def test_close_older_than_five_sessions_is_flagged_and_still_used(self):
+        days = list(pd.bdate_range("2025-01-06", periods=STALE_PRICE_DAYS + 2))
+        series = daily_series(
+            to_trades(
+                [
+                    tx(BUY, 1, 10, days[0]),
+                    tx(BUY, 1, 50, days[0], asset_id=2),
+                ]
+            ),
+            {1: closes({day: 10 for day in days}), 2: closes({days[0]: 50})},
+            days[-1],
+            {2: "OLD"},
+        )
+        assert series["stale_price"].tolist() == [False] * (STALE_PRICE_DAYS + 1) + [
+            True
+        ]
+        assert series["stale_symbols"].iloc[-1] == ["OLD"]
+        assert series["value"].iloc[-1] == 60
 
     def test_held_asset_without_any_price_is_an_error_not_cost(self):
         with pytest.raises(MissingPriceError):

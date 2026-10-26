@@ -203,6 +203,11 @@ class SeriesPoint(BaseModel):
         description="Value at the period start plus deposits minus withdrawals since",
     )
     cost_basis: float = Field(..., description="FIFO cost of the open positions")
+    stale_price: bool = Field(
+        False,
+        description="A holding is valued at a close more than 5 sessions old",
+    )
+    stale_symbols: List[str] = Field(default_factory=list)
 
 
 class DayReturn(BaseModel):
@@ -273,6 +278,8 @@ class BenchmarkPoint(BaseModel):
         ...,
         description="Value at the period start plus deposits minus withdrawals since",
     )
+    stale_price: bool = False
+    stale_symbols: List[str] = Field(default_factory=list)
 
 
 class BenchmarkComparisonResponse(BaseModel):

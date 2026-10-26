@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
+
 from sqlalchemy import (
     JSON,
     Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -11,10 +16,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from core.database.models.base import Base
+
+if TYPE_CHECKING:
+    from core.database.models.user import User
 
 
 class Watchlist(Base):
@@ -22,20 +30,22 @@ class Watchlist(Base):
 
     __tablename__ = "watchlists"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    name = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
-    is_default = Column(Boolean, default=False, nullable=False)
-    is_public = Column(Boolean, default=False, nullable=False)
-    color = Column(String(7), nullable=True)  # Hex color code for UI
-    sort_order = Column(Integer, default=0, nullable=False)
-    created_at = Column(
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    color: Mapped[str | None] = mapped_column(
+        String(7), nullable=True
+    )  # Hex color code for UI
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -43,8 +53,8 @@ class Watchlist(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="watchlists")
-    items = relationship(
+    user: Mapped[User] = relationship("User", back_populates="watchlists")
+    items: Mapped[list[WatchlistItem]] = relationship(
         "WatchlistItem",
         back_populates="watchlist",
         cascade="all, delete-orphan",
@@ -66,41 +76,63 @@ class WatchlistItem(Base):
 
     __tablename__ = "watchlist_items"
 
-    id = Column(Integer, primary_key=True, index=True)
-    watchlist_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    watchlist_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("watchlists.id", ondelete="CASCADE"), nullable=False
     )
-    symbol = Column(String(20), nullable=False)  # Stock symbol (e.g., AAPL, GOOGL)
-    company_name = Column(String(255), nullable=True)
+    symbol: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # Stock symbol (e.g., AAPL, GOOGL)
+    company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Performance tracking
-    added_price = Column(Numeric(10, 2), nullable=True)  # Price when added to watchlist
-    added_date = Column(
+    added_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Price when added to watchlist
+    added_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    current_price = Column(Numeric(10, 2), nullable=True)  # Latest known price
-    price_change_since_added = Column(Numeric(10, 2), nullable=True)  # Absolute change
-    price_change_percent_since_added = Column(
+    current_price: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Latest known price
+    price_change_since_added: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Absolute change
+    price_change_percent_since_added: Mapped[Decimal | None] = mapped_column(
         Numeric(5, 2), nullable=True
     )  # Percentage change
 
     # User notes and preferences
-    notes = Column(Text, nullable=True)  # User notes about this stock
-    personal_rating = Column(Integer, nullable=True)  # 1-5 star rating
-    investment_thesis = Column(Text, nullable=True)  # Why user is watching this stock
+    notes: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # User notes about this stock
+    personal_rating: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # 1-5 star rating
+    investment_thesis: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # Why user is watching this stock
 
     # Price alerts
-    alert_price_high = Column(Numeric(10, 2), nullable=True)  # High price alert
-    alert_price_low = Column(Numeric(10, 2), nullable=True)  # Low price alert
-    alert_price_change_percent = Column(Numeric(5, 2), nullable=True)  # % change alert
-    alerts_enabled = Column(Boolean, default=True, nullable=False)
+    alert_price_high: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # High price alert
+    alert_price_low: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Low price alert
+    alert_price_change_percent: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )  # % change alert
+    alerts_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Organization
-    sort_order = Column(Integer, default=0, nullable=False)
-    tags = Column(JSON, nullable=True)  # User-defined tags for categorization
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tags: Mapped[Any | None] = mapped_column(
+        JSON, nullable=True
+    )  # User-defined tags for categorization
 
     # Timestamps
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -108,8 +140,8 @@ class WatchlistItem(Base):
     )
 
     # Relationships
-    watchlist = relationship("Watchlist", back_populates="items")
-    alerts = relationship(
+    watchlist: Mapped[Watchlist] = relationship("Watchlist", back_populates="items")
+    alerts: Mapped[list[WatchlistAlert]] = relationship(
         "WatchlistAlert", back_populates="watchlist_item", cascade="all, delete-orphan"
     )
 
@@ -129,42 +161,48 @@ class WatchlistAlert(Base):
 
     __tablename__ = "watchlist_alerts"
 
-    id = Column(Integer, primary_key=True, index=True)
-    watchlist_item_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    watchlist_item_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("watchlist_items.id", ondelete="CASCADE"), nullable=False
     )
-    user_id = Column(
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     # Alert configuration
-    alert_type = Column(
+    alert_type: Mapped[str] = mapped_column(
         String(50), nullable=False
     )  # 'price_high', 'price_low', 'percent_change'
-    threshold_value = Column(
-        Numeric(10, 2), nullable=False
+    threshold_value: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
     )  # The value that triggers the alert
-    condition = Column(String(20), nullable=False)  # 'above', 'below', 'equals'
+    condition: Mapped[str] = mapped_column(
+        String(20), nullable=False
+    )  # 'above', 'below', 'equals'
 
     # Alert status
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_triggered = Column(Boolean, default=False, nullable=False)
-    triggered_at = Column(DateTime(timezone=True), nullable=True)
-    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
-    triggered_value = Column(
-        Numeric(10, 2), nullable=True
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_triggered: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    triggered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    acknowledged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    triggered_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
     )  # Value when alert was triggered
 
     # Notification settings
-    notify_email = Column(Boolean, default=True, nullable=False)
-    notify_push = Column(Boolean, default=False, nullable=False)
-    notify_sms = Column(Boolean, default=False, nullable=False)
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notify_push: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notify_sms: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Timestamps
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -172,8 +210,10 @@ class WatchlistAlert(Base):
     )
 
     # Relationships
-    watchlist_item = relationship("WatchlistItem", back_populates="alerts")
-    user = relationship("User", back_populates="watchlist_alerts")
+    watchlist_item: Mapped[WatchlistItem] = relationship(
+        "WatchlistItem", back_populates="alerts"
+    )
+    user: Mapped[User] = relationship("User", back_populates="watchlist_alerts")
 
     # Constraints
     __table_args__ = (
@@ -190,29 +230,33 @@ class WatchlistPerformance(Base):
 
     __tablename__ = "watchlist_performance"
 
-    id = Column(Integer, primary_key=True, index=True)
-    watchlist_item_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    watchlist_item_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("watchlist_items.id", ondelete="CASCADE"), nullable=False
     )
 
     # Performance data
-    date = Column(DateTime(timezone=True), nullable=False)
-    price = Column(Numeric(10, 2), nullable=False)
-    volume = Column(Integer, nullable=True)
-    market_cap = Column(Numeric(20, 2), nullable=True)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    market_cap: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
 
     # Calculated metrics
-    price_change_since_added = Column(Numeric(10, 2), nullable=True)
-    price_change_percent_since_added = Column(Numeric(5, 2), nullable=True)
-    days_since_added = Column(Integer, nullable=True)
+    price_change_since_added: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )
+    price_change_percent_since_added: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 2), nullable=True
+    )
+    days_since_added: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Timestamps
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationships
-    watchlist_item = relationship("WatchlistItem")
+    watchlist_item: Mapped[WatchlistItem] = relationship("WatchlistItem")
 
     # Constraints
     __table_args__ = (

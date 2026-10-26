@@ -33,7 +33,7 @@ Never run pytest inside the running `portfolio-api-1`, which is wired to the sta
 
 ## Architecture & patterns
 - **Imports are rooted at `python/app`**: `from core.services...`, `from api.v1...`. Never `app.core...`.
-- **Backend layers:** `api/v1/<feature>/router.py` → `core/services/<x>_service.py` (class takes `db: Session` in `__init__`) → `core/database/models/*` (legacy `Column` style, `Numeric` money). Pydantic schemas live in `core/schemas/<feature>.py`. There is no repository layer yet. New code puts queries and commits in services, not routers.
+- **Backend layers:** `api/v1/<feature>/router.py` → `core/services/<x>_service.py` (class takes `db: Session` in `__init__`) → `core/database/models/*` (`Mapped[]` columns). Prices and cash amounts are `Numeric(20, 8)`. Datetimes are timezone-aware. Percent and ratio columns stay narrower. Pydantic schemas live in `core/schemas/<feature>.py`. There is no repository layer yet. New code puts queries and commits in services, not routers.
 - **Router mounting** is `create_app()` in `main.py`, which includes `api/v1/router.py`. Each router owns its prefix under `/api/v1` and one tag. A failed import stops startup. Watch route order: literal paths go before `/{id}`.
 - **Auth:** `Depends(get_current_active_user)` from `core/auth/dependencies.py`. Every resource must be scoped by `user_id`. A portfolio route uses `get_owned_portfolio` (active portfolio belonging to the current user, otherwise 404).
 - **Database session:** `get_db` is one unit of work per request: it commits when the request succeeds and rolls back when it raises. Endpoints that use it are plain `def`, so FastAPI runs them in a threadpool. A route stays `async def` only when it awaits I/O.

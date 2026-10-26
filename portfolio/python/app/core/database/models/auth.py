@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -11,10 +13,13 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from core.database.models.base import Base
+
+if TYPE_CHECKING:
+    from core.database.models.portfolio import Portfolio
 
 
 class User(Base):
@@ -22,29 +27,37 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(100), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_verified = Column(Boolean, default=False, nullable=False)
-    created_at = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    username: Mapped[str] = mapped_column(
+        String(100), unique=True, index=True, nullable=False
+    )
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
     )
-    last_login = Column(DateTime(timezone=True), nullable=True)
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
-    profile = relationship("UserProfile", back_populates="user", uselist=False)
-    sessions = relationship(
+    profile: Mapped[UserProfile] = relationship(
+        "UserProfile", back_populates="user", uselist=False
+    )
+    sessions: Mapped[list[UserSession]] = relationship(
         "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
-    portfolios = relationship(
+    portfolios: Mapped[list[Portfolio]] = relationship(
         "Portfolio", back_populates="user", cascade="all, delete-orphan"
     )
 
@@ -61,24 +74,32 @@ class UserProfile(Base):
 
     __tablename__ = "user_profiles"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True
     )
-    first_name = Column(String(100), nullable=True)
-    last_name = Column(String(100), nullable=True)
-    phone = Column(String(20), nullable=True)
-    date_of_birth = Column(DateTime(timezone=True), nullable=True)
-    address = Column(Text, nullable=True)
-    country = Column(String(100), nullable=True)
-    timezone = Column(String(50), default="UTC", nullable=False)
-    currency_preference = Column(String(3), default="USD", nullable=False)
-    language_preference = Column(String(10), default="en", nullable=False)
-    notification_preferences = Column(Text, nullable=True)  # JSON string
-    created_at = Column(
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    date_of_birth: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    timezone: Mapped[str] = mapped_column(String(50), default="UTC", nullable=False)
+    currency_preference: Mapped[str] = mapped_column(
+        String(3), default="USD", nullable=False
+    )
+    language_preference: Mapped[str] = mapped_column(
+        String(10), default="en", nullable=False
+    )
+    notification_preferences: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON string
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -86,7 +107,7 @@ class UserProfile(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="profile")
+    user: Mapped[User] = relationship("User", back_populates="profile")
 
     # Indexes
     __table_args__ = (
@@ -101,21 +122,29 @@ class UserSession(Base):
 
     __tablename__ = "user_sessions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(String(255), unique=True, index=True, nullable=False)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    refresh_token = Column(String(500), nullable=False)
-    device_info = Column(Text, nullable=True)  # JSON string with device details
-    ip_address = Column(String(45), nullable=True)  # IPv6 compatible
-    user_agent = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(
+    refresh_token: Mapped[str] = mapped_column(String(500), nullable=False)
+    device_info: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # JSON string with device details
+    ip_address: Mapped[str | None] = mapped_column(
+        String(45), nullable=True
+    )  # IPv6 compatible
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    last_used = Column(
+    last_used: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -123,7 +152,7 @@ class UserSession(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="sessions")
+    user: Mapped[User] = relationship("User", back_populates="sessions")
 
     # Indexes
     __table_args__ = (

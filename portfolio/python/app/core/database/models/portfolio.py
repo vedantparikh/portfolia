@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from datetime import datetime
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -9,10 +14,21 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from core.database.models.base import Base
+
+if TYPE_CHECKING:
+    from core.database.models.asset import Asset
+    from core.database.models.portfolio_analytics import (
+        PortfolioAllocation,
+        PortfolioBenchmark,
+        PortfolioPerformanceHistory,
+        RebalancingEvent,
+    )
+    from core.database.models.transaction import Transaction
+    from core.database.models.user import User
 
 
 class Portfolio(Base):
@@ -20,19 +36,19 @@ class Portfolio(Base):
 
     __tablename__ = "portfolios"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    currency = Column(String(3), default="USD", nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_public = Column(Boolean, default=False, nullable=False)
-    created_at = Column(
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -40,25 +56,25 @@ class Portfolio(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="portfolios")
-    assets = relationship(
+    user: Mapped[User] = relationship("User", back_populates="portfolios")
+    assets: Mapped[list[PortfolioAsset]] = relationship(
         "PortfolioAsset", back_populates="portfolio", cascade="all, delete-orphan"
     )
-    transactions = relationship(
+    transactions: Mapped[list[Transaction]] = relationship(
         "Transaction", back_populates="portfolio", cascade="all, delete-orphan"
     )
-    performance_history = relationship(
+    performance_history: Mapped[list[PortfolioPerformanceHistory]] = relationship(
         "PortfolioPerformanceHistory",
         back_populates="portfolio",
         cascade="all, delete-orphan",
     )
-    allocations = relationship(
+    allocations: Mapped[list[PortfolioAllocation]] = relationship(
         "PortfolioAllocation", back_populates="portfolio", cascade="all, delete-orphan"
     )
-    rebalancing_events = relationship(
+    rebalancing_events: Mapped[list[RebalancingEvent]] = relationship(
         "RebalancingEvent", back_populates="portfolio", cascade="all, delete-orphan"
     )
-    benchmarks = relationship(
+    benchmarks: Mapped[list[PortfolioBenchmark]] = relationship(
         "PortfolioBenchmark", back_populates="portfolio", cascade="all, delete-orphan"
     )
 
@@ -76,28 +92,42 @@ class PortfolioAsset(Base):
 
     __tablename__ = "portfolio_assets"
 
-    id = Column(Integer, primary_key=True, index=True)
-    portfolio_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    portfolio_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
     )
-    asset_id = Column(
+    asset_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
     )
-    quantity = Column(Numeric(20, 8), nullable=False)  # Support for fractional shares
-    cost_basis = Column(Numeric(20, 4), nullable=False)  # Average cost per share
-    cost_basis_total = Column(Numeric(20, 4), nullable=False)  # Total cost basis
-    current_value = Column(Numeric(20, 4), nullable=True)  # Current market value
-    unrealized_pnl = Column(Numeric(20, 4), nullable=True)  # Unrealized profit/loss
-    unrealized_pnl_percent = Column(
+    quantity: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Support for fractional shares
+    cost_basis: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Average cost per share
+    cost_basis_total: Mapped[Decimal] = mapped_column(
+        Numeric(20, 8), nullable=False
+    )  # Total cost basis
+    current_value: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Current market value
+    unrealized_pnl: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Unrealized profit/loss
+    unrealized_pnl_percent: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 4), nullable=True
     )  # Unrealized P&L percentage
-    realized_pnl = Column(Numeric(20, 4), nullable=True)  # Realized profit/loss
-    realized_pnl_percent = Column(
+    realized_pnl: Mapped[Decimal | None] = mapped_column(
+        Numeric(20, 8), nullable=True
+    )  # Realized profit/loss
+    realized_pnl_percent: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 4), nullable=True
     )  # Realized P&L percentage
-    today_pnl = Column(Numeric(20, 4), nullable=True)
-    today_pnl_percent = Column(Numeric(10, 4), nullable=True)
-    last_updated = Column(
+    today_pnl: Mapped[Decimal | None] = mapped_column(Numeric(20, 8), nullable=True)
+    today_pnl_percent: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 4), nullable=True
+    )
+    last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -105,8 +135,8 @@ class PortfolioAsset(Base):
     )
 
     # Relationships
-    portfolio = relationship("Portfolio", back_populates="assets")
-    asset = relationship("Asset", back_populates="portfolio_holdings")
+    portfolio: Mapped[Portfolio] = relationship("Portfolio", back_populates="assets")
+    asset: Mapped[Asset] = relationship("Asset", back_populates="portfolio_holdings")
 
     # Indexes for performance
     __table_args__ = (

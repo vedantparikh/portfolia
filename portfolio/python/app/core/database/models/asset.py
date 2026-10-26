@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import enum
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Enum,
     ForeignKey,
@@ -12,9 +15,18 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database.models.base import Base
+
+if TYPE_CHECKING:
+    from core.database.models.portfolio import PortfolioAsset
+    from core.database.models.portfolio_analytics import (
+        PortfolioAllocation,
+        PortfolioBenchmark,
+    )
+    from core.database.models.transaction import Transaction
+    from core.database.models.user import User
 
 
 class AssetType(enum.Enum):
@@ -40,30 +52,30 @@ class Asset(Base):
 
     __tablename__ = "assets"
 
-    id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String(20), index=True, nullable=False)
-    name = Column(String(255), nullable=False)
-    asset_type = Column(Enum(AssetType), nullable=False)
-    currency = Column(String(3), default="USD", nullable=False)
-    exchange = Column(String(100), nullable=True)
-    isin = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    symbol: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    asset_type: Mapped[AssetType] = mapped_column(Enum(AssetType), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    exchange: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    isin: Mapped[str | None] = mapped_column(
         String(12), nullable=True
     )  # International Securities Identification Number
-    cusip = Column(
+    cusip: Mapped[str | None] = mapped_column(
         String(9), nullable=True
     )  # Committee on Uniform Securities Identification Procedures
-    sector = Column(String(100), nullable=True)
-    industry = Column(String(100), nullable=True)
-    country = Column(String(100), nullable=True)
-    description = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    user_id = Column(
+    sector: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    industry: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),
@@ -71,17 +83,17 @@ class Asset(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="assets")
-    portfolio_holdings = relationship(
+    user: Mapped[User] = relationship("User", back_populates="assets")
+    portfolio_holdings: Mapped[list[PortfolioAsset]] = relationship(
         "PortfolioAsset", back_populates="asset", cascade="all, delete-orphan"
     )
-    transactions = relationship(
+    transactions: Mapped[list[Transaction]] = relationship(
         "Transaction", back_populates="asset", cascade="all, delete-orphan"
     )
-    portfolio_allocations = relationship(
+    portfolio_allocations: Mapped[list[PortfolioAllocation]] = relationship(
         "PortfolioAllocation", back_populates="asset", cascade="all, delete-orphan"
     )
-    benchmark_portfolios = relationship(
+    benchmark_portfolios: Mapped[list[PortfolioBenchmark]] = relationship(
         "PortfolioBenchmark",
         back_populates="benchmark_asset",
         cascade="all, delete-orphan",
@@ -106,18 +118,22 @@ class MarketIndex(Base):
 
     __tablename__ = "market_indices"
 
-    id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String(20), unique=True, index=True, nullable=False)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    currency = Column(String(3), default="USD", nullable=False)
-    country = Column(String(100), nullable=True)
-    category = Column(String(100), nullable=True)  # e.g., "Major", "Sector", "Regional"
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    symbol: Mapped[str] = mapped_column(
+        String(20), unique=True, index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    category: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # e.g., "Major", "Sector", "Regional"
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         onupdate=func.now(),

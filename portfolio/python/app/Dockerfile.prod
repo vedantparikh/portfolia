@@ -1,0 +1,49 @@
+# Production API. No reload, no bind mounts, migrations are a separate command.
+# The dev image remains Dockerfile and is what docker-compose.yml builds.
+FROM python:3.14.9-slim-trixie AS build
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY requirements-prod.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements-prod.txt
+
+FROM python:3.14.9-slim-trixie
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    WEB_CONCURRENCY=2
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 1000 --create-home --shell /usr/sbin/nologin portfolia
+
+COPY --from=build /install /usr/local
+
+WORKDIR /app
+COPY --chown=portfolia:portfolia \
+    __init__.py main.py config.py health_check.py alembic.ini ./
+COPY --chown=portfolia:portfolia alembic ./alembic
+COPY --chown=portfolia:portfolia api ./api
+COPY --chown=portfolia:portfolia core ./core
+COPY --chown=portfolia:portfolia workers ./workers
+COPY --chown=portfolia:portfolia utils ./utils
+COPY --chown=portfolia:portfolia scripts ./scripts
+COPY --chown=portfolia:portfolia STATICS ./STATICS
+COPY entrypoint.prod.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh && chown portfolia:portfolia /app
+
+USER portfolia
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')"
+
+ENTRYPOINT ["/entrypoint.sh"]

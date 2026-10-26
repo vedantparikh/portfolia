@@ -170,7 +170,7 @@ There is no production data yet, so this is the cheapest moment to set up how re
 ### Phase 1: Backend foundation (≈1.5 weeks)
 | # | Work |
 |---|---|
-| ⏳ 1.1 | Rewrite `config.py` as pure pydantic-settings. Collapse the duplicate keys (`SECRET_KEY`/`JWT_SECRET_KEY`, `ALGORITHM`/`JWT_ALGORITHM`). Fix `REFRESH_TOKEN_EXPIRE_DAYS`. Make Redis read its settings from config. |
+| ✅ 1.1 | Rewrite `config.py` as pure pydantic-settings. Collapse the duplicate keys (`SECRET_KEY`/`JWT_SECRET_KEY`, `ALGORITHM`/`JWT_ALGORITHM`). Fix `REFRESH_TOKEN_EXPIRE_DAYS`. Make Redis read its settings from config. **Done:** `JWT_SECRET_KEY` is the signing key and `SECRET_KEY` is only the fallback, so existing tokens still verify. `REFRESH_TOKEN_EXPIRE_DAYS` (default 7) is the refresh lifetime unless minutes are set. Redis host, db, password and TTL come from `settings`. |
 | 🟡 1.2 | Add an `app` factory with explicit router aggregation, deleting the ~230 lines of `try/import` blocks. Standardise prefixes and tags. Fix the `/assets/search` shadowing and the duplicate operationIds. **Now:** `/assets/search/{query}` removed (#73); shadowed routes fixed and pinned by `test_route_order.py` (`fix/shadowed-routes-500s`). App factory and duplicate operationIds open. |
 | 🟡 1.3 | Add `DomainError` classes, global handlers and the uniform error envelope. Remove the `detail=str(e)` leaks and the blanket `except Exception`. **Now:** `core/errors.py` (`DomainError`, `NotFoundError`, `public_message`); all 38 leaking details and 6 leaking response fields fixed, guarded by `test_error_messages.py`. Open: global handlers + `{error:{code,message}}` envelope (changes the frontend contract) and removing the blanket `except Exception` blocks. |
 | ⏳ 1.4 | Add middleware for request-id, structured access logging and timing. Configure logging once and remove the `print()` calls. **Now:** SQLAlchemy echoes every SQL statement to the API log in dev. |
@@ -327,6 +327,7 @@ Open:
 | 2026-10-26 | `feat/staging-sync` | — | R.5: staging follows the GHCR `edge` digest on its own project and ports. Timer units are in the repo and not installed |
 | 2026-10-26 | `feat/backups` | — | R.6: nightly `pg_dump` with 14 daily and 8 weekly copies, `restore.sh`, and a monthly staging drill. Timers are not installed. Live database not dumped |
 | 2026-10-26 | `feat/exposure` | — | R.7: tailnet HTTPS on :3443, Gatus checks for the UI, API health, and certificate, homepage tile links to the HTTPS URL |
+| 2026-10-26 | `feat/settings` | — | 1.1: pydantic-settings, one signing key (`JWT_SECRET_KEY` wins), refresh tokens follow `REFRESH_TOKEN_EXPIRE_DAYS`, Redis reads config. Live containers not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -364,7 +365,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 1.2, the app factory.
 
 ---
 

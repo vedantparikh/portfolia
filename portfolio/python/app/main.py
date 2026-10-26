@@ -3,14 +3,13 @@ import re
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 
 from config import settings
 from core.database.connection import init_db
-from core.errors import DomainError, NotFoundError
+from core.error_handlers import install_error_handlers
 from core.logging_config import get_logger, setup_logging
 from health_check import router as health_router
 
@@ -75,12 +74,6 @@ async def lifespan(app: FastAPI):
     logger.info("👋 Portfolia API shutdown complete")
 
 
-async def domain_error_handler(request: Request, exc: DomainError):
-    """Expected failures raised in services: 404 when missing, otherwise a client error."""
-    status_code = 404 if isinstance(exc, NotFoundError) else 400
-    return JSONResponse(status_code=status_code, content={"detail": str(exc)})
-
-
 async def root():
     """Root endpoint."""
     return {
@@ -117,7 +110,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         generate_unique_id_function=_operation_id,
     )
-    application.add_exception_handler(DomainError, domain_error_handler)
+    install_error_handlers(application)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.ALLOWED_ORIGINS,

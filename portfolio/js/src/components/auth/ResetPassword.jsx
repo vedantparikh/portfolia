@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Lock, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
-import { authAPI } from '../../services/api';
+import { apiErrorMessage, authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const ResetPassword = () => {
@@ -39,7 +39,7 @@ const ResetPassword = () => {
             setIsSubmitted(true);
             toast.success('Password reset successful!');
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || 'Failed to reset password';
+            const errorMessage = apiErrorMessage(error, 'Failed to reset password');
             toast.error(errorMessage);
         } finally {
             setIsLoading(false);

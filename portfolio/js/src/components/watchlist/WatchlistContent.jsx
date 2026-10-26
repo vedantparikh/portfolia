@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { watchlistAPI, assetAPI } from "../../services/api";
+import { apiErrorMessage, watchlistAPI, assetAPI } from "../../services/api";
 import {
   formatDate,
   formatDateTime,
@@ -157,7 +157,7 @@ const WatchlistContent = ({
 
       // Extract error message from API response or use default
       const errorMessage =
-        error.response?.data?.message || "Failed to update symbol";
+        apiErrorMessage(error, "Failed to update symbol");
 
       // Show error message using toast notification
       toast.error(errorMessage);

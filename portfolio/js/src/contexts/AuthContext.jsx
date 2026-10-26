@@ -23,7 +23,7 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
 
 // Import our API service for authentication calls
-import { authAPI } from '../services/api';
+import { apiErrorMessage, authAPI } from '../services/api';
 
 /* 
   ACTION TYPES - Constants for different state changes
@@ -275,7 +275,7 @@ export const AuthProvider = ({ children }) => {
             return { success: true };
         } catch (error) {
             // If login fails, get the error message and update state
-            const errorMessage = error.response?.data?.detail || 'Login failed';
+            const errorMessage = apiErrorMessage(error, 'Login failed');
             dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: errorMessage });
             return { success: false, error: errorMessage };
         }
@@ -304,7 +304,7 @@ export const AuthProvider = ({ children }) => {
             return { success: true };
         } catch (error) {
             // If registration fails, get the error message and update state
-            const errorMessage = error.response?.data?.detail || 'Registration failed';
+            const errorMessage = apiErrorMessage(error, 'Registration failed');
             dispatch({ type: AUTH_ACTIONS.REGISTER_FAILURE, payload: errorMessage });
             return { success: false, error: errorMessage };
         }
@@ -355,7 +355,7 @@ export const AuthProvider = ({ children }) => {
             return { success: true, message: response.message };
         } catch (error) {
             // If verification fails, return error message
-            const errorMessage = error.response?.data?.detail || 'Email verification failed';
+            const errorMessage = apiErrorMessage(error, 'Email verification failed');
             return { success: false, error: errorMessage };
         }
     };
@@ -377,7 +377,7 @@ export const AuthProvider = ({ children }) => {
             return { success: true, message: response.message };
         } catch (error) {
             // If resend fails, return error message
-            const errorMessage = error.response?.data?.detail || 'Failed to resend verification email';
+            const errorMessage = apiErrorMessage(error, 'Failed to resend verification email');
             return { success: false, error: errorMessage };
         }
     };

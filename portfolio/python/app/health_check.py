@@ -35,7 +35,7 @@ async def health_check_endpoint():
             "database": "unknown",
             "redis": "unknown",
             "timestamp": "2024-01-15T10:30:00Z",
-            "error": str(e),
+            "error": "Health check failed",
         }
 
 
@@ -56,7 +56,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
             db_stats = {"table_count": table_count}
         except Exception as e:
             logger.warning(f"Could not get database statistics: {e}")
-            db_stats = {"error": str(e)}
+            db_stats = {"error": "Database statistics unavailable"}
 
         return {
             "status": health_status["overall"],

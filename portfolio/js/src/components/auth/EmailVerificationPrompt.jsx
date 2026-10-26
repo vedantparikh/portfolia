@@ -2,6 +2,7 @@ import { AlertCircle, Loader2, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiErrorMessage } from '../../services/api';
 
 const EmailVerificationPrompt = ({ user }) => {
     const { resendVerification } = useAuth();
@@ -18,7 +19,7 @@ const EmailVerificationPrompt = ({ user }) => {
                 toast.error(result.error);
             }
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || 'Failed to resend verification email';
+            const errorMessage = apiErrorMessage(error, 'Failed to resend verification email');
             toast.error(errorMessage);
         } finally {
             setIsResending(false);

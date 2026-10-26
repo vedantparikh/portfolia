@@ -22,7 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import useIsMobile from '../../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { InView } from 'react-intersection-observer';
-import { portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
+import { apiErrorMessage, portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
 import assetCache from '../../services/assetCache';
 import { formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
@@ -203,7 +203,7 @@ const Assets = () => {
             setTimeout(() => handleRefresh(), 500);
         } catch (error) {
             console.error('Failed to create transaction:', error);
-            const errorMessage = error.response?.data?.detail || 'Failed to create transaction';
+            const errorMessage = apiErrorMessage(error, 'Failed to create transaction');
             toast.error(errorMessage);
             throw error;
         }

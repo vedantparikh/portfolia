@@ -77,4 +77,6 @@ def test_calculate_cannot_use_someone_elses_private_configuration(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == f"Configuration {private.id} not found"
+    assert response.json()["error"]["message"] == (
+        f"Configuration {private.id} not found"
+    )

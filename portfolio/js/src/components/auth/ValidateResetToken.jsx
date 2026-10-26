@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { authAPI } from '../../services/api';
+import { apiErrorMessage, authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const ValidateResetToken = () => {
@@ -32,7 +32,7 @@ const ValidateResetToken = () => {
                     navigate(`/reset-password?token=${token}`);
                 }, 1000);
             } catch (error) {
-                const errorMessage = error.response?.data?.detail || 'Invalid or expired reset token';
+                const errorMessage = apiErrorMessage(error, 'Invalid or expired reset token');
                 setError(errorMessage);
                 toast.error(errorMessage);
                 setIsValidating(false);

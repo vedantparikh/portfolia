@@ -126,9 +126,6 @@ async def calculate_portfolio_performance(
         raise HTTPException(
             status_code=400, detail=public_message(e, "Invalid request")
         ) from e
-    except Exception as e:
-        logger.error(f"Error calculating portfolio performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
@@ -169,9 +166,6 @@ async def get_portfolio_performance(
         raise HTTPException(
             status_code=400, detail=public_message(e, "Invalid request")
         ) from e
-    except Exception as e:
-        logger.error(f"Error calculating portfolio performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
@@ -223,64 +217,55 @@ async def get_multi_period_performance(
 
     Returns performance metrics for all specified periods in a single response.
     """
-    try:
-        service = PortfolioCalculationService(db)
+    service = PortfolioCalculationService(db)
 
-        # Get portfolio name
-        portfolio = service.get_portfolio(portfolio_id, current_user.id)
-        if not portfolio:
-            raise HTTPException(status_code=404, detail="Portfolio not found")
+    # Get portfolio name
+    portfolio = service.get_portfolio(portfolio_id, current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
 
-        period_summaries = []
-        period_names = {
-            PeriodType.LAST_3_MONTHS: "Last 3 Months",
-            PeriodType.LAST_6_MONTHS: "Last 6 Months",
-            PeriodType.LAST_1_YEAR: "Last 1 Year",
-            PeriodType.LAST_2_YEARS: "Last 2 Years",
-            PeriodType.LAST_3_YEARS: "Last 3 Years",
-            PeriodType.LAST_5_YEARS: "Last 5 Years",
-            PeriodType.YTD: "Year to Date",
-            PeriodType.INCEPTION: "Since Inception",
-        }
+    period_summaries = []
+    period_names = {
+        PeriodType.LAST_3_MONTHS: "Last 3 Months",
+        PeriodType.LAST_6_MONTHS: "Last 6 Months",
+        PeriodType.LAST_1_YEAR: "Last 1 Year",
+        PeriodType.LAST_2_YEARS: "Last 2 Years",
+        PeriodType.LAST_3_YEARS: "Last 3 Years",
+        PeriodType.LAST_5_YEARS: "Last 5 Years",
+        PeriodType.YTD: "Year to Date",
+        PeriodType.INCEPTION: "Since Inception",
+    }
 
-        for period in periods:
-            try:
-                result = await service.calculate_portfolio_performance(
-                    portfolio_id=portfolio_id,
-                    user_id=current_user.id,
-                    period=period,
-                    end_date=end_date,
+    for period in periods:
+        try:
+            result = await service.calculate_portfolio_performance(
+                portfolio_id=portfolio_id,
+                user_id=current_user.id,
+                period=period,
+                end_date=end_date,
+            )
+
+            if "error" not in result:
+                period_summaries.append(
+                    {
+                        "period": period,
+                        "period_name": period_names.get(period, period),
+                        "start_date": result.get("start_date"),
+                        "end_date": result.get("end_date"),
+                        "metrics": result.get("metrics", {}),
+                    }
                 )
 
-                if "error" not in result:
-                    period_summaries.append(
-                        {
-                            "period": period,
-                            "period_name": period_names.get(period, period),
-                            "start_date": result.get("start_date"),
-                            "end_date": result.get("end_date"),
-                            "metrics": result.get("metrics", {}),
-                        }
-                    )
+        except Exception as e:
+            logger.warning(f"Failed to calculate performance for period {period}: {e}")
+            continue
 
-            except Exception as e:
-                logger.warning(
-                    f"Failed to calculate performance for period {period}: {e}"
-                )
-                continue
-
-        return MultiPeriodPerformanceResponse(
-            portfolio_id=portfolio_id,
-            portfolio_name=portfolio.name,
-            periods=period_summaries,
-            calculation_date=datetime.now(),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error calculating multi-period performance: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return MultiPeriodPerformanceResponse(
+        portfolio_id=portfolio_id,
+        portfolio_name=portfolio.name,
+        periods=period_summaries,
+        calculation_date=datetime.now(),
+    )
 
 
 @router.get("/benchmarks", response_model=BenchmarkOptionsResponse)
@@ -334,53 +319,44 @@ async def get_portfolio_performance_overview(
     Returns portfolio summary, asset summaries, top/worst performers,
     and optionally benchmark comparison in a single response.
     """
-    try:
-        service = PortfolioCalculationService(db)
+    service = PortfolioCalculationService(db)
 
-        # Verify portfolio
-        portfolio = service.get_portfolio(portfolio_id, current_user.id)
-        if not portfolio:
-            raise HTTPException(status_code=404, detail="Portfolio not found")
+    # Verify portfolio
+    portfolio = service.get_portfolio(portfolio_id, current_user.id)
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
 
-        portfolio_performance = await service.calculate_portfolio_performance(
-            portfolio_id=portfolio_id,
-            user_id=current_user.id,
-            period=PeriodType.INCEPTION,
-        )
-        current_value = portfolio_performance.get("current_value", 0.0)
+    portfolio_performance = await service.calculate_portfolio_performance(
+        portfolio_id=portfolio_id,
+        user_id=current_user.id,
+        period=PeriodType.INCEPTION,
+    )
+    current_value = portfolio_performance.get("current_value", 0.0)
 
-        overview = {
-            "portfolio_summary": {
-                "portfolio_id": portfolio_id,
-                "portfolio_name": portfolio.name,
-                "current_value": current_value,
-                "total_return": portfolio_performance.get("metrics", {}).get("twr"),
-                "best_period": None,
-                "best_period_return": None,
-                "worst_period": None,
-                "worst_period_return": None,
-                "average_annual_return": portfolio_performance.get("metrics", {}).get(
-                    "cagr"
-                ),
-                "volatility": portfolio_performance.get("metrics", {}).get(
-                    "volatility"
-                ),
-                "sharpe_ratio": portfolio_performance.get("metrics", {}).get(
-                    "sharpe_ratio"
-                ),
-                "calculation_date": datetime.now(),
-            },
-            "asset_summaries": [],
-            "benchmark_comparison": None,
-            "top_performers": [],
-            "worst_performers": [],
+    overview = {
+        "portfolio_summary": {
+            "portfolio_id": portfolio_id,
+            "portfolio_name": portfolio.name,
+            "current_value": current_value,
+            "total_return": portfolio_performance.get("metrics", {}).get("twr"),
+            "best_period": None,
+            "best_period_return": None,
+            "worst_period": None,
+            "worst_period_return": None,
+            "average_annual_return": portfolio_performance.get("metrics", {}).get(
+                "cagr"
+            ),
+            "volatility": portfolio_performance.get("metrics", {}).get("volatility"),
+            "sharpe_ratio": portfolio_performance.get("metrics", {}).get(
+                "sharpe_ratio"
+            ),
             "calculation_date": datetime.now(),
-        }
+        },
+        "asset_summaries": [],
+        "benchmark_comparison": None,
+        "top_performers": [],
+        "worst_performers": [],
+        "calculation_date": datetime.now(),
+    }
 
-        return PortfolioPerformanceOverview(**overview)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting portfolio overview: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    return PortfolioPerformanceOverview(**overview)

@@ -57,7 +57,7 @@ from core.schemas.auth import (
 
 logger = get_logger(__name__)
 
-router = APIRouter(tags=["authentication"])
+router = APIRouter(prefix="/auth", tags=["authentication"])
 
 # Brute-force protection windows (attempts per window)
 LOGIN_MAX_ATTEMPTS = 10

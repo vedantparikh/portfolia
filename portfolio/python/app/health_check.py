@@ -14,7 +14,7 @@ from core.errors import public_message
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["health"])
 
 
 @router.get("/")

@@ -1,10 +1,12 @@
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 
 from config import settings
 from core.database.connection import init_db
@@ -73,269 +75,12 @@ async def lifespan(app: FastAPI):
     logger.info("👋 Portfolia API shutdown complete")
 
 
-# Create FastAPI app with lifespan management
-app = FastAPI(
-    title="Portfolia API",
-    description="Portfolio management and trading strategy API",
-    version="1.0.0",
-    lifespan=lifespan,
-)
-
-
-@app.exception_handler(DomainError)
 async def domain_error_handler(request: Request, exc: DomainError):
     """Expected failures raised in services: 404 when missing, otherwise a client error."""
     status_code = 404 if isinstance(exc, NotFoundError) else 400
     return JSONResponse(status_code=status_code, content={"detail": str(exc)})
 
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    # Browsers reject credentialed requests to a wildcard origin; never allow both.
-    allow_credentials="*" not in settings.ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-logger.info("🔗 Including application routers...")
-app.include_router(health_router, prefix="/health", tags=["health"])
-logger.info("✅ Health router included at /health")
-
-# Include API v1 routers
-try:
-    from api.v1.health_router import router as health_router
-
-    app.include_router(health_router, prefix="/api/v1", tags=["test"])
-    logger.info("✅ Test router included at /api/v1")
-except ImportError as e:
-    logger.warning(f"⚠️ Could not import test router: {e}")
-
-# Include authentication router
-try:
-    logger.info("🔐 Attempting to import auth router...")
-    from api.v1.auth.router import router as auth_router
-
-    logger.info("✅ Auth router imported successfully")
-    app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
-    logger.info("✅ Auth router included at /api/v1/auth")
-except ImportError as e:
-    logger.warning(f"⚠️ Could not import auth router: {e}")
-    logger.error(f"❌ Auth router import error details: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"❌ Unexpected error importing auth router: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-
-# Include market router
-try:
-    logger.info("📈 Attempting to import market router...")
-    from api.v1.market.routers import router as market_router
-
-    app.include_router(market_router, prefix="/api/v1", tags=["market-data"])
-    logger.info("Market router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import market router: {e}")
-
-# Include statistical indicators router
-try:
-    from api.v1.statistical_indicators.routers import router as indicators_router
-
-    app.include_router(
-        indicators_router, prefix="/api/v1", tags=["statistical-indicators"]
-    )
-    logger.info("Statistical indicators router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import statistical indicators router: {e}")
-
-# Include portfolio router
-try:
-    from api.v1.portfolio.router import router as portfolio_router
-
-    app.include_router(portfolio_router, prefix="/api/v1", tags=["portfolios"])
-    logger.info("Portfolio router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import portfolio router: {e}")
-    logger.error(f"Portfolio router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing portfolio router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include assets router
-try:
-    from api.v1.assets.router import router as assets_router
-
-    app.include_router(assets_router, prefix="/api/v1", tags=["assets"])
-    logger.info("Assets router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import assets router: {e}")
-    logger.error(f"Assets router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing assets router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include asset search router
-try:
-    from api.v1.assets.search_router import router as search_router
-
-    app.include_router(search_router, prefix="/api/v1", tags=["asset-search"])
-    logger.info("Search Asset router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import search router: {e}")
-    logger.error(f"Search Asset router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing search asset router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include transactions router
-try:
-    from api.v1.transactions.router import router as transactions_router
-
-    app.include_router(transactions_router, prefix="/api/v1", tags=["transactions"])
-    logger.info("Transactions router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import transactions router: {e}")
-    logger.error(f"Transactions router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing transactions router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include transactions PDF router
-try:
-    from api.v1.transactions.pdf_export_router import router as transactions_pdf_router
-
-    app.include_router(
-        transactions_pdf_router, prefix="/api/v1", tags=["transaction-pdf"]
-    )
-    logger.info("Transactions PDF router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import transactions PDF router: {e}")
-    logger.error(f"Transactions PDF router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing transactions PDF router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include analytics router
-try:
-    from api.v1.analytics.router import router as analytics_router
-
-    app.include_router(analytics_router, prefix="/api/v1", tags=["analytics"])
-    logger.info("Analytics router included successfully")
-except ImportError as e:
-    logger.warning(f"Could not import analytics router: {e}")
-    logger.error(f"Analytics router import error details: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"Unexpected error importing analytics router: {e}")
-    import traceback
-
-    logger.error(f"Full traceback: {traceback.format_exc()}")
-
-# Include watchlist router
-try:
-    logger.info("👀 Attempting to import watchlist router...")
-    from api.v1.watchlist.router import router as watchlist_router
-
-    logger.info("✅ Watchlist router imported successfully")
-    app.include_router(
-        watchlist_router, prefix="/api/v1/watchlists", tags=["watchlists"]
-    )
-    logger.info("✅ Watchlist router included at /api/v1/watchlists")
-except ImportError as e:
-    logger.warning(f"⚠️ Could not import watchlist router: {e}")
-    logger.error(f"❌ Watchlist router import error details: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"❌ Unexpected error importing watchlist router: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-
-# Include portfolio calculations router
-try:
-    logger.info("🧮 Attempting to import portfolio calculations router...")
-    from api.v1.portfolio_calculations.router import router as calculations_router
-
-    logger.info("✅ Portfolio calculations router imported successfully")
-    app.include_router(
-        calculations_router,
-        prefix="/api/v1/portfolios",
-        tags=["portfolio-calculations"],
-    )
-    logger.info("✅ Portfolio calculations router included at /api/v1/portfolios")
-except ImportError as e:
-    logger.warning(f"⚠️ Could not import portfolio calculations router: {e}")
-    logger.error(f"❌ Portfolio calculations router import error details: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"❌ Unexpected error importing portfolio calculations router: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-
-# Include account statements router
-try:
-    logger.info("📄 Attempting to import account statements router...")
-    from api.v1.account_statements.router import router as account_statements_router
-
-    logger.info("✅ Account statements router imported successfully")
-    app.include_router(
-        account_statements_router,
-        prefix="/api/v1",
-        tags=["account-statements"],
-    )
-    logger.info("✅ Account statements router included at /api/v1/account-statements")
-except ImportError as e:
-    logger.warning(f"⚠️ Could not import account statements router: {e}")
-    logger.error(f"❌ Account statements router import error details: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-except Exception as e:
-    logger.error(f"❌ Unexpected error importing account statements router: {e}")
-    import traceback
-
-    logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-
-
-@app.get("/")
 async def root():
     """Root endpoint."""
     return {
@@ -346,13 +91,50 @@ async def root():
     }
 
 
-@app.get("/api/v1/")
 async def api_root():
     """API root endpoint."""
     return {
         "message": "Portfolia API v1",
         "endpoints": {"health": "/health", "test": "/api/v1/test", "docs": "/docs"},
     }
+
+
+def _operation_id(route: APIRoute) -> str:
+    """One id per method and path, so two handlers with the same name do not collide."""
+    method = sorted(route.methods)[0].lower()
+    slug = re.sub(r"\W+", "_", route.path_format).strip("_")
+    return f"{method}_{slug}"
+
+
+def create_app() -> FastAPI:
+    """Build the API. Router imports are explicit and a failure stops startup."""
+    from api.v1.router import build_v1_router
+
+    application = FastAPI(
+        title=settings.PROJECT_NAME,
+        description="Portfolio management and trading strategy API",
+        version=settings.VERSION,
+        lifespan=lifespan,
+        generate_unique_id_function=_operation_id,
+    )
+    application.add_exception_handler(DomainError, domain_error_handler)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        # Browsers reject credentialed requests to a wildcard origin; never allow both.
+        allow_credentials="*" not in settings.ALLOWED_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.info("Including application routers")
+    application.include_router(health_router, prefix="/health")
+    application.include_router(build_v1_router())
+    application.add_api_route("/", root, methods=["GET"], tags=["meta"])
+    application.add_api_route("/api/v1/", api_root, methods=["GET"], tags=["meta"])
+    return application
+
+
+app = create_app()
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/calculations")
+router = APIRouter(prefix="/portfolios/calculations", tags=["portfolio-calculations"])
 
 
 @router.get("/periods", response_model=AvailablePeriodsResponse)

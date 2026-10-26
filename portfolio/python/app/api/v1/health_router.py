@@ -4,7 +4,7 @@ Simple test router to verify API structure.
 
 from fastapi import APIRouter
 
-router = APIRouter()
+router = APIRouter(tags=["test"])
 
 
 @router.get("/")

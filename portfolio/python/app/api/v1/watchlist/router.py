@@ -34,7 +34,7 @@ from core.services.watchlist_service import WatchlistService
 
 logger = get_logger(__name__)
 
-router = APIRouter(tags=["watchlists"])
+router = APIRouter(prefix="/watchlists", tags=["watchlists"])
 
 
 @router.post("/", response_model=WatchlistResponse)

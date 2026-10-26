@@ -51,7 +51,7 @@ from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsSer
 from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/analytics")
+router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
 # Portfolio Performance History

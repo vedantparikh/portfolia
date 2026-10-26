@@ -13,7 +13,7 @@ Do not follow older copies of this checklist. They described Sentry, port 8080, 
 - Secrets live in `python/app/.env.docker` and `js/.env.docker`. They are gitignored. Templates are the `.env.example` files.
 - On start, `python/app/start_api.sh` waits for Postgres and Redis, runs `alembic upgrade head`, then starts the API. A migration failure stops the container.
 - `config.py` refuses placeholder `SECRET_KEY`, `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, or an empty `REDIS_PASSWORD` when `ENVIRONMENT` is not development, dev, local, or test.
-- The UI container joins `homepage_proxy-network`. Nothing in front of it terminates TLS yet.
+- The UI container joins `homepage_proxy-network`. Gatus checks it there, and checks API `/health/` on the portfolio network. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443` via `tailscale serve` to port 3000.
 - `scripts/backup.sh` dumps this database. The timer unit is `deploy/portfolia-backup.timer`. It is not installed by pulling the repo.
 
 ## Do not

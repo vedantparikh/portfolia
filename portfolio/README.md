@@ -101,6 +101,8 @@ Staging is a second project, `portfolio-staging`, on UI port 3100 with its own d
 
 `scripts/backup.sh` dumps production Postgres to `/mnt/samsung_ufs/backups/portfolio/` and keeps 14 daily and 8 weekly copies. `scripts/restore.sh staging <dump>` loads one into staging. Production is restored only with `--allow-prod`. `scripts/restore-drill.sh` does that staging restore from the newest daily dump and checks the table count. Timer units are `deploy/portfolia-backup.timer` and `deploy/portfolia-restore-drill.timer`. An optional Nextcloud upload is configured in `env/backup.env` (see `deploy/backup.env.example`).
 
+Gatus checks the UI and the API health endpoint. The homepage tile links to `https://ubuntu-1.tail13e229.ts.net:3443` (tailscale serve in front of port 3000) and shows whether the UI is up. Containers cannot reach that tailnet port, so Gatus uses the Docker addresses.
+
 ## Further reading
 
 [STARTUP_GUIDE.md](STARTUP_GUIDE.md), [python/app/docs/](python/app/docs/), and the index in [../docs/README.md](../docs/README.md).

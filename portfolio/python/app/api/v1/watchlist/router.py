@@ -52,34 +52,26 @@ async def create_watchlist(
         f"Creating watchlist: {watchlist_data.name}",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        watchlist = service.create_watchlist(current_user.id, watchlist_data)
+    service = WatchlistService(db)
+    watchlist = service.create_watchlist(current_user.id, watchlist_data)
 
-        response = WatchlistResponse(
-            id=watchlist.id,
-            user_id=watchlist.user_id,
-            name=watchlist.name,
-            description=watchlist.description,
-            is_default=watchlist.is_default,
-            is_public=watchlist.is_public,
-            color=watchlist.color,
-            sort_order=watchlist.sort_order,
-            item_count=0,
-            created_at=watchlist.created_at,
-            updated_at=watchlist.updated_at,
-        )
+    response = WatchlistResponse(
+        id=watchlist.id,
+        user_id=watchlist.user_id,
+        name=watchlist.name,
+        description=watchlist.description,
+        is_default=watchlist.is_default,
+        is_public=watchlist.is_public,
+        color=watchlist.color,
+        sort_order=watchlist.sort_order,
+        item_count=0,
+        created_at=watchlist.created_at,
+        updated_at=watchlist.updated_at,
+    )
 
-        response_time = time.time() - start_time
-        log_api_response(logger, "POST", "/watchlists", 200, response_time)
-        return response
-
-    except Exception as e:
-        logger.error(f"Failed to create watchlist: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create watchlist",
-        )
+    response_time = time.time() - start_time
+    log_api_response(logger, "POST", "/watchlists", 200, response_time)
+    return response
 
 
 @router.get("/", response_model=List[WatchlistResponse])
@@ -98,22 +90,14 @@ async def get_user_watchlists(
     )
     start_time = time.time()
 
-    try:
-        service = WatchlistService(db)
-        watchlists = service.get_user_watchlists(current_user.id, include_items)
+    service = WatchlistService(db)
+    watchlists = service.get_user_watchlists(current_user.id, include_items)
 
-        response_time = time.time() - start_time
-        log_api_response(
-            logger, "GET", "/watchlists", 200, response_time, data_size=len(watchlists)
-        )
-        return watchlists
-
-    except Exception as e:
-        logger.error(f"Failed to get watchlists: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve watchlists",
-        )
+    response_time = time.time() - start_time
+    log_api_response(
+        logger, "GET", "/watchlists", 200, response_time, data_size=len(watchlists)
+    )
+    return watchlists
 
 
 @router.get("/public", response_model=List[WatchlistResponse])
@@ -132,20 +116,12 @@ async def get_public_watchlists(
         f"Getting public watchlists (limit: {limit})",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        watchlists = service.get_public_watchlists(limit)
+    service = WatchlistService(db)
+    watchlists = service.get_public_watchlists(limit)
 
-        response_time = time.time() - start_time
-        log_api_response(logger, "GET", "/watchlists/public", 200, response_time)
-        return watchlists
-
-    except Exception as e:
-        logger.error(f"Failed to get public watchlists: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve public watchlists",
-        )
+    response_time = time.time() - start_time
+    log_api_response(logger, "GET", "/watchlists/public", 200, response_time)
+    return watchlists
 
 
 @router.get("/stats", response_model=WatchlistStatsResponse)
@@ -162,20 +138,12 @@ async def get_watchlist_statistics(
         "Getting watchlist statistics",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        stats = service.get_watchlist_statistics(current_user.id)
+    service = WatchlistService(db)
+    stats = service.get_watchlist_statistics(current_user.id)
 
-        response_time = time.time() - start_time
-        log_api_response(logger, "GET", "/watchlists/stats", 200, response_time)
-        return stats
-
-    except Exception as e:
-        logger.error(f"Failed to get watchlist statistics: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve watchlist statistics",
-        )
+    response_time = time.time() - start_time
+    log_api_response(logger, "GET", "/watchlists/stats", 200, response_time)
+    return stats
 
 
 @router.get("/alerts", response_model=AlertEventsResponse)
@@ -218,35 +186,23 @@ async def get_watchlist(
         f"Getting watchlist (real-time: {include_real_time_data})",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
+    service = WatchlistService(db)
 
-        if include_real_time_data:
-            watchlist = await service.get_watchlist_with_real_time_data(
-                watchlist_id, current_user.id
-            )
-        else:
-            watchlist = service.get_watchlist(watchlist_id, current_user.id)
-
-        if not watchlist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found"
-            )
-
-        response_time = time.time() - start_time
-        log_api_response(
-            logger, "GET", f"/watchlists/{watchlist_id}", 200, response_time
+    if include_real_time_data:
+        watchlist = await service.get_watchlist_with_real_time_data(
+            watchlist_id, current_user.id
         )
-        return watchlist
+    else:
+        watchlist = service.get_watchlist(watchlist_id, current_user.id)
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get watchlist {watchlist_id}: {e}")
+    if not watchlist:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve watchlist",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found"
         )
+
+    response_time = time.time() - start_time
+    log_api_response(logger, "GET", f"/watchlists/{watchlist_id}", 200, response_time)
+    return watchlist
 
 
 @router.put("/{watchlist_id}", response_model=WatchlistResponse)
@@ -265,42 +221,30 @@ async def update_watchlist(
         f"Updating watchlist: {update_data.dict(exclude_unset=True)}",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        watchlist = service.update_watchlist(watchlist_id, current_user.id, update_data)
+    service = WatchlistService(db)
+    watchlist = service.update_watchlist(watchlist_id, current_user.id, update_data)
 
-        if not watchlist:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found"
-            )
-
-        response = WatchlistResponse(
-            id=watchlist.id,
-            user_id=watchlist.user_id,
-            name=watchlist.name,
-            description=watchlist.description,
-            is_default=watchlist.is_default,
-            is_public=watchlist.is_public,
-            color=watchlist.color,
-            sort_order=watchlist.sort_order,
-            item_count=len(watchlist.items),
-            created_at=watchlist.created_at,
-            updated_at=watchlist.updated_at,
-        )
-        response_time = time.time() - start_time
-        log_api_response(
-            logger, "PUT", f"/watchlists/{watchlist_id}", 200, response_time
-        )
-        return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to update watchlist {watchlist_id}: {e}")
+    if not watchlist:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update watchlist",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found"
         )
+
+    response = WatchlistResponse(
+        id=watchlist.id,
+        user_id=watchlist.user_id,
+        name=watchlist.name,
+        description=watchlist.description,
+        is_default=watchlist.is_default,
+        is_public=watchlist.is_public,
+        color=watchlist.color,
+        sort_order=watchlist.sort_order,
+        item_count=len(watchlist.items),
+        created_at=watchlist.created_at,
+        updated_at=watchlist.updated_at,
+    )
+    response_time = time.time() - start_time
+    log_api_response(logger, "PUT", f"/watchlists/{watchlist_id}", 200, response_time)
+    return response
 
 
 @router.delete("/{watchlist_id}", response_model=WatchlistDeleteResponse)
@@ -340,12 +284,6 @@ async def delete_watchlist(
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to delete watchlist {watchlist_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete watchlist",
-        )
 
 
 @router.post("/{watchlist_id}/items", response_model=WatchlistItemResponse)
@@ -414,12 +352,6 @@ async def add_item_to_watchlist(
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to add item to watchlist {watchlist_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add item to watchlist",
-        )
 
 
 @router.post("/{watchlist_id}/items/bulk", response_model=WatchlistBulkAddResponse)
@@ -438,48 +370,40 @@ async def bulk_add_items_to_watchlist(
         f"Adding {len(bulk_data.symbols)} symbols",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        added_items = []
-        failed_symbols = []
+    service = WatchlistService(db)
+    added_items = []
+    failed_symbols = []
 
-        for symbol in bulk_data.symbols:
-            try:
-                item_data = WatchlistItemCreate(symbol=symbol)
-                item = await service.add_item_to_watchlist(
-                    watchlist_id, current_user.id, item_data
-                )
-                if item:
-                    added_items.append(item.symbol)
-            except Exception as e:
-                failed_symbols.append(
-                    {"symbol": symbol, "error": public_message(e, "could not be added")}
-                )
+    for symbol in bulk_data.symbols:
+        try:
+            item_data = WatchlistItemCreate(symbol=symbol)
+            item = await service.add_item_to_watchlist(
+                watchlist_id, current_user.id, item_data
+            )
+            if item:
+                added_items.append(item.symbol)
+        except Exception as e:
+            failed_symbols.append(
+                {"symbol": symbol, "error": public_message(e, "could not be added")}
+            )
 
-        result = WatchlistBulkAddResponse(
-            added_items=added_items,
-            failed_symbols=failed_symbols,
-            total_requested=len(bulk_data.symbols),
-            successfully_added=len(added_items),
-            failed=len(failed_symbols),
-        )
+    result = WatchlistBulkAddResponse(
+        added_items=added_items,
+        failed_symbols=failed_symbols,
+        total_requested=len(bulk_data.symbols),
+        successfully_added=len(added_items),
+        failed=len(failed_symbols),
+    )
 
-        response_time = time.time() - start_time
-        log_api_response(
-            logger,
-            "POST",
-            f"/watchlists/{watchlist_id}/items/bulk",
-            200,
-            response_time,
-        )
-        return result
-
-    except Exception as e:
-        logger.error(f"Failed to bulk add items to watchlist {watchlist_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to add items to watchlist",
-        )
+    response_time = time.time() - start_time
+    log_api_response(
+        logger,
+        "POST",
+        f"/watchlists/{watchlist_id}/items/bulk",
+        200,
+        response_time,
+    )
+    return result
 
 
 @router.put("/{watchlist_id}/items/{item_id}", response_model=WatchlistItemResponse)
@@ -499,55 +423,45 @@ async def update_watchlist_item(
         f"Updating item: {update_data.dict(exclude_unset=True)}",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        item = service.update_watchlist_item(item_id, current_user.id, update_data)
+    service = WatchlistService(db)
+    item = service.update_watchlist_item(item_id, current_user.id, update_data)
 
-        if not item:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist item not found"
-            )
-
-        response = WatchlistItemResponse(
-            id=item.id,
-            watchlist_id=item.watchlist_id,
-            symbol=item.symbol,
-            company_name=item.company_name,
-            notes=item.notes,
-            personal_rating=item.personal_rating,
-            investment_thesis=item.investment_thesis,
-            tags=item.tags,
-            alerts_enabled=item.alerts_enabled,
-            alert_price_high=item.alert_price_high,
-            alert_price_low=item.alert_price_low,
-            alert_price_change_percent=item.alert_price_change_percent,
-            sort_order=item.sort_order,
-            added_date=item.added_date,
-            updated_at=item.updated_at,
-            added_price=item.added_price,
-            current_price=item.current_price,
-            price_change_since_added=item.price_change_since_added,
-            price_change_percent_since_added=item.price_change_percent_since_added,
-        )
-
-        response_time = time.time() - start_time
-        log_api_response(
-            logger,
-            "PUT",
-            f"/watchlists/{watchlist_id}/items/{item_id}",
-            200,
-            response_time,
-        )
-        return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to update watchlist item {item_id}: {e}")
+    if not item:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update watchlist item",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist item not found"
         )
+
+    response = WatchlistItemResponse(
+        id=item.id,
+        watchlist_id=item.watchlist_id,
+        symbol=item.symbol,
+        company_name=item.company_name,
+        notes=item.notes,
+        personal_rating=item.personal_rating,
+        investment_thesis=item.investment_thesis,
+        tags=item.tags,
+        alerts_enabled=item.alerts_enabled,
+        alert_price_high=item.alert_price_high,
+        alert_price_low=item.alert_price_low,
+        alert_price_change_percent=item.alert_price_change_percent,
+        sort_order=item.sort_order,
+        added_date=item.added_date,
+        updated_at=item.updated_at,
+        added_price=item.added_price,
+        current_price=item.current_price,
+        price_change_since_added=item.price_change_since_added,
+        price_change_percent_since_added=item.price_change_percent_since_added,
+    )
+
+    response_time = time.time() - start_time
+    log_api_response(
+        logger,
+        "PUT",
+        f"/watchlists/{watchlist_id}/items/{item_id}",
+        200,
+        response_time,
+    )
+    return response
 
 
 @router.delete(
@@ -568,37 +482,25 @@ async def remove_item_from_watchlist(
         "Removing item from watchlist",
     )
     start_time = time.time()
-    try:
-        service = WatchlistService(db)
-        success = service.remove_item_from_watchlist(item_id, current_user.id)
+    service = WatchlistService(db)
+    success = service.remove_item_from_watchlist(item_id, current_user.id)
 
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist item not found"
-            )
-
-        response_time = time.time() - start_time
-        log_api_response(
-            logger,
-            "DELETE",
-            f"/watchlists/{watchlist_id}/items/{item_id}",
-            200,
-            response_time,
-        )
-        return WatchlistItemDeleteResponse(
-            message="Item removed from watchlist successfully"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(
-            f"Failed to remove item {item_id} from watchlist {watchlist_id}: {e}"
-        )
+    if not success:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to remove item from watchlist",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist item not found"
         )
+
+    response_time = time.time() - start_time
+    log_api_response(
+        logger,
+        "DELETE",
+        f"/watchlists/{watchlist_id}/items/{item_id}",
+        200,
+        response_time,
+    )
+    return WatchlistItemDeleteResponse(
+        message="Item removed from watchlist successfully"
+    )
 
 
 @router.post("/{watchlist_id}/reorder", response_model=WatchlistReorderResponse)
@@ -647,9 +549,3 @@ async def reorder_watchlist_items(
         )
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to reorder watchlist items: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to reorder watchlist items",
-        )

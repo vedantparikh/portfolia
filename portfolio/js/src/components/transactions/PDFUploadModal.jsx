@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle, FileText, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { accountStatementsAPI } from '../../services/api';
+import { accountStatementsAPI, apiErrorMessage } from '../../services/api';
 
 const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
     const [providers, setProviders] = useState([]);
@@ -85,7 +85,7 @@ const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
             toast.success('Statement parsed');
         } catch (error) {
             console.error('Failed to parse statement:', error);
-            toast.error(error.response?.data?.detail || 'Failed to parse the file. Please try again.');
+            toast.error(apiErrorMessage(error, 'Failed to parse the file. Please try again.'));
         } finally {
             setIsParsing(false);
         }

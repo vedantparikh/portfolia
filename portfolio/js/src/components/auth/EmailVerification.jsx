@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { apiErrorMessage } from '../../services/api';
 
 const EmailVerification = () => {
     const [searchParams] = useSearchParams();
@@ -52,7 +53,7 @@ const EmailVerification = () => {
                 toast.error(result.error);
             }
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || 'Email verification failed';
+            const errorMessage = apiErrorMessage(error, 'Email verification failed');
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {
@@ -75,7 +76,7 @@ const EmailVerification = () => {
                 toast.error(result.error);
             }
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || 'Failed to resend verification email';
+            const errorMessage = apiErrorMessage(error, 'Failed to resend verification email');
             setError(errorMessage);
             toast.error(errorMessage);
         } finally {

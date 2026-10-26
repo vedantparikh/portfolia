@@ -46,35 +46,30 @@ async def get_available_indicators(
     db: Session = Depends(get_db),
 ):
     """Get all available statistical indicators."""
-    try:
-        service = EnhancedStatisticalService(db)
-        indicators_data = await service.get_available_indicators()
+    service = EnhancedStatisticalService(db)
+    indicators_data = await service.get_available_indicators()
 
-        indicators = indicators_data["indicators"]
+    indicators = indicators_data["indicators"]
 
-        # Filter by category if provided
-        if category:
-            indicators = [ind for ind in indicators if ind["category"] == category]
+    # Filter by category if provided
+    if category:
+        indicators = [ind for ind in indicators if ind["category"] == category]
 
-        # Search if provided
-        if search:
-            search_lower = search.lower()
-            indicators = [
-                ind
-                for ind in indicators
-                if search_lower in ind["name"].lower()
-                or search_lower in ind["description"].lower()
-            ]
+    # Search if provided
+    if search:
+        search_lower = search.lower()
+        indicators = [
+            ind
+            for ind in indicators
+            if search_lower in ind["name"].lower()
+            or search_lower in ind["description"].lower()
+        ]
 
-        return IndicatorRegistryResponse(
-            indicators=indicators,
-            categories=indicators_data["categories"],
-            total_indicators=len(indicators),
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error fetching indicators")
-        )
+    return IndicatorRegistryResponse(
+        indicators=indicators,
+        categories=indicators_data["categories"],
+        total_indicators=len(indicators),
+    )
 
 
 @router.post("/calculate", response_model=IndicatorCalculationResponse)
@@ -106,10 +101,6 @@ async def calculate_indicators(
         raise HTTPException(
             status_code=400, detail=public_message(e, "Invalid indicator request")
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error calculating indicators")
-        )
 
 
 # Analysis Configuration Endpoints
@@ -120,14 +111,9 @@ async def create_configuration(
     db: Session = Depends(get_db),
 ):
     """Create a new analysis configuration."""
-    try:
-        service = AnalysisConfigurationService(db)
-        result = service.create_configuration(current_user.id, config_data)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error creating configuration")
-        )
+    service = AnalysisConfigurationService(db)
+    result = service.create_configuration(current_user.id, config_data)
+    return result
 
 
 @router.get("/configurations", response_model=AnalysisConfigurationListResponse)
@@ -139,19 +125,14 @@ async def get_configurations(
     db: Session = Depends(get_db),
 ):
     """Get analysis configurations."""
-    try:
-        service = AnalysisConfigurationService(db)
+    service = AnalysisConfigurationService(db)
 
-        if user_only and current_user:
-            result = service.get_user_configurations(current_user.id, skip, limit)
-        else:
-            result = service.get_public_configurations(skip, limit)
+    if user_only and current_user:
+        result = service.get_user_configurations(current_user.id, skip, limit)
+    else:
+        result = service.get_public_configurations(skip, limit)
 
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error fetching configurations")
-        )
+    return result
 
 
 @router.get("/configurations/search", response_model=AnalysisConfigurationListResponse)
@@ -163,16 +144,11 @@ async def search_configurations(
     db: Session = Depends(get_db),
 ):
     """Search configurations by name, description, or tags."""
-    try:
-        service = AnalysisConfigurationService(db)
-        result = service.search_configurations(
-            q, current_user.id if current_user else None, skip, limit
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail="Error searching configurations"
-        ) from e
+    service = AnalysisConfigurationService(db)
+    result = service.search_configurations(
+        q, current_user.id if current_user else None, skip, limit
+    )
+    return result
 
 
 @router.get("/configurations/{config_id}", response_model=AnalysisConfiguration)
@@ -182,22 +158,15 @@ async def get_configuration(
     db: Session = Depends(get_db),
 ):
     """Get a specific analysis configuration."""
-    try:
-        service = AnalysisConfigurationService(db)
-        result = service.get_configuration(
-            config_id, current_user.id if current_user else None
-        )
+    service = AnalysisConfigurationService(db)
+    result = service.get_configuration(
+        config_id, current_user.id if current_user else None
+    )
 
-        if not result:
-            raise HTTPException(status_code=404, detail="Configuration not found")
+    if not result:
+        raise HTTPException(status_code=404, detail="Configuration not found")
 
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error fetching configuration")
-        )
+    return result
 
 
 @router.put("/configurations/{config_id}", response_model=AnalysisConfiguration)
@@ -208,22 +177,15 @@ async def update_configuration(
     db: Session = Depends(get_db),
 ):
     """Update an analysis configuration."""
-    try:
-        service = AnalysisConfigurationService(db)
-        result = service.update_configuration(config_id, current_user.id, update_data)
+    service = AnalysisConfigurationService(db)
+    result = service.update_configuration(config_id, current_user.id, update_data)
 
-        if not result:
-            raise HTTPException(
-                status_code=404, detail="Configuration not found or access denied"
-            )
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
+    if not result:
         raise HTTPException(
-            status_code=500, detail=public_message(e, "Error updating configuration")
+            status_code=404, detail="Configuration not found or access denied"
         )
+
+    return result
 
 
 @router.delete("/configurations/{config_id}")
@@ -233,22 +195,15 @@ async def delete_configuration(
     db: Session = Depends(get_db),
 ):
     """Delete an analysis configuration."""
-    try:
-        service = AnalysisConfigurationService(db)
-        success = service.delete_configuration(config_id, current_user.id)
+    service = AnalysisConfigurationService(db)
+    success = service.delete_configuration(config_id, current_user.id)
 
-        if not success:
-            raise HTTPException(
-                status_code=404, detail="Configuration not found or access denied"
-            )
-
-        return {"message": "Configuration deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
+    if not success:
         raise HTTPException(
-            status_code=500, detail=public_message(e, "Error deleting configuration")
+            status_code=404, detail="Configuration not found or access denied"
         )
+
+    return {"message": "Configuration deleted successfully"}
 
 
 @router.get("/templates")
@@ -257,14 +212,9 @@ async def get_predefined_templates(
     db: Session = Depends(get_db),
 ):
     """Get predefined analysis templates."""
-    try:
-        service = EnhancedStatisticalService(db)
-        templates = await service.get_predefined_templates()
-        return templates
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error fetching templates")
-        )
+    service = EnhancedStatisticalService(db)
+    templates = await service.get_predefined_templates()
+    return templates
 
 
 @router.post("/templates/{template_name}/create", response_model=AnalysisConfiguration)
@@ -275,22 +225,15 @@ async def create_from_template(
     db: Session = Depends(get_db),
 ):
     """Create a configuration from a predefined template."""
-    try:
-        service = EnhancedStatisticalService(db)
-        result = await service.create_configuration_from_template(
-            current_user.id, template_name, custom_name
-        )
+    service = EnhancedStatisticalService(db)
+    result = await service.create_configuration_from_template(
+        current_user.id, template_name, custom_name
+    )
 
-        if not result:
-            raise HTTPException(status_code=404, detail="Template not found")
+    if not result:
+        raise HTTPException(status_code=404, detail="Template not found")
 
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error creating from template")
-        )
+    return result
 
 
 @router.post("/validate", response_model=List[IndicatorValidationError])
@@ -300,14 +243,9 @@ async def validate_indicator_configuration(
     db: Session = Depends(get_db),
 ):
     """Validate an indicator configuration."""
-    try:
-        service = EnhancedStatisticalService(db)
-        errors = await service.validate_indicator_configuration(config)
-        return errors
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error validating configuration")
-        )
+    service = EnhancedStatisticalService(db)
+    errors = await service.validate_indicator_configuration(config)
+    return errors
 
 
 # Additional endpoints for enhanced functionality
@@ -321,22 +259,15 @@ async def duplicate_configuration(
     db: Session = Depends(get_db),
 ):
     """Duplicate an existing configuration."""
-    try:
-        service = AnalysisConfigurationService(db)
-        result = service.duplicate_configuration(config_id, current_user.id, new_name)
+    service = AnalysisConfigurationService(db)
+    result = service.duplicate_configuration(config_id, current_user.id, new_name)
 
-        if not result:
-            raise HTTPException(
-                status_code=404, detail="Configuration not found or access denied"
-            )
-
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
+    if not result:
         raise HTTPException(
-            status_code=500, detail=public_message(e, "Error duplicating configuration")
+            status_code=404, detail="Configuration not found or access denied"
         )
+
+    return result
 
 
 @router.get("/statistics")
@@ -344,14 +275,9 @@ async def get_statistics(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Get user's configuration statistics."""
-    try:
-        service = EnhancedStatisticalService(db)
-        stats = await service.get_configuration_statistics(current_user.id)
-        return stats
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=public_message(e, "Error fetching statistics")
-        )
+    service = EnhancedStatisticalService(db)
+    stats = await service.get_configuration_statistics(current_user.id)
+    return stats
 
 
 @router.get("/popular")
@@ -361,12 +287,6 @@ async def get_popular_configurations(
     db: Session = Depends(get_db),
 ):
     """Get popular public configurations."""
-    try:
-        service = EnhancedStatisticalService(db)
-        configs = await service.get_popular_configurations(limit)
-        return configs
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=public_message(e, "Error fetching popular configurations"),
-        )
+    service = EnhancedStatisticalService(db)
+    configs = await service.get_popular_configurations(limit)
+    return configs

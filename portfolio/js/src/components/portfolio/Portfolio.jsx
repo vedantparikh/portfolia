@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import {
   API_BASE_URL,
+  apiErrorMessage,
   portfolioAPI,
   transactionAPI,
 } from "../../services/api";
@@ -216,7 +217,7 @@ const Portfolio = () => {
       } else {
         toast.error(
           `Failed to create portfolio: ${
-            error.response?.data?.detail || error.message
+            apiErrorMessage(error, error.message)
           }`
         );
       }
@@ -270,7 +271,7 @@ const Portfolio = () => {
       } else {
         toast.error(
           `Failed to update portfolio: ${
-            error.response?.data?.detail || error.message
+            apiErrorMessage(error, error.message)
           }`
         );
       }
@@ -313,7 +314,7 @@ const Portfolio = () => {
       } else {
         toast.error(
           `Failed to delete portfolio: ${
-            error.response?.data?.detail || error.message
+            apiErrorMessage(error, error.message)
           }`
         );
       }

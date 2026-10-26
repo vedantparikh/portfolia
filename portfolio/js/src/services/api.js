@@ -51,6 +51,20 @@ const api = axios.create({
   },
 });
 
+export function apiErrorMessage(error, fallback) {
+  const data = error?.response?.data;
+  if (typeof data?.error?.message === "string" && data.error.message) {
+    return data.error.message;
+  }
+  if (typeof data?.detail === "string" && data.detail) {
+    return data.detail;
+  }
+  if (typeof data?.message === "string" && data.message) {
+    return data.message;
+  }
+  return fallback;
+}
+
 /* 
   REQUEST INTERCEPTOR - Runs before every API request
   This automatically adds the authentication token to all requests
@@ -112,6 +126,18 @@ const refreshAccessToken = () => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const message = apiErrorMessage(error, "");
+    if (
+      message &&
+      error.response?.data &&
+      typeof error.response.data === "object" &&
+      typeof error.response.data.detail !== "string"
+    ) {
+      error.response.data.detail = message;
+      if (typeof error.response.data.message !== "string") {
+        error.response.data.message = message;
+      }
+    }
     const originalRequest = error.config;
     // Auth endpoints (login, refresh, ...) report bad credentials with 401; don't refresh for them
     const isAuthEndpoint = originalRequest?.url?.startsWith("/auth/");

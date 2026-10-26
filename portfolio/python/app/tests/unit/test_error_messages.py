@@ -4,6 +4,7 @@ import ast
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
 from core.auth.dependencies import get_optional_current_user
 from core.domain.positions import OversellError
@@ -79,10 +80,14 @@ def test_internal_error_text_never_reaches_the_client(client, monkeypatch):
     monkeypatch.setattr(EnhancedStatisticalService, "get_available_indicators", broken)
     app.dependency_overrides[get_optional_current_user] = lambda: None
 
-    response = client.get("/api/v1/statistical-indicators/indicators")
+    with TestClient(app, raise_server_exceptions=False) as quiet:
+        response = quiet.get("/api/v1/statistical-indicators/indicators")
 
     assert response.status_code == 500
-    assert response.json() == {"detail": "Error fetching indicators"}
+    body = response.json()
+    assert body["error"]["code"] == "internal_error"
+    assert body["error"]["message"] == "Something went wrong"
+    assert "10.0.0.5" not in response.text
 
 
 def test_domain_error_text_reaches_the_client(client, monkeypatch):
@@ -98,7 +103,10 @@ def test_domain_error_text_reaches_the_client(client, monkeypatch):
     )
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "No market data found for symbol ZZZZ"}
+    assert response.json()["error"] == {
+        "code": "bad_request",
+        "message": "No market data found for symbol ZZZZ",
+    }
 
 
 def test_not_found_is_404_and_bad_input_is_400(client, test_db):
@@ -117,11 +125,21 @@ def test_not_found_is_404_and_bad_input_is_400(client, test_db):
     missing = client.get(f"{base}/999999/performance?period=1y")
     bad_period = client.get(f"{base}/{portfolio.id}/performance?period=nonsense")
 
-    assert (missing.status_code, missing.json()["detail"]) == (
+    assert (missing.status_code, missing.json()["error"]) == (
         404,
-        "Portfolio 999999 not found",
+        {"code": "not_found", "message": "Portfolio 999999 not found"},
     )
-    assert (bad_period.status_code, bad_period.json()["detail"]) == (
+    assert (bad_period.status_code, bad_period.json()["error"]) == (
         400,
-        "Unknown period type: nonsense",
+        {"code": "bad_request", "message": "Unknown period type: nonsense"},
     )
+
+
+def test_validation_errors_use_the_envelope(client):
+    response = client.post("/api/v1/auth/register", json={})
+
+    assert response.status_code == 422
+    body = response.json()["error"]
+    assert body["code"] == "validation_error"
+    assert "username" in body["message"]
+    assert body["details"]

@@ -17,7 +17,6 @@ from core.database.connection import get_db
 from core.database.models import Asset as AssetModel
 from core.database.models import User
 from core.database.models.asset import AssetType
-from core.errors import public_message
 from core.logging_config import get_logger, log_api_request, log_api_response
 from core.schemas.portfolio import (
     Asset as AssetSchema,
@@ -72,18 +71,7 @@ async def create_asset(
             detail="Asset with this symbol already exists for your account",
         )
 
-    try:
-        ticker_data = await market_data_service.get_ticker_info(
-            asset_data.symbol.upper()
-        )
-    except Exception as e:
-        logger.error(
-            "Failed to fetch ticker data for %s: %s", asset_data.symbol, str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to fetch market data for symbol {asset_data.symbol}",
-        ) from e
+    ticker_data = await market_data_service.get_ticker_info(asset_data.symbol.upper())
 
     new_asset = asset_from_ticker_info(
         asset_data.symbol.upper(), ticker_data, current_user.id
@@ -364,66 +352,58 @@ async def get_asset_prices(
             status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
         )
 
-    try:
-        # Use the market data service to get prices from yfinance
-        data = await market_data_service.fetch_ticker_data(
-            symbol=asset.symbol, period=period, interval=interval
-        )
-        if not data.empty:
-            df = data[
-                [
-                    "Date",
-                    "Open",
-                    "High",
-                    "Low",
-                    "Close",
-                    "Volume",
-                    "Dividends",
-                    "Stock Splits",
-                ]
-            ].copy()
-            df["adj_close"] = data.get("Adj Close", data["Close"])
-            df.columns = [
-                "date",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-                "adj_close",
-                "dividends",
-                "stock_splits",
+    data = await market_data_service.fetch_ticker_data(
+        symbol=asset.symbol, period=period, interval=interval
+    )
+    if not data.empty:
+        df = data[
+            [
+                "Date",
+                "Open",
+                "High",
+                "Low",
+                "Close",
+                "Volume",
+                "Dividends",
+                "Stock Splits",
             ]
-            convert_dict = {
-                "open": float,
-                "high": float,
-                "low": float,
-                "close": float,
-                "adj_close": float,
-                "volume": int,
-                "dividends": float,
-                "stock_splits": float,
-            }
-            df = df.astype(convert_dict)
-            df["date"] = pd.to_datetime(df["date"]).apply(pd.Timestamp.isoformat)
-
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No price data available for {asset.symbol}",
-            )
-
-        return {
-            "asset_id": asset_id,
-            "symbol": asset.symbol,
-            "period": period,
-            "interval": interval,
-            "data_points": len(df),
-            "data": df.to_dict(orient="records"),
+        ].copy()
+        df["adj_close"] = data.get("Adj Close", data["Close"])
+        df.columns = [
+            "date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "adj_close",
+            "dividends",
+            "stock_splits",
+        ]
+        convert_dict = {
+            "open": float,
+            "high": float,
+            "low": float,
+            "close": float,
+            "adj_close": float,
+            "volume": int,
+            "dividends": float,
+            "stock_splits": float,
         }
+        df = df.astype(convert_dict)
+        df["date"] = pd.to_datetime(df["date"]).apply(pd.Timestamp.isoformat)
 
-    except Exception as e:
+    else:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=public_message(e, "Error retrieving price data"),
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No price data available for {asset.symbol}",
+        )
+
+    return {
+        "asset_id": asset_id,
+        "symbol": asset.symbol,
+        "period": period,
+        "interval": interval,
+        "data_points": len(df),
+        "data": df.to_dict(orient="records"),
+    }

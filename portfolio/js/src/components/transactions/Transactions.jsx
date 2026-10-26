@@ -17,6 +17,7 @@ import { useLocation } from "react-router";
 
 import {
   accountStatementsAPI,
+  apiErrorMessage,
   portfolioAPI,
   transactionAPI,
 } from "../../services/api";
@@ -223,7 +224,7 @@ const Transactions = () => {
     } catch (error) {
       console.error("Failed to create transaction:", error);
       toast.error(
-        error.response?.data?.detail || "Failed to create transaction"
+        apiErrorMessage(error, "Failed to create transaction")
       );
       throw error;
     }

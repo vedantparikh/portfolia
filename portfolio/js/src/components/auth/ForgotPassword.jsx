@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { Mail, CheckCircle, ArrowLeft } from 'lucide-react';
-import { authAPI } from '../../services/api';
+import { apiErrorMessage, authAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
@@ -22,7 +22,7 @@ const ForgotPassword = () => {
             setIsSubmitted(true);
             toast.success('Password reset email sent successfully!');
         } catch (error) {
-            const errorMessage = error.response?.data?.detail || 'Failed to send reset email';
+            const errorMessage = apiErrorMessage(error, 'Failed to send reset email');
             toast.error(errorMessage);
         } finally {
             setIsLoading(false);

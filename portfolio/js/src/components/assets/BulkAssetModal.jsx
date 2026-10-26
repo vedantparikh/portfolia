@@ -1,7 +1,7 @@
 import { Loader2, Plus, Tags, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { assetAPI } from '../../services/api';
+import { apiErrorMessage, assetAPI } from '../../services/api';
 import { SymbolSearch } from '../shared'; // Make sure this path is correct
 
 const BulkAssetModal = ({ onClose, onSuccess }) => {
@@ -59,7 +59,7 @@ const BulkAssetModal = ({ onClose, onSuccess }) => {
             }
         } catch (error) {
             console.error('Failed to save assets in bulk:', error);
-            const errorMessage = error.response?.data?.detail || 'An unexpected error occurred while saving.';
+            const errorMessage = apiErrorMessage(error, 'An unexpected error occurred while saving.');
             toast.error(errorMessage);
         } finally {
             setIsSaving(false);

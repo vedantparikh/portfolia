@@ -71,12 +71,6 @@ async def parse_statement(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=public_message(e, "The statement could not be parsed"),
         ) from e
-    except Exception as e:
-        logger.exception("Statement parsing failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while parsing the statement",
-        ) from e
 
 
 @router.post("/instruments/resolve", response_model=ResolveInstrumentsResponse)
@@ -127,10 +121,4 @@ async def bulk_create_transactions(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=public_message(e, "The transactions could not be created"),
-        ) from e
-    except Exception as e:
-        logger.exception("Bulk transaction creation failed")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while creating transactions",
         ) from e

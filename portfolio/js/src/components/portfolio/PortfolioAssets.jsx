@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
+import { apiErrorMessage, portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
 import AssetFilters from '../assets/AssetFilters';
 import AssetModal from '../assets/AssetModal';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -321,7 +321,7 @@ const PortfolioAssets = ({ portfolio }) => {
             }, 500);
         } catch (error) {
             console.error('Failed to create transaction:', error);
-            const errorMessage = error.response?.data?.detail || error.message || 'Failed to create transaction';
+            const errorMessage = apiErrorMessage(error, error.message || 'Failed to create transaction');
             toast.error(errorMessage);
             throw error; // Re-throw so the modal can handle it
         }

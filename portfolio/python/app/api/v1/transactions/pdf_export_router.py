@@ -52,14 +52,6 @@ async def export_transactions_pdf(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=public_message(e, "The PDF could not be created"),
         ) from e
-    except Exception as e:
-        logger.error(
-            "Error exporting transactions PDF for user %s: %s", current_user.id, str(e)
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate PDF export",
-        ) from e
 
 
 @router.post("/export/download")
@@ -98,16 +90,6 @@ async def download_transactions_pdf(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=public_message(e, "The PDF could not be created"),
         ) from e
-    except Exception as e:
-        logger.error(
-            "Error downloading transactions PDF for user %s: %s",
-            current_user.id,
-            str(e),
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate PDF download",
-        ) from e
 
 
 @router.post("/export/preview", response_model=dict)
@@ -122,50 +104,42 @@ async def preview_export(
     This endpoint returns information about what would be included
     in the PDF export based on the provided filters.
     """
-    try:
-        pdf_service = TransactionPDFService(db)
+    pdf_service = TransactionPDFService(db)
 
-        # Get filtered transactions for preview
-        transactions = await pdf_service._get_filtered_transactions(
-            user=current_user, filters=export_request.filters
-        )
+    # Get filtered transactions for preview
+    transactions = await pdf_service._get_filtered_transactions(
+        user=current_user, filters=export_request.filters
+    )
 
-        # Calculate summary stats
-        summary_stats = pdf_service._calculate_summary_stats(
-            transactions, export_request.filters
-        )
+    # Calculate summary stats
+    summary_stats = pdf_service._calculate_summary_stats(
+        transactions, export_request.filters
+    )
 
-        # Generate filename
-        filename = pdf_service._generate_filename(
-            user=current_user,
-            filters=export_request.filters,
-            custom_filename=export_request.custom_filename,
-        )
+    # Generate filename
+    filename = pdf_service._generate_filename(
+        user=current_user,
+        filters=export_request.filters,
+        custom_filename=export_request.custom_filename,
+    )
 
-        return {
-            "filename": filename,
-            "transaction_count": len(transactions),
-            "summary_stats": summary_stats.dict(),
-            "estimated_pages": max(
-                1,
-                len(transactions) // 25
-                + (2 if export_request.options.include_summary else 1),
-            ),
-            "filters_applied": {
-                "portfolio_ids": export_request.filters.portfolio_ids,
-                "date_range": {
-                    "start": export_request.filters.start_date,
-                    "end": export_request.filters.end_date,
-                },
-                "transaction_types": export_request.filters.transaction_types,
-                "asset_symbols": export_request.filters.asset_symbols,
+    return {
+        "filename": filename,
+        "transaction_count": len(transactions),
+        "summary_stats": summary_stats.dict(),
+        "estimated_pages": max(
+            1,
+            len(transactions) // 25
+            + (2 if export_request.options.include_summary else 1),
+        ),
+        "filters_applied": {
+            "portfolio_ids": export_request.filters.portfolio_ids,
+            "date_range": {
+                "start": export_request.filters.start_date,
+                "end": export_request.filters.end_date,
             },
-            "options": export_request.options.dict(),
-        }
-
-    except Exception as e:
-        logger.error("Error previewing export for user %s: %s", current_user.id, str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to preview export",
-        ) from e
+            "transaction_types": export_request.filters.transaction_types,
+            "asset_symbols": export_request.filters.asset_symbols,
+        },
+        "options": export_request.options.dict(),
+    }

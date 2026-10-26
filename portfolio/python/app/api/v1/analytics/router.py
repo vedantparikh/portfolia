@@ -862,52 +862,43 @@ async def get_user_analytics_dashboard(
     """Get comprehensive analytics dashboard for the current user, always refreshing with latest yfinance data."""
     analytics_service = PortfolioAnalyticsService(db)
 
-    try:
-        # Force refresh user assets and portfolios before getting dashboard
-        if force_refresh:
-            try:
-                # Get all user assets and refresh their data
-                from core.database.models import Asset
+    if force_refresh:
+        try:
+            # Get all user assets and refresh their data
+            from core.database.models import Asset
 
-                user_assets = (
-                    db.query(Asset)
-                    .filter(Asset.user_id == current_user.id, Asset.is_active == True)
-                    .all()
+            user_assets = (
+                db.query(Asset)
+                .filter(Asset.user_id == current_user.id, Asset.is_active == True)
+                .all()
+            )
+
+            asset_ids = [asset.id for asset in user_assets if asset.symbol]
+            if asset_ids:
+                await analytics_service.bulk_update_asset_prices(asset_ids)
+
+            # Refresh portfolio data for all user portfolios
+            user_portfolios = (
+                db.query(Portfolio)
+                .filter(
+                    Portfolio.user_id == current_user.id,
+                    Portfolio.is_active == True,
                 )
+                .all()
+            )
 
-                asset_ids = [asset.id for asset in user_assets if asset.symbol]
-                if asset_ids:
-                    await analytics_service.bulk_update_asset_prices(asset_ids)
-
-                # Refresh portfolio data for all user portfolios
-                user_portfolios = (
-                    db.query(Portfolio)
-                    .filter(
-                        Portfolio.user_id == current_user.id,
-                        Portfolio.is_active == True,
+            for portfolio in user_portfolios:
+                try:
+                    await analytics_service.force_refresh_all_portfolio_data(
+                        portfolio.id
                     )
-                    .all()
-                )
+                except Exception as e:
+                    logger.warning(f"Failed to refresh portfolio {portfolio.id}: {e}")
 
-                for portfolio in user_portfolios:
-                    try:
-                        await analytics_service.force_refresh_all_portfolio_data(
-                            portfolio.id
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to refresh portfolio {portfolio.id}: {e}"
-                        )
+        except Exception as e:
+            logger.warning(f"Failed to refresh user data: {e}")
 
-            except Exception as e:
-                logger.warning(f"Failed to refresh user data: {e}")
-
-        dashboard_data = await analytics_service.get_analytics_dashboard_summary(
-            current_user.id
-        )
-        return dashboard_data
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get analytics dashboard",
-        ) from e
+    dashboard_data = await analytics_service.get_analytics_dashboard_summary(
+        current_user.id
+    )
+    return dashboard_data

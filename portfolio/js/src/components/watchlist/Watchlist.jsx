@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
-import { assetAPI, watchlistAPI } from "../../services/api";
+import { apiErrorMessage, assetAPI, watchlistAPI } from "../../services/api";
 import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
 import { LoadingSpinner, Sidebar } from "../shared";
 import AddSymbolModal from "./AddSymbolModal";
@@ -343,9 +343,10 @@ const Watchlist = () => {
       let errorMessage = "Failed to add symbol to watchlist";
 
       if (error.response?.status === 400) {
-        errorMessage =
-          error.response.data?.message ||
-          "Invalid symbol or symbol already exists";
+        errorMessage = apiErrorMessage(
+          error,
+          "Invalid symbol or symbol already exists"
+        );
       } else if (error.response?.status === 404) {
         errorMessage = "Watchlist not found";
       } else if (error.response?.status === 401) {

@@ -1,0 +1,13 @@
+[Unit]
+Description=Deploy Portfolia staging when the edge image changes
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=bubbly
+SupplementaryGroups=docker
+WorkingDirectory=/home/bubbly/server/appdata/portfolia/portfolio
+ExecStart=/home/bubbly/server/appdata/portfolia/portfolio/scripts/staging-sync.sh
+TimeoutStartSec=60min
+Nice=10

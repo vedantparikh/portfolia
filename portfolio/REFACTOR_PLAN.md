@@ -12,7 +12,7 @@ Target host: NVIDIA Jetson AGX Xavier home server shared with ~35 other containe
 
 | Area | State | Most important issues |
 |---|---|---|
-| **Calculation correctness** | 🟡 Core fixed (2026-10-16) | *Fixed:* one engine in `core/domain` (FIFO with fees, automatic splits, completed-only, no cost fallback for missing prices, correct today's P&L, one risk-free rate, Yahoo FX into the portfolio currency); chart, performance, multi-period, risk, summary, holdings, overview, allocation and rebalancing all read it and agree; verified to the cent against an independent replay. *Open:* Trade Republic dividends/tax/fees on a real statement, legacy analytics snapshot metrics, indicator formulas. |
+| **Calculation correctness** | 🟡 Core fixed (2026-10-16) | *Fixed:* one engine in `core/domain` (FIFO with fees, automatic splits, completed-only, no cost fallback for missing prices, correct today's P&L, one risk-free rate, Yahoo FX into the portfolio currency); chart, performance, multi-period, risk, summary, holdings, overview, allocation and rebalancing all read it and agree; verified to the cent against an independent replay. *Open:* legacy analytics snapshot metrics, indicator formulas. |
 | **Backend architecture** | ⚠️ Inconsistent | Every endpoint is `async def` but uses a sync SQLAlchemy session, so it blocks the event loop. There is no repository layer, and routers (analytics, assets, auth) run queries and commits directly. Domain errors and leak-free details since 1.3 (🟡). Three config systems are stacked. Alembic owns the schema (1.6 ✅). `/assets/search` is shadowed by `/{asset_id}`. Symbol search exists in 5 places. The dashboard router is dead and never mounted. |
 | **Frontend** | 🟡 Cleaner, still hard to extend | *Done:* modernised dashboard/portfolio screens, shared `StatCard`/`Sparkline`/charts, financial maths removed from the main views, React 19/Vite 8/Tailwind 4, Sentry removed. *Open:* zero tests, `api.js` 1,731 lines, no data-fetching layer, tokens in localStorage, `dangerouslySetInnerHTML`, hard-coded `$`, 24 hand-rolled modals. |
 | **Tests** | 🟡 Green gate, thin coverage | Gate: 165 passed, 42 quarantined xfail, 8 quarantined uncollectable files. Golden tests for the engine (`test_domain_engine.py`), SQLite service tests for positions/summary/series, characterisation snapshots. Still no frontend or e2e tests; integration tests mostly quarantined. |
@@ -186,7 +186,7 @@ Golden tests are written first for every item.
 | # | Work | Fixes |
 |---|---|---|
 | 🟡 2.1 | `domain/positions.py`: FIFO with fees, SPLIT, TRANSFER_IN/OUT and DIVIDEND (with a given amount and tax). Add schema validation: qty > 0 and price ≥ 0 per type. **Now:** `core/domain/positions.py`: completed-only, FIFO with fees, splits applied automatically from market data (trades in today's share units). TRANSFER_IN/OUT and per-type validation open. | C1, C2, M2, M3 |
-| 🟡 2.2 | Importer fix: the Trade Republic dividend amount and withholding tax are kept, and the currency is set. Run a data migration that recomputes affected rows. **Now:** `fix/tr-import`: dividends keep their cash amount, EUR currency and taxes stored, €1 trade fee split out (€0 savings plans), cash rows skipped with a reason, March/June dates and the confidence crash fixed. No data migration needed (no real data). Open: check against a real statement. | C2 |
+| ✅ 2.2 | Importer fix: the Trade Republic dividend amount and withholding tax are kept, and the currency is set. Run a data migration that recomputes affected rows. **Done:** dividends keep their cash amount, EUR currency and taxes stored, €1 trade fee split out (€0 savings plans), cash rows skipped with a reason. A real quarterly statement parses: split dates, page-break rows and dotted savings-plan quantities. No data migration (nothing imported from the old parser). Withholding tax is a separate statement row and stays skipped. | C2 |
 | ✅ 2.3 | `core/domain/fx.py` + `MarketDataService.get_fx_rates`. `assets.currency` is the quote currency (no second column). `GBp`/`GBX` and `ILA` scale to GBP/ILS. Yahoo `{QUOTE}{PORTFOLIO}=X` daily closes (inverse if needed), same 6h Redis cache as history. Closes and live prices convert every day; cash converts only when `transaction.currency` differs. Missing rate raises. Dashboard totals stay per portfolio currency. | C3 |
 | 🟡 2.4 | `MarketDataProvider` interface with one Yahoo implementation: unadjusted closes and corporate-action feed, Redis pipeline cache, concurrency limit and backoff. Delete the 4 duplicate search paths so a single `/assets/search` remains. **Now:** `get_daily_history` (split-adjusted, not dividend-adjusted closes + splits/dividends, Redis 6h) is the valuation source. Provider interface, backoff and single search open. | C1, H5, perf |
 | 🟡 2.5 | `domain/valuation.py`: daily holdings × unadjusted price × FX on a trading calendar, with explicit stale/missing flags. **Now:** `daily_series` on the trading-day calendar; missing price raises instead of cost fallback; FX is applied by the caller (`fx.py`) before this. Stale-after-N-days flags open. | H4, H6, M5 |
@@ -335,6 +335,7 @@ Open:
 | 2026-10-26 | `feat/model-types` | — | 1.7: `Mapped[]` models. Prices and cash amounts widened to numeric(20, 8). Datetimes were already timezone-aware. Migration not applied to the live database |
 | 2026-10-26 | `feat/health-checks` | — | 1.8: `/health/live` and `/health/ready` (503 when Postgres or Redis is down). `/health/` is the same readiness check. Test router removed. Live containers not restarted |
 | 2026-10-26 | `feat/auth-hardening` | — | 1.9: PyJWT, refresh tokens hashed at rest, dummy bcrypt check for unknown usernames, `require_admin` removed. Migration not applied to the live database |
+| 2026-10-26 | `feat/tr-statement-layout` | — | 2.2: Trade Republic PDF rows that a real statement splits across lines, or continues after a page break, are imported. Savings-plan quantities keep a decimal dot |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -353,7 +354,7 @@ Open:
 ### New findings (not in the original audit)
 | Area | Finding | Where |
 |---|---|---|
-| Import | 🟡 Fixed in `fix/tr-import` except the real-PDF check. Was: the Trade Republic parser emits `interest`, `deposit`, `withdrawal` and `tax` types that `TransactionType` lacks, so a full statement likely fails to parse. Also: dividends stored as 0, fees folded into price, EUR stored as USD. The bulk-import UI checks `total_succeeded`, but the API returns `total_created` | `parsers/trade_republic.py`, `account_statement_service.py`, `Transactions.jsx` |
+| Import | ✅ Trade Republic PDF keeps dividends, EUR, fees and taxes. Cash rows are skipped. A real statement's split dates, page-break rows and dotted savings-plan quantities parse. The import toast reads `total_created` | `parsers/trade_republic.py` |
 | Routing | ✅ Fixed: shadowed literal routes returned 422. Behind them were 4 more bugs (portfolio search response type, popular-assets schema, watchlist stats fields, JSON `tags.any`), now fixed | `GET /portfolios/search`, `/assets/search/popular` and `/suggestions`, `/watchlists/public` and `/stats`, `/statistical-indicators/configurations/search` |
 | Broken endpoints | ✅ Fixed: `/overview` 500 (a tuple used as a float; now reads the engine) and `/analytics/users/dashboard` 500 (called a missing method) | calculations and analytics routers |
 | Security | ✅ Fixed: `asset_search_service` was not scoped by user: `/assets/search/{id}` returned any user's asset, and popular/suggestions/breakdowns aggregated all users | `asset_search_service.py` |
@@ -367,12 +368,12 @@ Open:
 
 ### Next up (suggested order)
 1. ✅ Benchmark comparison (2.7).
-2. **Trade Republic import fixes** (2.2) plus the import UI counter.
+2. ✅ Trade Republic import fixes (2.2). The import UI counter already reads `total_created`.
 3. ✅ FX (2.3): Yahoo daily pair closes.
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.2, Trade Republic import fixes.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.4, one market-data provider.
 
 ---
 

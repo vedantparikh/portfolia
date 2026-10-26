@@ -8,7 +8,7 @@ router = APIRouter(tags=["test"])
 
 
 @router.get("/")
-async def test_endpoint():
+def test_endpoint():
     """Test endpoint to verify API routing works."""
     return {
         "message": "Test endpoint working!",
@@ -18,6 +18,6 @@ async def test_endpoint():
 
 
 @router.get("/health")
-async def test_health():
+def test_health():
     """Test health endpoint."""
     return {"status": "healthy", "service": "test_router"}

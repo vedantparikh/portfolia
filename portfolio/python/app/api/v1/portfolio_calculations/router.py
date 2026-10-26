@@ -40,7 +40,7 @@ router = APIRouter(prefix="/portfolios/calculations", tags=["portfolio-calculati
 
 
 @router.get("/periods", response_model=AvailablePeriodsResponse)
-async def get_available_periods():
+def get_available_periods():
     """Get list of available calculation periods."""
     periods = [
         {
@@ -269,7 +269,7 @@ async def get_multi_period_performance(
 
 
 @router.get("/benchmarks", response_model=BenchmarkOptionsResponse)
-async def get_benchmark_options(
+def get_benchmark_options(
     currency: str = Query("EUR", min_length=3, max_length=3),
     current_user=Depends(get_current_user),  # noqa: ARG001
 ):

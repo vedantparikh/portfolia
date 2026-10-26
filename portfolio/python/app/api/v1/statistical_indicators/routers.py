@@ -105,7 +105,7 @@ async def calculate_indicators(
 
 # Analysis Configuration Endpoints
 @router.post("/configurations", response_model=AnalysisConfiguration)
-async def create_configuration(
+def create_configuration(
     config_data: AnalysisConfigurationCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -117,7 +117,7 @@ async def create_configuration(
 
 
 @router.get("/configurations", response_model=AnalysisConfigurationListResponse)
-async def get_configurations(
+def get_configurations(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     user_only: bool = Query(False, description="Only return user's configurations"),
@@ -136,7 +136,7 @@ async def get_configurations(
 
 
 @router.get("/configurations/search", response_model=AnalysisConfigurationListResponse)
-async def search_configurations(
+def search_configurations(
     q: str = Query(..., description="Search query"),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -152,7 +152,7 @@ async def search_configurations(
 
 
 @router.get("/configurations/{config_id}", response_model=AnalysisConfiguration)
-async def get_configuration(
+def get_configuration(
     config_id: int,
     current_user: User = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
@@ -170,7 +170,7 @@ async def get_configuration(
 
 
 @router.put("/configurations/{config_id}", response_model=AnalysisConfiguration)
-async def update_configuration(
+def update_configuration(
     config_id: int,
     update_data: AnalysisConfigurationUpdate,
     current_user: User = Depends(get_current_user),
@@ -189,7 +189,7 @@ async def update_configuration(
 
 
 @router.delete("/configurations/{config_id}")
-async def delete_configuration(
+def delete_configuration(
     config_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -252,7 +252,7 @@ async def validate_indicator_configuration(
 @router.post(
     "/configurations/{config_id}/duplicate", response_model=AnalysisConfiguration
 )
-async def duplicate_configuration(
+def duplicate_configuration(
     config_id: int,
     new_name: str,
     current_user: User = Depends(get_current_user),

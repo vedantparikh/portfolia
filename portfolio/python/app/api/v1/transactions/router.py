@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from core.auth.dependencies import (
     get_current_active_user,
     get_current_verified_user,
+    get_owned_portfolio,
 )
 from core.database.connection import get_db
 from core.database.models import Portfolio, TransactionStatus, TransactionType, User
@@ -50,7 +51,7 @@ async def create_transaction(
 
 
 @router.get("/", response_model=List[TransactionSchema])
-async def get_user_transactions(
+def get_user_transactions(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
     portfolio_id: Optional[int] = Query(
@@ -83,7 +84,7 @@ async def get_user_transactions(
 
 
 @router.get("/{transaction_id}", response_model=TransactionSchema)
-async def get_transaction(
+def get_transaction(
     transaction_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -149,31 +150,14 @@ async def delete_transaction(
 
 
 @router.get("/{portfolio_id}/summary", response_model=TransactionSummaryResponse)
-async def get_transactions_summary(
+def get_transactions_summary(
     portfolio_id: int,
     start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get transaction summary for a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active == True,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Portfolio not found or access denied",
-        )
-
     # Build query
     query = db.query(TransactionModel).filter(
         TransactionModel.portfolio_id == portfolio_id

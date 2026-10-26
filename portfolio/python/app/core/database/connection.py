@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -30,13 +31,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 redis_client: Optional[redis.Redis] = get_redis()
 
 
-def get_db() -> Session:
-    """Get database session."""
-    db = SessionLocal()
+def unit_of_work(db: Session) -> Iterator[Session]:
+    """Commit when the caller finishes, roll back when it fails, always close."""
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
+
+
+def get_db() -> Iterator[Session]:
+    """One database session for the request. Commits if the request succeeds."""
+    yield from unit_of_work(SessionLocal())
 
 
 async def init_db():

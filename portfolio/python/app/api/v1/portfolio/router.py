@@ -39,7 +39,7 @@ router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
 
 @router.post("/", response_model=Portfolio, status_code=status.HTTP_201_CREATED)
-async def create_portfolio(
+def create_portfolio(
     portfolio_data: PortfolioCreate,
     current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db),
@@ -54,7 +54,7 @@ async def create_portfolio(
 
 
 @router.get("/", response_model=List[Portfolio])
-async def get_user_portfolios(
+def get_user_portfolios(
     current_user: User = Depends(get_current_active_user),
     include_inactive: bool = Query(False, description="Include inactive portfolios"),
     db: Session = Depends(get_db),
@@ -68,7 +68,7 @@ async def get_user_portfolios(
 
 
 @router.get("/search", response_model=PortfolioSearchResponse)
-async def search_portfolios(
+def search_portfolios(
     search_term: Optional[str] = Query(
         None, description="Search term for portfolio names"
     ),
@@ -101,7 +101,7 @@ async def get_portfolio_statistics(
 
 
 @router.get("/public/discover", response_model=PortfolioDiscoverResponse)
-async def discover_public_portfolios(
+def discover_public_portfolios(
     limit: int = Query(50, ge=1, le=100, description="Number of portfolios to return"),
     offset: int = Query(0, ge=0, description="Number of portfolios to skip"),
     db: Session = Depends(get_db),
@@ -115,7 +115,7 @@ async def discover_public_portfolios(
 
 
 @router.get("/{portfolio_id}", response_model=Portfolio)
-async def get_portfolio(
+def get_portfolio(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -133,7 +133,7 @@ async def get_portfolio(
 
 
 @router.put("/{portfolio_id}", response_model=Portfolio)
-async def update_portfolio(
+def update_portfolio(
     portfolio_id: int,
     portfolio_update: PortfolioUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -154,7 +154,7 @@ async def update_portfolio(
 
 
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_portfolio(
+def delete_portfolio(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -172,7 +172,7 @@ async def delete_portfolio(
 
 
 @router.delete("/{portfolio_id}/hard", status_code=status.HTTP_204_NO_CONTENT)
-async def hard_delete_portfolio(
+def hard_delete_portfolio(
     portfolio_id: int,
     current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db),
@@ -215,7 +215,7 @@ async def add_asset_to_portfolio(
 
 
 @router.get("/{portfolio_id}/assets", response_model=List[PortfolioAsset])
-async def get_portfolio_assets(
+def get_portfolio_assets(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -267,7 +267,7 @@ async def update_portfolio_asset(
 @router.delete(
     "/{portfolio_id}/assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT
 )
-async def remove_asset_from_portfolio(
+def remove_asset_from_portfolio(
     portfolio_id: int,
     asset_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -313,7 +313,7 @@ async def add_transaction(
 
 
 @router.get("/{portfolio_id}/transactions", response_model=List[Transaction])
-async def get_portfolio_transactions(
+def get_portfolio_transactions(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
     limit: int = Query(

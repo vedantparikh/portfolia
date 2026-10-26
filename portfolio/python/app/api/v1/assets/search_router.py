@@ -27,7 +27,7 @@ router = APIRouter(prefix="/assets/search", tags=["asset-search"])
 
 
 @router.get("/popular", response_model=PopularAssetsResponse)
-async def get_popular_assets(
+def get_popular_assets(
     limit: int = Query(
         20, ge=1, le=100, description="Number of popular assets to return"
     ),
@@ -42,7 +42,7 @@ async def get_popular_assets(
 
 
 @router.get("/breakdown/sectors", response_model=SectorBreakdownResponse)
-async def get_sector_breakdown(
+def get_sector_breakdown(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -54,7 +54,7 @@ async def get_sector_breakdown(
 
 
 @router.get("/breakdown/types", response_model=AssetTypeBreakdownResponse)
-async def get_asset_type_breakdown(
+def get_asset_type_breakdown(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -66,7 +66,7 @@ async def get_asset_type_breakdown(
 
 
 @router.get("/breakdown/exchanges", response_model=ExchangeBreakdownResponse)
-async def get_exchange_breakdown(
+def get_exchange_breakdown(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -78,7 +78,7 @@ async def get_exchange_breakdown(
 
 
 @router.get("/suggestions", response_model=SearchSuggestionsResponse)
-async def get_search_suggestions(
+def get_search_suggestions(
     q: str = Query(..., min_length=2, description="Search query for suggestions"),
     limit: int = Query(10, ge=1, le=50, description="Number of suggestions to return"),
     current_user: User = Depends(get_current_active_user),
@@ -92,7 +92,7 @@ async def get_search_suggestions(
 
 
 @router.get("/{asset_id}", response_model=AssetDetailsResponse)
-async def get_asset_details(
+def get_asset_details(
     asset_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),

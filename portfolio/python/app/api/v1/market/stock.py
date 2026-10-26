@@ -35,7 +35,7 @@ router = APIRouter(tags=["market-data"])
 
 
 @router.get("/symbols", response_model=List[SymbolSearchResult])
-async def get_symbols(
+def get_symbols(
     name: str,
     request: Request,
     current_user=Depends(get_optional_current_user),
@@ -237,7 +237,7 @@ async def get_stock_latest_data(
 
 
 @router.get("/major-indices", response_model=List[MajorIndex])
-async def get_major_indices(
+def get_major_indices(
     request: Request,
     current_user=Depends(get_current_user),
 ):

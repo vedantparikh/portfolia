@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from core.auth.utils import ALGORITHM, SECRET_KEY, verify_token
 from core.database.connection import get_db
-from core.database.models import User, UserProfile, UserSession
+from core.database.models import Portfolio, User, UserProfile, UserSession
+from core.errors import NotFoundError
 from core.schemas.auth import TokenData
 
 # Security scheme for Bearer token authentication
@@ -36,7 +37,7 @@ def is_session_active(db: Session, user_id: int, session_id: Optional[str]) -> b
     )
 
 
-async def get_current_user(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
@@ -75,7 +76,7 @@ async def get_current_user(
         raise credentials_exception
 
 
-async def get_current_active_user(
+def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Get current active user."""
@@ -86,7 +87,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def get_current_verified_user(
+def get_current_verified_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """Get current verified user."""
@@ -97,7 +98,7 @@ async def get_current_verified_user(
     return current_user
 
 
-async def get_current_user_profile(
+def get_current_user_profile(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> UserProfile:
     """Get current user's profile."""
@@ -111,7 +112,7 @@ async def get_current_user_profile(
     return profile
 
 
-async def get_optional_current_user(
+def get_optional_current_user(
     request: Request, db: Session = Depends(get_db)
 ) -> Optional[User]:
     """Get current user if authenticated, otherwise return None."""
@@ -138,6 +139,26 @@ async def get_optional_current_user(
 
     except (JWTError, HTTPException):
         return None
+
+
+def get_owned_portfolio(
+    portfolio_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> Portfolio:
+    """The portfolio `portfolio_id` when it belongs to the current user and is active."""
+    portfolio = (
+        db.query(Portfolio)
+        .filter(
+            Portfolio.id == portfolio_id,
+            Portfolio.user_id == current_user.id,
+            Portfolio.is_active.is_(True),
+        )
+        .first()
+    )
+    if portfolio is None:
+        raise NotFoundError(f"Portfolio {portfolio_id} not found")
+    return portfolio
 
 
 def require_permission(permission: str):

@@ -81,7 +81,7 @@ def revoke_user_sessions(
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-async def register_user(
+def register_user(
     user_data: UserCreate, request: Request, db: Session = Depends(get_db)
 ):
     """Register a new user."""
@@ -253,7 +253,7 @@ async def register_user(
 
 
 @router.post("/login", response_model=Token)
-async def login_user(
+def login_user(
     user_credentials: UserLogin, request: Request, db: Session = Depends(get_db)
 ):
     """Authenticate user and return JWT tokens."""
@@ -319,7 +319,7 @@ async def login_user(
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_access_token(
+def refresh_access_token(
     refresh_request: RefreshTokenRequest,
     db: Session = Depends(get_db),
 ):
@@ -377,7 +377,7 @@ async def refresh_access_token(
 
 
 @router.post("/logout")
-async def logout_user(
+def logout_user(
     request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -407,13 +407,13 @@ async def logout_user(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """Get current user information."""
     return current_user
 
 
 @router.get("/me/profile", response_model=UserProfileResponse)
-async def get_current_user_profile_info(
+def get_current_user_profile_info(
     current_user_profile: UserProfile = Depends(get_current_user_profile),
 ):
     """Get current user's profile information."""
@@ -421,7 +421,7 @@ async def get_current_user_profile_info(
 
 
 @router.put("/me", response_model=UserResponse)
-async def update_current_user(
+def update_current_user(
     user_update: UserUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -443,7 +443,7 @@ async def update_current_user(
 
 
 @router.post("/change-password")
-async def change_password(
+def change_password(
     password_data: PasswordChange,
     request: Request,
     current_user: User = Depends(get_current_active_user),
@@ -483,7 +483,7 @@ async def change_password(
 
 
 @router.post("/forgot-password")
-async def forgot_password(
+def forgot_password(
     password_reset: PasswordReset, request: Request, db: Session = Depends(get_db)
 ):
     """Request password reset."""
@@ -564,7 +564,7 @@ async def forgot_password(
 
 
 @router.get("/validate-reset-token/")
-async def validate_reset_token_endpoint(
+def validate_reset_token_endpoint(
     token: str, request: Request, db: Session = Depends(get_db)
 ):
     """Validate password reset token and return information for frontend redirection."""
@@ -621,7 +621,7 @@ async def validate_reset_token_endpoint(
 
 
 @router.post("/reset-password")
-async def reset_password(
+def reset_password(
     password_reset: PasswordResetConfirm,
     request: Request,
     db: Session = Depends(get_db),
@@ -715,7 +715,7 @@ async def reset_password(
 
 
 @router.post("/verify-email")
-async def verify_email(verification: EmailVerification, db: Session = Depends(get_db)):
+def verify_email(verification: EmailVerification, db: Session = Depends(get_db)):
     """Verify user email address."""
     logger.info(f"Email verification attempt | Token: {verification.token[:10]}...")
 
@@ -787,7 +787,7 @@ async def verify_email(verification: EmailVerification, db: Session = Depends(ge
 
 
 @router.post("/resend-verification")
-async def resend_verification(current_user: User = Depends(get_current_user)):
+def resend_verification(current_user: User = Depends(get_current_user)):
     """Resend email verification."""
     logger.info(
         f"Resend verification request | User ID: {current_user.id} | Email: {current_user.email}"
@@ -829,7 +829,7 @@ async def resend_verification(current_user: User = Depends(get_current_user)):
 
 
 @router.delete("/me")
-async def delete_account(
+def delete_account(
     current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
 ):
     """Delete current user account."""

@@ -31,7 +31,7 @@ router = APIRouter(prefix="/account-statements", tags=["account-statements"])
 
 
 @router.get("/providers", response_model=ProvidersResponse)
-async def get_providers(
+def get_providers(
     current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db),
 ) -> ProvidersResponse:
@@ -85,7 +85,7 @@ async def resolve_instruments(
 
 
 @router.post("/transactions/imported", response_model=ImportedCheckResponse)
-async def imported_transactions(
+def imported_transactions(
     request: ImportedCheckRequest,
     current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db),

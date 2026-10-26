@@ -202,7 +202,7 @@ async def get_market_status(
 
 
 @router.get("/supported-periods", response_model=SupportedPeriodsResponse)
-async def get_supported_periods(
+def get_supported_periods(
     _current_user: User = Depends(get_current_active_user),
 ):
     """Get list of supported period values."""
@@ -213,7 +213,7 @@ async def get_supported_periods(
 
 
 @router.get("/supported-intervals", response_model=SupportedIntervalsResponse)
-async def get_supported_intervals(
+def get_supported_intervals(
     _current_user: User = Depends(get_current_active_user),
 ):
     """Get list of supported interval values."""

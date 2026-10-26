@@ -241,7 +241,7 @@ async def get_assets(
 
 
 @router.get("/{asset_id}", response_model=AssetSchema)
-async def get_asset(
+def get_asset(
     asset_id: int,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -266,7 +266,7 @@ async def get_asset(
 
 
 @router.put("/{asset_id}", response_model=AssetSchema)
-async def update_asset(
+def update_asset(
     asset_id: int,
     asset_update: AssetUpdate,
     current_user: User = Depends(get_current_verified_user),
@@ -300,7 +300,7 @@ async def update_asset(
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_asset(
+def delete_asset(
     asset_id: int,
     current_user: User = Depends(get_current_verified_user),
     db: Session = Depends(get_db),

@@ -12,7 +12,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from core.auth.dependencies import get_current_active_user
+from core.auth.dependencies import get_current_active_user, get_owned_portfolio
 from core.database.connection import get_db
 from core.database.models import Portfolio, User
 from core.database.models.portfolio_analytics import (
@@ -63,25 +63,10 @@ async def get_performance_snapshot(
     portfolio_id: int,
     force_refresh: bool = Query(True, description="Force refresh from yfinance"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio performance snapshot, always refreshing with yfinance data."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     analytics_service = PortfolioAnalyticsService(db)
 
     try:
@@ -101,29 +86,14 @@ async def get_performance_snapshot(
     "/portfolios/{portfolio_id}/performance/{snapshot_id}",
     response_model=DeleteResponse,
 )
-async def delete_performance_snapshot(
+def delete_performance_snapshot(
     portfolio_id: int,
     snapshot_id: int,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Delete a performance snapshot."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     # Find and delete the snapshot
     snapshot = (
         db.query(PortfolioPerformanceHistory)
@@ -153,27 +123,13 @@ async def get_performance_history(
     portfolio_id: int,
     days: int = Query(30, ge=1, le=10000, description="Number of days to look back"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """
     Daily value and FIFO cost basis for the last `days`, newest first, from the
     canonical engine (see /portfolios/calculations/portfolio/{id}/performance/series).
     """
-    # 1. Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     calculation = PortfolioCalculationService(db)
     end_date = datetime.now(timezone.utc)
     start = (end_date - timedelta(days=days)).date()
@@ -218,29 +174,14 @@ async def get_performance_history(
     "/portfolios/{portfolio_id}/allocations",
     response_model=List[PortfolioAllocationResponse],
 )
-async def set_portfolio_allocations(
+def set_portfolio_allocations(
     portfolio_id: int,
     allocations: List[PortfolioAllocationCreate],
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Set target allocations for a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     analytics_service = PortfolioAnalyticsService(db)
     new_allocations = analytics_service.set_portfolio_allocation(
         portfolio_id, allocations
@@ -253,28 +194,13 @@ async def set_portfolio_allocations(
     "/portfolios/{portfolio_id}/allocations",
     response_model=List[PortfolioAllocationResponse],
 )
-async def get_portfolio_allocations(
+def get_portfolio_allocations(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio target allocations."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     allocations = (
         db.query(PortfolioAllocation)
         .filter(
@@ -291,30 +217,15 @@ async def get_portfolio_allocations(
     "/portfolios/{portfolio_id}/allocations/{allocation_id}",
     response_model=PortfolioAllocationResponse,
 )
-async def update_portfolio_allocation(
+def update_portfolio_allocation(
     portfolio_id: int,
     allocation_id: int,
     allocation_data: PortfolioAllocationCreate,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Update a specific portfolio allocation."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     # Find the allocation
     allocation = (
         db.query(PortfolioAllocation)
@@ -348,29 +259,14 @@ async def update_portfolio_allocation(
     "/portfolios/{portfolio_id}/allocations/{allocation_id}",
     response_model=DeleteResponse,
 )
-async def delete_portfolio_allocation(
+def delete_portfolio_allocation(
     portfolio_id: int,
     allocation_id: int,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Delete a portfolio allocation."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     # Find and delete the allocation
     allocation = (
         db.query(PortfolioAllocation)
@@ -400,25 +296,10 @@ async def analyze_portfolio_allocation(
     portfolio_id: int,
     force_refresh: bool = Query(True, description="Force refresh from yfinance"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Analyze portfolio allocation and detect drift, always using latest yfinance data."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     analytics_service = PortfolioAnalyticsService(db)
 
     # Force refresh portfolio asset prices before analysis
@@ -439,25 +320,10 @@ async def get_portfolio_risk_metrics(
     portfolio_id: int,
     period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio risk metrics."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     portfolio_risk_metric_service = PortfolioRiskMetricsService(db)
 
     try:
@@ -484,25 +350,10 @@ async def get_portfolio_advance_risk_metrics(
     portfolio_id: int,
     period: str = Query(default=PeriodType.INCEPTION, description="Calculation period"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio advance risk metrics."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     portfolio_advance_risk_metric_service = PortfolioAdvanceRiskMetricsService(db)
 
     try:
@@ -524,29 +375,14 @@ async def get_portfolio_advance_risk_metrics(
 @router.post(
     "/portfolios/{portfolio_id}/benchmarks", response_model=PortfolioBenchmarkResponse
 )
-async def add_portfolio_benchmark(
+def add_portfolio_benchmark(
     portfolio_id: int,
     benchmark_data: PortfolioBenchmarkCreate,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Add a benchmark to a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     # If this is set as primary, unset other primary benchmarks
     if benchmark_data.is_primary:
         db.query(PortfolioBenchmark).filter(
@@ -579,28 +415,13 @@ async def add_portfolio_benchmark(
     "/portfolios/{portfolio_id}/benchmarks",
     response_model=List[PortfolioBenchmarkResponse],
 )
-async def get_portfolio_benchmarks(
+def get_portfolio_benchmarks(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio benchmarks."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     benchmarks = (
         db.query(PortfolioBenchmark)
         .filter(
@@ -618,29 +439,14 @@ async def get_portfolio_benchmarks(
     "/portfolios/{portfolio_id}/rebalancing/events",
     response_model=RebalancingEventResponse,
 )
-async def create_rebalancing_event(
+def create_rebalancing_event(
     portfolio_id: int,
     event_data: RebalancingEventCreate,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Create a rebalancing event for a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     event = RebalancingEvent(
         portfolio_id=portfolio_id,
         event_date=event_data.event_date,
@@ -668,29 +474,14 @@ async def create_rebalancing_event(
     "/portfolios/{portfolio_id}/rebalancing/events",
     response_model=List[RebalancingEventResponse],
 )
-async def get_rebalancing_events(
+def get_rebalancing_events(
     portfolio_id: int,
     days: int = Query(90, ge=1, le=10000, description="Number of days to look back"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get rebalancing events for a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
@@ -715,25 +506,10 @@ async def get_portfolio_analytics_summary(
     portfolio_id: int,
     force_refresh: bool = Query(True, description="Force refresh from yfinance"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get comprehensive portfolio analytics summary, always refreshing with latest yfinance data."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     analytics_service = PortfolioAnalyticsService(db)
 
     try:
@@ -757,25 +533,10 @@ async def get_portfolio_analytics_summary(
 async def get_rebalancing_recommendations(
     portfolio_id: int,
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get rebalancing recommendations for a portfolio."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     analytics_service = PortfolioAnalyticsService(db)
     recommendation = await analytics_service.get_rebalancing_recommendation(
         portfolio_id
@@ -789,30 +550,15 @@ async def get_rebalancing_recommendations(
     "/portfolios/{portfolio_id}/performance/comparison",
     response_model=PerformanceComparisonResponse,
 )
-async def get_portfolio_performance_comparison(
+def get_portfolio_performance_comparison(
     portfolio_id: int,
     benchmark_id: Optional[int] = Query(None, description="Benchmark asset ID"),
     days: int = Query(30, ge=1, le=10000, description="Number of days to compare"),
     current_user: User = Depends(get_current_active_user),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
     """Get portfolio performance comparison with benchmark."""
-    # Verify portfolio ownership
-    portfolio = (
-        db.query(Portfolio)
-        .filter(
-            Portfolio.id == portfolio_id,
-            Portfolio.user_id == current_user.id,
-            Portfolio.is_active,
-        )
-        .first()
-    )
-
-    if not portfolio:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found"
-        )
-
     # Get portfolio performance history
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)

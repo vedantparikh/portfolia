@@ -38,7 +38,7 @@ router = APIRouter(prefix="/watchlists", tags=["watchlists"])
 
 
 @router.post("/", response_model=WatchlistResponse)
-async def create_watchlist(
+def create_watchlist(
     watchlist_data: WatchlistCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -75,7 +75,7 @@ async def create_watchlist(
 
 
 @router.get("/", response_model=List[WatchlistResponse])
-async def get_user_watchlists(
+def get_user_watchlists(
     include_items: bool = Query(False, description="Include watchlist items"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -101,7 +101,7 @@ async def get_user_watchlists(
 
 
 @router.get("/public", response_model=List[WatchlistResponse])
-async def get_public_watchlists(
+def get_public_watchlists(
     limit: int = Query(
         20, ge=1, le=100, description="Maximum number of watchlists to return"
     ),
@@ -125,7 +125,7 @@ async def get_public_watchlists(
 
 
 @router.get("/stats", response_model=WatchlistStatsResponse)
-async def get_watchlist_statistics(
+def get_watchlist_statistics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -147,7 +147,7 @@ async def get_watchlist_statistics(
 
 
 @router.get("/alerts", response_model=AlertEventsResponse)
-async def get_alerts(
+def get_alerts(
     unread_only: bool = Query(False),
     limit: int = Query(50, ge=1, le=500),
     current_user: User = Depends(get_current_user),
@@ -158,7 +158,7 @@ async def get_alerts(
 
 
 @router.post("/alerts/acknowledge", response_model=AcknowledgeAlertsResponse)
-async def acknowledge_alerts(
+def acknowledge_alerts(
     request: AcknowledgeAlertsRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -206,7 +206,7 @@ async def get_watchlist(
 
 
 @router.put("/{watchlist_id}", response_model=WatchlistResponse)
-async def update_watchlist(
+def update_watchlist(
     watchlist_id: int,
     update_data: WatchlistUpdate,
     current_user: User = Depends(get_current_user),
@@ -248,7 +248,7 @@ async def update_watchlist(
 
 
 @router.delete("/{watchlist_id}", response_model=WatchlistDeleteResponse)
-async def delete_watchlist(
+def delete_watchlist(
     watchlist_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -407,7 +407,7 @@ async def bulk_add_items_to_watchlist(
 
 
 @router.put("/{watchlist_id}/items/{item_id}", response_model=WatchlistItemResponse)
-async def update_watchlist_item(
+def update_watchlist_item(
     watchlist_id: int,
     item_id: int,
     update_data: WatchlistItemUpdate,
@@ -467,7 +467,7 @@ async def update_watchlist_item(
 @router.delete(
     "/{watchlist_id}/items/{item_id}", response_model=WatchlistItemDeleteResponse
 )
-async def remove_item_from_watchlist(
+def remove_item_from_watchlist(
     watchlist_id: int,
     item_id: int,
     current_user: User = Depends(get_current_user),
@@ -504,7 +504,7 @@ async def remove_item_from_watchlist(
 
 
 @router.post("/{watchlist_id}/reorder", response_model=WatchlistReorderResponse)
-async def reorder_watchlist_items(
+def reorder_watchlist_items(
     watchlist_id: int,
     reorder_data: WatchlistReorderRequest,
     current_user: User = Depends(get_current_user),

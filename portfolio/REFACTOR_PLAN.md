@@ -174,7 +174,7 @@ There is no production data yet, so this is the cheapest moment to set up how re
 | ✅ 1.2 | Add an `app` factory with explicit router aggregation, deleting the ~230 lines of `try/import` blocks. Standardise prefixes and tags. Fix the `/assets/search` shadowing and the duplicate operationIds. **Done:** `create_app()` includes `api/v1/router.py`. Each router owns its prefix and one tag. Operation ids are `method` + path, so shared handler names cannot collide. Paths are unchanged and pinned by `tests/unit/api_routes.txt`. `/assets/search/{query}` removed (#73); shadowed routes stay pinned by `test_route_order.py`. |
 | ✅ 1.3 | Add `DomainError` classes, global handlers and the uniform error envelope. Remove the `detail=str(e)` leaks and the blanket `except Exception`. **Done:** `core/error_handlers.py` returns `{error:{code,message}}` for domain errors, HTTP errors, validation errors, and unhandled exceptions. API routers no longer catch `Exception` only to return a generic 500; the ones that still catch an exception do real work (a per-item failure, a skipped email, a rollback). The UI reads the message with `apiErrorMessage`. |
 | ✅ 1.4 | Add middleware for request-id, structured access logging and timing. Configure logging once and remove the `print()` calls. **Done:** `RequestContextMiddleware` puts `X-Request-ID` on every response and logs one `access` line with method, path, status, and duration. The same id is on the error body. Logging is configured only from `main.py`. Application `print()` calls are gone (the one-off quantity script still prints to the terminal). SQLAlchemy `echo` is off, so SQL no longer floods the API log. |
-| ⏳ 1.5 | Add a unit-of-work session dependency and a `get_owned_portfolio` dependency. Make DB endpoints `def`. |
+| ✅ 1.5 | Add a unit-of-work session dependency and a `get_owned_portfolio` dependency. Make DB endpoints `def`. **Done:** `get_db` commits when the request succeeds and rolls back when it raises. `get_owned_portfolio` is the active-portfolio ownership check (the analytics and transaction-summary copies now call it). API routes are plain `def` unless they await I/O, and the auth dependencies are sync too. |
 | ✅ 1.6 | **Alembic as the only schema authority.** Autogenerate a baseline migration from the models. There is no production data yet, so it simply runs on empty DBs in every env, with no `stamp`. Do this **before** the first prod release (R.4) so prod is born on Alembic. Remove every `create_all` and the auto-seeding on startup. A CI check fails on model/migration drift. **Done:** baseline in `e97c82868ff5_baseline.py`, no `create_all` at startup, `scripts/check_migrations.sh` (upgrade, `alembic check`, full downgrade, upgrade) in `verify.sh`. |
 | ⏳ 1.7 | Models: move to SQLAlchemy 2 `Mapped[]`, make all DateTimes timezone-aware (in a migration), and widen price precision. |
 | ⏳ 1.8 | Health endpoints: `/health/live` and `/health/ready` with real checks, returning 503 when unhealthy. Delete `health_router` (the test router) and the hardcoded timestamp. |
@@ -331,6 +331,7 @@ Open:
 | 2026-10-26 | `feat/app-factory` | — | 1.2: `create_app()` mounts routers from one list. Import failures stop startup. Paths unchanged. Live containers not restarted |
 | 2026-10-26 | `feat/error-envelope` | — | 1.3: every API error is `{error:{code,message}}`. Unhandled exceptions no longer reach the client. Live containers not restarted |
 | 2026-10-26 | `feat/request-logging` | — | 1.4: one request id and one access line per request. Logging configured once. SQL echo off. Live containers not restarted |
+| 2026-10-26 | `feat/unit-of-work` | — | 1.5: request session commits or rolls back. `get_owned_portfolio` replaces the copied ownership queries. Database routes are sync unless they await I/O. Live containers not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -368,7 +369,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 1.5, unit of work.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 1.7, model types and timezone-aware datetimes.
 
 ---
 

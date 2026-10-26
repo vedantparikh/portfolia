@@ -33,7 +33,7 @@ from core.services.utils import get_major_indices as list_major_indices
 
 logger = get_logger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["market-data"])
 
 
 @router.get("/symbols", response_model=List[SymbolSearchResult])

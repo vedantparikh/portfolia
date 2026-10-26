@@ -160,7 +160,7 @@ There is no production data yet, so this is the cheapest moment to set up how re
 | # | Work | Done when |
 |---|---|---|
 | 🟡 R.1 | **Production images.** API: multi-stage `python:3.12-slim`, prod deps only, non-root, `uvicorn` workers with no reload, `alembic upgrade head` as a separate one-off `migrate` service. UI: `npm ci && vite build`, then `nginx:alpine` (non-root) serving `dist` with SPA fallback and `/api` proxied to the API. Postgres and Redis use the official images directly (drop the thin Dockerfiles). **Now:** `Dockerfile.prod` for the API (`python:3.14.9-slim`, uid 1000, `uvicorn` workers, no reload; `alembic upgrade head` is `docker run <image> alembic upgrade head`) and the web (`nginx:1.28.0-alpine`, uid nginx, port 8080, SPA fallback, `/api` → `api:8000`). No bind mounts. Measured 2026-10-26: API 807 MB, web 49 MB. The 400 MB API cap is not reachable with polars + pyarrow + pandas (~450 MB of wheels). The dev compose and the thin Postgres/Redis Dockerfiles stay until R.2, so the live database container is not recreated. | Both images start without bind mounts. API size is the numeric stack, not 400 MB |
-| ⏳ R.2 | **Compose split.** `compose.yaml` holds the prod base, using images only (`image: ghcr.io/vedantparikh/portfolia-{api,web}:${PORTFOLIO_VERSION}`). `compose.dev.yaml` holds the build, bind mounts, reload and the Vite dev server. `compose.staging.yaml` holds the staging ports and volumes. Prod and staging have separate env files under `/home/bubbly/server/appdata/portfolia/env/` (outside the repo, `chmod 600`). | `docker compose -f compose.yaml config` has no `build:` and no bind mounts |
+| 🟡 R.2 | **Compose split.** `compose.yaml` holds the prod base, using images only (`image: ghcr.io/vedantparikh/portfolia-{api,web}:${PORTFOLIO_VERSION}`). `compose.dev.yaml` holds the build, bind mounts, reload and the Vite dev server. `compose.staging.yaml` holds the staging ports and volumes. Prod and staging have separate env files under `/home/bubbly/server/appdata/portfolia/env/` (outside the repo, `chmod 600`). **Now:** the three files exist. `compose.yaml` defaults to the local tags `portfolia-api:prod` and `portfolia-web:prod` (`PORTFOLIO_API_IMAGE` / `PORTFOLIO_WEB_IMAGE` override them; GHCR is R.3). Dev is project `portfolio-dev` on :3200/:8200. Staging is project `portfolio-staging` on :3100/:8100 with its own volumes and `env/staging.env`. Secrets are `env/prod.env` and `env/staging.env` (mode 600, gitignored). Postgres and Redis keep the `docker-compose.yml` `build:` blocks: dropping them changes the config hash and would recreate the live database containers. App, API, worker and migrate have no `build:` and no bind mounts. The live containers were not recreated. | `docker compose -f compose.yaml config` has no `build:` and no bind mounts on app, api, worker and migrate; postgres and redis hashes match the live containers |
 | ⏳ R.3 | **Release workflow** (`.github/workflows/release.yml`). On a `v*` tag, build `linux/arm64` images natively on `ubuntu-24.04-arm`, push to GHCR tagged `X.Y.Z`, `X.Y` and `sha-<short>`, and attach SBOM and provenance. On every master push, publish an `edge` tag. Use release-please (Conventional Commits, which the repo already uses) to open the release PR and maintain `CHANGELOG.md`. | Tagging `v0.1.0` publishes pullable images |
 | ⏳ R.4 | **`scripts/deploy.sh <env> <version>`** on the Jetson: pull, then `pg_dump` backup, then `docker compose run --rm migrate`, then `up -d --wait`, then the smoke checks from `verify.sh`. On any failure it automatically redeploys the previous version, which is recorded in `env/<env>.deployed`. It prunes images older than the last 3 releases. | A deliberately broken release rolls itself back |
 | ⏳ R.5 | **Staging environment** on the same Jetson: project `portfolio-staging`, UI :3100, its own volumes and seeded demo data. It auto-deploys `edge` through a systemd timer that runs `deploy.sh staging edge` every 15 minutes when the digest changes. | A merge to master shows up on staging within 15 minutes |
@@ -321,6 +321,7 @@ Open:
 | 2026-10-26 | `docs/product-guide` | — | Root README, user guide with screenshots of the `demo` account, and the stale guides under `python/app/docs/` rewritten to the current stack. `setup-docker.sh` left as a host check |
 | 2026-10-26 | `feat/fx-yahoo-rates` | — | 2.3: Yahoo daily FX into the portfolio currency (`core/domain/fx.py`). Closes and live prices convert; cash converts only when the transaction currency differs. `GBp`/`ILA` scaled. Foreign listings and imports are accepted. Per-portfolio dashboard totals unchanged |
 | 2026-10-26 | `feat/prod-images` | — | R.1 started: production API and web images (`Dockerfile.prod`). API 807 MB (polars/pyarrow/pandas), web 49 MB. Live dev compose unchanged |
+| 2026-10-26 | `feat/compose-split` | — | R.2: `compose.yaml` (images only), `compose.dev.yaml` (project `portfolio-dev`), `compose.staging.yaml`. Env files in `env/` (gitignored, mode 600). Live Postgres/Redis not recreated |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -358,7 +359,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅). R.1 images are built (`feat/prod-images`); R.2 compose split is next.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅). R.1 images and R.2 compose split are in place. Next is R.3, publishing the images.
 
 ---
 
@@ -386,7 +387,7 @@ Open:
 
 | Env | Compose project | Source | Port | Data | Deploy |
 |---|---|---|---|---|---|
-| dev | `portfolio-dev` | local build, bind mounts, reload | 3000/8000 (moves to 3200/8200 once prod takes 3000) | dev volumes | `docker compose -f compose.yaml -f compose.dev.yaml up` |
+| dev | `portfolio-dev` | local build, bind mounts, reload | 3200/8200 | dev volumes | `docker compose -f compose.dev.yaml up` |
 | staging | `portfolio-staging` | `edge` | 3100 | seeded demo data, reset allowed | auto (timer) |
 | prod | `portfolio` | `X.Y.Z` | 3000, plus HTTPS via NPM | real data, nightly backups | manual `scripts/deploy.sh prod X.Y.Z` |
 

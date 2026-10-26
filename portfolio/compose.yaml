@@ -1,0 +1,183 @@
+name: portfolio
+
+# Production. app, api, worker and migrate are images with no bind mounts.
+# Local tags from Dockerfile.prod are the default. When R.3 publishes GHCR, set
+# PORTFOLIO_API_IMAGE and PORTFOLIO_WEB_IMAGE (for example
+# ghcr.io/vedantparikh/portfolia-api:0.1.0).
+# Migrate: docker compose --profile migrate run --rm migrate
+#
+# Postgres and Redis are copied from docker-compose.yml, including build.
+# Their config hash matches the containers already running. Replacing build
+# with an official image changes that hash and recreates them. Do that only
+# in a planned window.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    image: ${PORTFOLIO_WEB_IMAGE:-portfolia-web:prod}
+    env_file:
+      - ./js/.env.docker
+    environment:
+      - DOCKER_API_URL=http://api:8000
+    ports:
+      - "${PORTFOLIO_UI_PORT:-3000}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - portfolio_network
+      - homepage_proxy-network
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    # Disabled: the prod image has no curl. The test is kept so this service
+    # hashes the same as the container already running.
+    healthcheck:
+      disable: true
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  api:
+    image: ${PORTFOLIO_API_IMAGE:-portfolia-api:prod}
+    pull_policy: if_not_present
+    ports:
+      - "127.0.0.1:${PORTFOLIO_API_PORT:-8000}:8000"
+    env_file:
+      - ../env/prod.env
+    environment:
+      - ARROW_DEFAULT_MEMORY_POOL=system
+      - POLARS_FMT_MAX_ROWS=10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - portfolio_network
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  worker:
+    image: ${PORTFOLIO_API_IMAGE:-portfolia-api:prod}
+    pull_policy: if_not_present
+    command: ["python", "-m", "workers.run"]
+    env_file:
+      - ../env/prod.env
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - portfolio_network
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,sys,time; i=int(os.environ.get('WORKER_INTERVAL_SECONDS','900')); sys.exit(time.time()-os.path.getmtime('/tmp/worker-heartbeat') > 2*i+120)"
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  migrate:
+    image: ${PORTFOLIO_API_IMAGE:-portfolia-api:prod}
+    pull_policy: if_not_present
+    profiles: ["migrate"]
+    env_file:
+      - ../env/prod.env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - portfolio_network
+    restart: "no"
+
+  postgres:
+    build:
+      context: ./python/app
+      dockerfile: Dockerfile.postgres
+    env_file:
+      - ./python/app/.env.docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - portfolio_network
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    build:
+      context: ./python/app
+      dockerfile: Dockerfile.redis
+    env_file:
+      - ./python/app/.env.docker
+    volumes:
+      - redis_data:/data
+    networks:
+      - portfolio_network
+    restart: unless-stopped
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  portfolio_network:
+    driver: bridge
+  homepage_proxy-network:
+    external: true

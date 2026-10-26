@@ -13,15 +13,17 @@ cd portfolio
 cp python/app/.env.example python/app/.env.docker   # fill in secrets; never commit .env.docker
 cp js/.env.example js/.env.docker
 docker network create homepage_proxy-network        # once
-docker compose up -d --wait
+docker compose -f compose.dev.yaml up -d --wait
 ```
 
 | Service | Address |
 |---|---|
-| UI (`app`) | <http://localhost:3000> — host port overridable with `PORTFOLIO_UI_PORT` |
-| API | <http://127.0.0.1:8000/docs> — loopback only, `PORTFOLIO_API_PORT` |
+| UI (`app`) | <http://localhost:3200> — host port overridable with `PORTFOLIO_UI_PORT` |
+| API | <http://127.0.0.1:8200/docs> — loopback only, `PORTFOLIO_API_PORT` |
 | Worker | no host port; watchlist prices and alerts |
-| Postgres, Redis | unpublished; `docker compose exec postgres psql` |
+| Postgres, Redis | unpublished; `docker compose -f compose.dev.yaml exec postgres psql` |
+
+`compose.yaml` is the production file (project `portfolio`, ports 3000 and 8000). A bare `docker compose up` selects it. Use `compose.dev.yaml` for development so that does not attach to the live database.
 
 `start_frontend.sh` and `setup-docker.sh` are not how this stack is started. `setup-docker.sh` only checks that Docker is installed.
 
@@ -72,7 +74,10 @@ docker run --rm -v "$PWD/js/src:/app/src" -v "$PWD/js/eslint.config.js:/app/esli
 
 ```
 portfolio/
-  docker-compose.yml          # dev stack: bind mounts, reload, Vite dev server
+  compose.yaml                # production: images only, project portfolio
+  compose.dev.yaml            # dev: bind mounts, reload, Vite, project portfolio-dev
+  compose.staging.yaml        # staging overlay: ports 3100/8100, own volumes
+  docker-compose.yml          # previous live file; prefer the three above
   js/                         # React UI
   python/app/                 # API, worker, Alembic, tests
     api/v1/<feature>/         # routers; each has a CLAUDE.md

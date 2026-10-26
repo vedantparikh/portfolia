@@ -14,10 +14,10 @@ Git root is the parent dir (`../`: `.github/workflows/ci.yml`, `.pre-commit-conf
 ```
 scripts/verify.sh            # the gate: compose config, lint, pytest in API image, migration check, vite prod build (~3 min)
 scripts/check_migrations.sh  # throwaway Postgres: upgrade from empty, `alembic check` (drift), downgrade base, upgrade
-scripts/verify.sh --stack    # + rebuild/restart local stack and smoke-test UI, /api proxy, API health
-docker compose up -d --wait  # run stack → UI http://localhost:3000, API http://127.0.0.1:8000/docs
-docker compose logs -f api
-docker compose logs -f worker   # background jobs (watchlist prices + alerts, every WORKER_INTERVAL_SECONDS)
+scripts/verify.sh --stack    # + dev project portfolio-dev on :3200/:8200 (does not touch the live portfolio project)
+docker compose -f compose.dev.yaml up -d --wait  # dev → UI :3200, API 127.0.0.1:8200
+docker compose -f compose.dev.yaml logs -f api
+docker compose -f compose.dev.yaml logs -f worker   # background jobs (watchlist prices + alerts, every WORKER_INTERVAL_SECONDS)
 ```
 Single test file (same env as the gate):
 ```
@@ -43,7 +43,7 @@ Never run pytest inside the running `portfolio-api-1`, which is wired to the sta
 - **Schema:** Alembic is the only schema authority; the app never calls `create_all` (tests do, on SQLite). `start_api.sh` runs `alembic upgrade head` before the API starts and aborts on failure. Baseline = `alembic/versions/e97c82868ff5_baseline.py` (rewritten in place from the old no-op, so existing dev DBs stamped at it are already correct). A model change needs a migration: autogenerate it against a throwaway Postgres (pattern in `scripts/check_migrations.sh`), review it, drop any new Postgres enum types in `downgrade()`, and keep it expand/contract: additive in release N, destructive in N+1. The gate fails on model/migration drift.
 - **Frontend:** pages and components are in `js/src/components/<feature>/` (with an `index.js` barrel). All HTTP calls go through the axios objects in `js/src/services/api.js`. Auth state is in `contexts/AuthContext.jsx`. Data fetching is `useEffect`+`useState`, errors are shown with `react-hot-toast`, and formatting goes through `utils/formatters.jsx` (no inline `toFixed` or `$`). Money in portfolio views uses `useMoney()` (`hooks/useMoney.js`, provided by `CurrencyProvider` in `Portfolio.jsx`); lists that mix portfolios pass the row's own `currency`; market data uses the asset's `currency`.
 - **Config:** `config.py` `settings`, fed by compose `env_file` (`python/app/.env.docker`, `js/.env.docker`). These are gitignored secrets: never print or commit them. When you add a key, also add it to the matching `.env.example`.
-- **Compose:** `docker-compose.yml` is currently the dev stack (bind mounts, reload, Vite dev server) with memory limits and log rotation. Services: app, api (runs `alembic upgrade head` on start), worker (`workers/run.py`, same image, waits for api healthy, heartbeat healthcheck), postgres, redis. It must keep working from the `.env.example` templates, because CI runs it that way. Production images are separate and not what this compose runs: `python/app/Dockerfile.prod` (non-root, no reload, migrate via `alembic upgrade head`) and `js/Dockerfile.prod` (nginx on 8080, `/api` proxied to `api:8000`).
+- **Compose:** `compose.yaml` is production (project `portfolio`, UI :3000, API loopback :8000). `app`, `api`, `worker` and `migrate` are images only (`portfolia-web:prod`, `portfolia-api:prod`, overridable with `PORTFOLIO_WEB_IMAGE` / `PORTFOLIO_API_IMAGE`; API env `../env/prod.env`). Postgres and Redis in that file are the same `build:` blocks as `docker-compose.yml`, so their config hash matches the live containers and `docker compose up` does not recreate them. Official database images wait for a planned window. `compose.dev.yaml` is the dev stack CI runs (project `portfolio-dev`, bind mounts, reload, Vite, UI :3200, API :8200). `compose.staging.yaml` overlays production with project `portfolio-staging`, UI :3100, its own volumes, and `../env/staging.env`. Bare `docker compose` in this directory selects `compose.yaml`. `docker-compose.yml` plus `docker-compose.prod.yml` is how the running containers were started. Images: `python/app/Dockerfile.prod` (non-root, no reload; migrate with `docker compose --profile migrate run --rm migrate`) and `js/Dockerfile.prod` (nginx on 8080, `/api` proxied to `api:8000`).
 
 Product overview: `../README.md`. How to use the app, including the demo account: `../docs/USER_GUIDE.md`.
 

@@ -126,12 +126,14 @@ cd portfolio
 cp python/app/.env.example python/app/.env.docker   # then set real secrets
 cp js/.env.example js/.env.docker
 docker network create homepage_proxy-network        # once; already exists on the home server
-docker compose up -d --wait
+docker compose -f compose.dev.yaml up -d --wait
 ```
 
-- UI: <http://localhost:3000>
-- API docs (on the server only): <http://127.0.0.1:8000/docs>
-- Health: `curl -f http://127.0.0.1:8000/health/`
+Development uses project `portfolio-dev` (UI :3200, API :8200). Production is `compose.yaml` (project `portfolio`, UI :3000, API :8000). A bare `docker compose up` in `portfolio/` selects the production file.
+
+- Dev UI: <http://localhost:3200>
+- Dev API docs (on the server only): <http://127.0.0.1:8200/docs>
+- Dev health: `curl -f http://127.0.0.1:8200/health/`
 
 Postgres and Redis are not published on the host. Developer commands, tests, and the layout are in [portfolio/README.md](portfolio/README.md). The rules for changing the code are in [portfolio/CLAUDE.md](portfolio/CLAUDE.md).
 

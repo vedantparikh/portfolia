@@ -37,6 +37,8 @@ dmypy.json
 .env.local
 .env.*.local
 .env.docker
+# Prod and staging secrets for compose.yaml (mode 600, outside the tree)
+/env/
 
 # IDE files
 .vscode/

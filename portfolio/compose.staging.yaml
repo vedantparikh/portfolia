@@ -1,0 +1,35 @@
+name: portfolio-staging
+
+# Overlay on compose.yaml. Own project, ports, env and volumes.
+#   docker compose -f compose.yaml -f compose.staging.yaml up -d --wait
+# Not started on the Jetson yet (R.5). Do not point it at the prod volumes.
+
+services:
+  app:
+    ports: !override
+      - "${PORTFOLIO_UI_PORT:-3100}:8080"
+  api:
+    ports: !override
+      - "127.0.0.1:${PORTFOLIO_API_PORT:-8100}:8000"
+    env_file: !override
+      - ../env/staging.env
+  worker:
+    env_file: !override
+      - ../env/staging.env
+  migrate:
+    env_file: !override
+      - ../env/staging.env
+  postgres:
+    env_file: !override
+      - ../env/staging.env
+    volumes: !override
+      - staging_postgres_data:/var/lib/postgresql/data
+  redis:
+    env_file: !override
+      - ../env/staging.env
+    volumes: !override
+      - staging_redis_data:/data
+
+volumes:
+  staging_postgres_data:
+  staging_redis_data:

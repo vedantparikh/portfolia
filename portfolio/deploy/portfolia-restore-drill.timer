@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly Portfolia restore drill into staging
+
+[Timer]
+OnCalendar=*-*-01 04:10:00
+AccuracySec=1min
+Persistent=true
+Unit=portfolia-restore-drill.service
+
+[Install]
+WantedBy=timers.target

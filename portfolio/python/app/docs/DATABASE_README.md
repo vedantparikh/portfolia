@@ -35,4 +35,4 @@ Prices are not stored as a history table. Yahoo history is cached in Redis (see 
 
 ## Backups
 
-Nothing in this repo dumps the database. Copying the volume of a running Postgres is not a backup. A dump belongs in the planned deploy flow, which is not built.
+`scripts/backup.sh` writes a custom-format `pg_dump` of the running database to `/mnt/samsung_ufs/backups/portfolio/` (14 daily, 8 weekly). `scripts/restore.sh` loads a dump into staging. Copying the volume of a running Postgres is not a backup. The nightly timer is `deploy/portfolia-backup.timer`; installing it is a host step.

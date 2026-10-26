@@ -14,7 +14,7 @@ Do not follow older copies of this checklist. They described Sentry, port 8080, 
 - On start, `python/app/start_api.sh` waits for Postgres and Redis, runs `alembic upgrade head`, then starts the API. A migration failure stops the container.
 - `config.py` refuses placeholder `SECRET_KEY`, `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, or an empty `REDIS_PASSWORD` when `ENVIRONMENT` is not development, dev, local, or test.
 - The UI container joins `homepage_proxy-network`. Nothing in front of it terminates TLS yet.
-- There is no backup job for this database.
+- `scripts/backup.sh` dumps this database. The timer unit is `deploy/portfolia-backup.timer`. It is not installed by pulling the repo.
 
 ## Do not
 
@@ -25,4 +25,4 @@ Do not follow older copies of this checklist. They described Sentry, port 8080, 
 
 ## Planned, not available
 
-Phase R in [REFACTOR_PLAN.md](REFACTOR_PLAN.md) is the intended production shape: multi-stage images, a compose file with no bind mounts, GHCR tags, `scripts/deploy.sh` with a backup and rollback, a staging stack, nightly `pg_dump`, and an HTTPS name on the tailnet. None of those files exist. Until they do, this checklist is "the dev stack is what you have."
+Phase R in [REFACTOR_PLAN.md](REFACTOR_PLAN.md) is the intended production shape. Images, compose files, GHCR tags, `scripts/deploy.sh`, staging, and `scripts/backup.sh` are in the repo. An HTTPS name on the tailnet is still R.7.

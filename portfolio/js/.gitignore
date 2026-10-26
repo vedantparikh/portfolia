@@ -106,6 +106,7 @@ temp/
 # Docker
 .dockerignore
 Dockerfile*
+!Dockerfile.prod
 docker-compose*.yml
 
 # Testing

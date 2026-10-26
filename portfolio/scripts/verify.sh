@@ -41,6 +41,38 @@ docker run --rm --network none \
   -v "$ROOT/js/src:/app/src:ro" -v "$ROOT/js/vite.config.js:/app/vite.config.js:ro" \
   "$PROJECT-app" npx vite build --outDir /tmp/dist --logLevel warn
 
+step "prod images: build, size, non-root, no bind mounts"
+docker build -f "$ROOT/python/app/Dockerfile.prod" -t portfolia-api:prod "$ROOT/python/app"
+docker build -f "$ROOT/js/Dockerfile.prod" -t portfolia-web:prod "$ROOT/js"
+# The plan's 400 MB API cap is not reachable: polars, pyarrow and pandas
+# alone are about 450 MB. The gate holds the measured build, plus slack.
+api_max=$((900 * 1024 * 1024))
+web_max=$((100 * 1024 * 1024))
+api_size=$(docker image inspect -f '{{.Size}}' portfolia-api:prod)
+web_size=$(docker image inspect -f '{{.Size}}' portfolia-web:prod)
+echo "portfolia-api:prod $((api_size / 1024 / 1024)) MB"
+echo "portfolia-web:prod $((web_size / 1024 / 1024)) MB"
+[[ "$api_size" -lt "$api_max" ]] || { echo "FAIL API image exceeds 900 MB"; exit 1; }
+[[ "$web_size" -lt "$web_max" ]] || { echo "FAIL web image exceeds 100 MB"; exit 1; }
+[[ "$(docker run --rm --entrypoint id portfolia-api:prod -u)" != "0" ]]
+[[ "$(docker run --rm --entrypoint id portfolia-web:prod -u)" != "0" ]]
+docker run --rm --network none -e TESTING=true -e ENVIRONMENT=test \
+  --entrypoint python portfolia-api:prod \
+  -c 'import main; assert len(main.app.openapi()["paths"]) >= 85'
+docker run --rm --network none --entrypoint alembic portfolia-api:prod heads >/dev/null
+docker rm -f portfolia-web-smoke >/dev/null 2>&1 || true
+docker run -d --name portfolia-web-smoke -p 127.0.0.1:18080:8080 portfolia-web:prod >/dev/null
+cleanup_web() { docker rm -f portfolia-web-smoke >/dev/null 2>&1 || true; }
+trap cleanup_web EXIT
+for attempt in 1 2 3 4 5 6; do
+  curl -fsS --max-time 5 http://127.0.0.1:18080/ | grep -q 'id="root"' && break
+  [[ $attempt == 6 ]] && { docker logs portfolia-web-smoke; exit 1; }
+  sleep 1
+done
+curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:18080/portfolio
+cleanup_web
+trap - EXIT
+
 if [[ "${1:-}" == "--stack" ]]; then
   step "stack: up + smoke"
   docker compose up -d --wait --wait-timeout 300

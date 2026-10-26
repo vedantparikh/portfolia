@@ -45,6 +45,8 @@ Never run pytest inside the running `portfolio-api-1`, which is wired to the sta
 - **Config:** `config.py` `settings`, fed by compose `env_file` (`python/app/.env.docker`, `js/.env.docker`). These are gitignored secrets: never print or commit them. When you add a key, also add it to the matching `.env.example`.
 - **Compose:** `docker-compose.yml` is currently the dev stack (bind mounts, reload, Vite dev server) with memory limits and log rotation. Services: app, api (runs `alembic upgrade head` on start), worker (`workers/run.py`, same image, waits for api healthy, heartbeat healthcheck), postgres, redis. It must keep working from the `.env.example` templates, because CI runs it that way.
 
+Product overview: `../README.md`. How to use the app, including the demo account: `../docs/USER_GUIDE.md`.
+
 ## Feature docs (read the one for the feature you touch)
 Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, known gaps and plans. Frontend feature folders point to them.
 - Engine: `python/app/core/domain/CLAUDE.md`
@@ -77,8 +79,9 @@ Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, kno
 - Ask before deleting Docker volumes, changing published ports or touching anything outside `portfolio/`.
 - When a session establishes a new non-obvious fact about the project, update this file or the plan's progress log.
 
-## Known state (2026-10-16)
-- Gate: lint clean (ruff + eslint, 0 warnings); 259 tests passed, 42 quarantined xfail, plus 8 quarantined uncollectable files.
+## Known state (2026-10-26)
+- Product docs (`../README.md`, `../docs/USER_GUIDE.md`, `python/app/docs/`) match the app as of this date. Feature `CLAUDE.md` files stay the endpoint reference.
+- Gate, last recorded: lint clean (ruff + eslint, 0 warnings); 259 tests passed, 42 quarantined xfail, plus 8 quarantined uncollectable files. Not re-run for the doc rewrite.
 - Demo data (`scripts/seed_demo_application.py --reset`, run inside `portfolio-api-1` against `http://localhost:8000`) uses real Yahoo prices, splits and dividends over ~3 years; an independent replay matched the engine to the cent on every day.
 - Still on old code paths: analytics `/summary` and `/users/dashboard` (snapshot metrics that count deposits as returns). Advance-risk beta uses `^GSPC` price index.
 - `tests/unit/test_calculation_snapshots.py` pins every computed number (engine, risk, indicators, analytics) against `snapshots/calculations.json`. If it fails, a number the app shows changed: fix the regression, or regenerate with `UPDATE_SNAPSHOTS=1` only for an intended change and explain it in the commit.

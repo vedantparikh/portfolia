@@ -51,7 +51,7 @@ TR fills in EUR on LS Exchange, which Yahoo doesn't carry; Yahoo's ISIN search u
 - No real statement in the test suite; layout drift (column order, extra amounts on a line) would show up as warnings or wrong amounts.
 - In/out direction is not read (the type implies it for trades and dividends).
 - Withholding tax is not printed per dividend, so `taxes` stays 0 for TR dividends.
-- The frontend maps each ISIN to an asset by hand (`ClientSideAssetSearch`); no ISIN → ticker lookup.
+- ISIN matching is the instrument panel (`POST /instruments/resolve`). Per-row hand mapping still exists for a row marked manual.
 - Per-row `ValueError` messages are shown to the user; other errors are logged and reported generically.
 
 ## Planned

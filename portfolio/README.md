@@ -1,177 +1,91 @@
-# Portfolia App - Financial Portfolio Analysis Platform
+# Portfolia — development
 
-A comprehensive financial portfolio analysis application built with modern technologies and the latest package versions.
+Product overview and screenshots: [../README.md](../README.md). How to use the app: [../docs/USER_GUIDE.md](../docs/USER_GUIDE.md).
 
-## 🚀 Latest Technology Stack
+Self-hosted portfolio tracker. Python 3.14 / FastAPI + SQLAlchemy 2.1 + Postgres 16 + Redis, React 19 / Vite 8 / Tailwind 4. Code layout and the rules for changing it are in [CLAUDE.md](CLAUDE.md). Roadmap: [REFACTOR_PLAN.md](REFACTOR_PLAN.md).
 
-### Backend (Python)
-- **Python**: 3.12.2 (Latest stable)
-- **FastAPI**: 0.109.2 (Latest stable)
-- **Uvicorn**: 0.27.1 (Latest stable)
-- **Pandas**: 2.2.0 (Latest stable)
-- **NumPy**: 1.26.4 (Latest stable)
-- **Technical Analysis**: ta 0.11.0 (Latest stable)
-- **Yahoo Finance**: yfinance 0.2.36 (Latest stable)
+## Run
 
-### Frontend (React)
-- **React**: 18.2.0 (Latest stable)
-- **Node.js**: 21.7 (Latest LTS)
-- **Build Tool**: Vite 7.1.3 (Latest stable)
-- **Package Manager**: npm 11.5.2 (Latest stable)
+Docker only. The home server has no current Node and its system Python is 3.8.
 
-### Database & Infrastructure
-- **PostgreSQL**: 16.2 (Latest stable)
-- **Docker**: Latest stable
-- **Docker Compose**: 3.8
-
-## 🏗️ Architecture
-
-The application follows a microservices architecture with three main components:
-
-1. **FastAPI Backend** (`/python/api/`)
-   - RESTful API for financial data
-   - Technical indicators calculation
-   - Trading strategy algorithms
-   - Market data integration
-
-2. **React Frontend** (`/js/`)
-   - Modern web interface
-   - Real-time data updates
-   - Responsive design
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker and Docker Compose
-- Python 3.12+ (for local development)
-- Node.js 21+ (for local development)
-
-### Using Docker (Recommended)
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd portfolia_app/portfolio
-
-# Start all services
-docker-compose up --build
-
-# Access the services:
-# - React App: http://localhost:3000
-# - FastAPI: http://localhost:8080
-# - PostgreSQL: localhost:5432
+cd portfolio
+cp python/app/.env.example python/app/.env.docker   # fill in secrets; never commit .env.docker
+cp js/.env.example js/.env.docker
+docker network create homepage_proxy-network        # once
+docker compose up -d --wait
 ```
 
-### Local Development
+| Service | Address |
+|---|---|
+| UI (`app`) | <http://localhost:3000> — host port overridable with `PORTFOLIO_UI_PORT` |
+| API | <http://127.0.0.1:8000/docs> — loopback only, `PORTFOLIO_API_PORT` |
+| Worker | no host port; watchlist prices and alerts |
+| Postgres, Redis | unpublished; `docker compose exec postgres psql` |
 
-#### Backend Setup
+`start_frontend.sh` and `setup-docker.sh` are not how this stack is started. `setup-docker.sh` only checks that Docker is installed.
+
+The API container runs `alembic upgrade head` before it serves traffic. Schema changes go through Alembic. The app does not call `create_all`.
+
+## Demo data
+
+A `demo` user is loaded on this server. Username `demo`, password `DemoApp!234`. See the user guide before re-seeding: `--reset` deletes that user.
+
 ```bash
-cd python/api
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8080
+docker exec portfolio-api-1 python scripts/seed_demo_application.py \
+  --base-url http://localhost:8000 \
+  --email demo@example.com --username demo --password 'DemoApp!234'
 ```
 
-#### Frontend Setup
+## Checks
+
+From `portfolio/`:
+
 ```bash
-cd js
-npm install
-npm run dev
+scripts/verify.sh            # compose config, lint, pytest, migration round-trip, UI build
+scripts/verify.sh --stack    # also rebuilds and smoke-tests the stack
+scripts/check_migrations.sh  # empty Postgres: upgrade, drift check, downgrade, upgrade
 ```
 
-## 📊 Features
+One test file, same environment as the gate:
 
-### Market Data
-- Real-time stock data from Yahoo Finance
-- Historical OHLCV data
-- Symbol search and validation
-
-### Technical Indicators
-- **Momentum**: RSI, ROC, Stochastic RSI, Stochastic Oscillator
-- **Trend**: MACD, ADX, Aroon, Parabolic SAR, CCI
-- **Volatility**: Bollinger Bands, ATR, Keltner Channels
-- **Volume**: MFI, VPT, VWAP, OBV, Force Index
-
-### Trading Strategies
-- **MACD Strategy**: Trend-following with EMA confirmation
-- **GFS Strategy**: Multi-timeframe RSI analysis
-
-### Visualization
-- Interactive Plotly charts
-- Candlestick patterns
-- Technical indicator overlays
-- Real-time data updates
-
-## 🔧 API Endpoints
-
-### Market Data
-- `GET /api/market/symbols?name={symbol}` - Search for stock symbols
-- `GET /api/market/symbol-data?name={symbol}&period={period}&interval={interval}` - Get historical data
-
-### Technical Indicators
-- `GET /api/statistical-indicators/momentum-rsi-indicator` - RSI calculation
-- Additional endpoints for other indicators (in development)
-
-## 📁 Project Structure
-
-```
-portfolia_app/
-├── portfolio/
-│   ├── python/
-│   │   ├── api/                    # FastAPI backend
-│   │       ├── market/            # Stock data endpoints
-│   │       ├── statistical_indicators/  # Technical indicators
-│   │       └── trading_strategy/  # Trading algorithms
-│   │   
-│   ├── js/                        # React frontend (Vite)
-│   ├── docker-compose.yml         # Multi-service orchestration
-│   └── README.md                  # This file
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD/python/app:/app" -w /app \
+  -e TESTING=true -e TEST_DATABASE_URL=sqlite:////tmp/t.db \
+  -e PYTHONDONTWRITEBYTECODE=1 portfolio-api \
+  python -m pytest tests/unit/test_position_and_returns.py -q -p no:cacheprovider
 ```
 
-## 🛠️ Development
+Do not run pytest inside the running `portfolio-api-1`. That process is connected to the stack database.
 
-### Code Quality
-- **Python**: Pre-commit hooks, type hints
-- **JavaScript**: ESLint configuration
-- **API**: OpenAPI/Swagger documentation
+Lint, before committing:
 
-### Testing
-- Backend: pytest (to be implemented)
-- Frontend: Vitest (to be implemented)
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/python/app:/app" -w /app portfolio-api \
+  sh -c 'ruff check --fix --no-cache . && ruff format --no-cache .'
+docker run --rm -v "$PWD/js/src:/app/src" -v "$PWD/js/eslint.config.js:/app/eslint.config.js:ro" \
+  portfolio-app npx eslint src --fix
+```
 
-### Database
-- PostgreSQL with SQLAlchemy ORM
-- Database migrations (to be implemented)
+## Layout
 
-## 🔮 Roadmap
+```
+portfolio/
+  docker-compose.yml          # dev stack: bind mounts, reload, Vite dev server
+  js/                         # React UI
+  python/app/                 # API, worker, Alembic, tests
+    api/v1/<feature>/         # routers; each has a CLAUDE.md
+    core/domain/              # the only portfolio maths
+    core/services/            # DB and Yahoo access
+    workers/run.py            # watchlist prices and alerts
+  scripts/verify.sh
+```
 
-- [ ] Complete API endpoints for all technical indicators
-- [ ] User authentication and portfolio management
-- [ ] Real-time data streaming
-- [ ] Backtesting framework
-- [ ] Mobile-responsive design
-- [ ] Performance optimization
-- [ ] Comprehensive test coverage
+Imports are rooted at `python/app` (`from core...`, `from api.v1...`).
 
-## 🤝 Contributing
+Single-file bind mounts (`main.py`, `config.py`, `start_api.py`) go stale in the container if a tool replaces the file. `docker compose restart api` after editing those. Directory mounts (`core/`, `api/`) are fine.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+## Further reading
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the repository
-- Check the documentation
-- Review the API endpoints
-
----
-
-**Note**: This project uses the latest stable versions of all packages as of January 2024. Regular updates are recommended to maintain security and performance.
+[STARTUP_GUIDE.md](STARTUP_GUIDE.md), [python/app/docs/](python/app/docs/), and the index in [../docs/README.md](../docs/README.md).

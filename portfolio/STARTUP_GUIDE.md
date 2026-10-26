@@ -1,135 +1,65 @@
-# 🚀 Portfolia App - Local Development Startup Guide
+# Starting Portfolia
 
-Since Docker is not available on your system, this guide will help you run the application locally using the latest package versions.
+The supported runtime is Docker Compose, from this directory. Do not install a host virtualenv or run `npm run dev` on the home server: the system Python is 3.8 and there is no host Node.
 
-## 📋 Prerequisites
+## First time
 
-- ✅ **Python 3.12+** (You have 3.12.1 - Perfect!)
-- ✅ **Node.js 21+** (You have 21.7 - Perfect!)
-- ✅ **npm 11+** (You have 11.5.2 - Perfect!)
-
-## 🎯 Quick Start (Recommended)
-
-### Option 1: Use the Startup Scripts (Easiest)
-
-Open **3 separate terminal windows** and run:
-
-**Terminal 1 - Backend API:**
 ```bash
-./start_backend.sh
+cd portfolio
+cp python/app/.env.example python/app/.env.docker
+cp js/.env.example js/.env.docker
 ```
 
-**Terminal 2 - React Frontend:**
+Edit `.env.docker` (mode 600). Generate secrets with:
+
 ```bash
-./start_frontend.sh
+python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
 ```
 
-### Option 2: Manual Startup
+Set `POSTGRES_PASSWORD`, `SECRET_KEY`, `JWT_SECRET_KEY`, and `REDIS_PASSWORD`. Leave Yahoo keys blank; market data does not use them. Email uses Brevo (`EMAIL_HOST=smtp-relay.brevo.com`, port 587) if you want verification and password-reset mail.
 
-**Backend API:**
+The compose file joins the external network `homepage_proxy-network`. Create it once if it is missing:
+
 ```bash
-cd python/api
-source venv/bin/activate
-uvicorn main:app --reload --host 0.0.0.0 --port 8080
+docker network create homepage_proxy-network
 ```
 
-**React Frontend:**
+## Start
+
 ```bash
-cd js
-npm run dev
+docker compose up -d --wait
 ```
 
-## 🌐 Access Your Services
+| Check | Expected |
+|---|---|
+| UI | <http://localhost:3000> returns the sign-in page |
+| API | `curl -f http://127.0.0.1:8000/health/` |
+| API docs | <http://127.0.0.1:8000/docs> |
+| Worker | `docker compose ps` shows `worker` healthy |
 
-Once all services are running, you can access:
+The API runs `alembic upgrade head` on startup and exits if the migration fails. Postgres and Redis have no host port.
 
-- **🔌 FastAPI Backend**: http://localhost:8080
-  - **API Documentation**: http://localhost:8080/docs
-  - **Alternative Docs**: http://localhost:8080/redoc
+Logs:
 
-- **⚛️ React Frontend**: http://localhost:3000
-
-## 🧪 Test the Setup
-
-### 1. Test FastAPI Backend
 ```bash
-curl http://localhost:8080/api/market/symbols?name=AAPL
+docker compose logs -f api
+docker compose logs -f worker
 ```
 
-### 2. Test React Frontend
-- Open http://localhost:3000 in your browser
-- You should see the React app (currently a template)
+Port overrides, if 3000 or 8000 is taken: `PORTFOLIO_UI_PORT` and `PORTFOLIO_API_PORT`.
 
-## 🔧 Troubleshooting
+## Demo login
 
-### Common Issues:
+Username `demo`, password `DemoApp!234`. What that account contains, and how not to destroy it, is in [../docs/USER_GUIDE.md](../docs/USER_GUIDE.md).
 
-**Port Already in Use:**
+## Stop
+
 ```bash
-# Find what's using the port
-lsof -i :8080  # For backend
-lsof -i :3000  # For React
-
-# Kill the process
-kill -9 <PID>
+docker compose stop
 ```
 
-**Python Virtual Environment Issues:**
-```bash
-# Recreate virtual environment
-cd python/api
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+`docker compose down -v` deletes the database volume. Do not use it on a stack that has data you want to keep.
 
-**Node.js Issues:**
-```bash
-# Clear npm cache
-npm cache clean --force
+## When something fails
 
-# Reinstall dependencies
-cd js
-rm -rf node_modules package-lock.json
-npm install
-```
-
-## 📱 Development Workflow
-
-1. **Backend Changes**: FastAPI will auto-reload when you modify Python files
-2. **Frontend Changes**: React will hot-reload when you modify JavaScript/JSX files
-
-## 🎨 Available Features
-
-### Backend API
-- ✅ Stock symbol search
-- ✅ Historical stock data
-- ✅ Technical indicators (RSI, MACD, Bollinger Bands, etc.)
-- ✅ Trading strategies (MACD, GFS)
-
-### React Frontend
-- ✅ Modern React 18 with hooks
-- ✅ Vite build system (10x faster than CRA)
-- ✅ ESLint configuration
-- ✅ Ready for API integration
-
-## 🚀 Next Steps
-
-1. **Explore the API**: Visit http://localhost:8080/docs
-2. **Develop Frontend**: Start building React components
-3. **Add Features**: Implement new technical indicators
-4. **Database Integration**: Add PostgreSQL when ready
-
-## 📞 Need Help?
-
-- Check the main README.md for project overview
-- Review the API documentation at /docs
-- Check terminal output for error messages
-- Ensure all virtual environments are activated
-
----
-
-**Happy Coding! 🎉**
-
-Your Portfolia App is now running with the latest technology stack!
+[python/app/docs/DOCKER_TROUBLESHOOTING.md](python/app/docs/DOCKER_TROUBLESHOOTING.md).

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd  # type: ignore
 
+from config import settings
 from core.database.redis_client import get_redis
 from core.domain.fx import MissingFxError, canonical_currency
 from core.services.market_data.provider import MarketDataProvider
@@ -52,16 +53,20 @@ class MarketDataService:
         day = datetime.now(timezone.utc).date().isoformat()
         return f"yfinance:yesterday_close:{symbol.upper()}:{day}"
 
-    async def get_current_price(self, symbol: str) -> Optional[float]:
+    async def get_current_price(
+        self, symbol: str, *, fetch: bool = True
+    ) -> Optional[float]:
         """OPTIMIZED: Wraps the batch method for efficiency."""
-        prices = await self.get_current_prices([symbol])
+        prices = await self.get_current_prices([symbol], fetch=fetch)
         price = prices.get(symbol.upper())
         return float(price) if price is not None else None
 
-    async def get_current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
+    async def get_current_prices(
+        self, symbols: List[str], *, fetch: bool = True, refresh: bool = False
+    ) -> Dict[str, Decimal]:
         """
-        ADAPTED: Fetches current prices for a list of symbols, with caching,
-        using the custom RedisClient.
+        Current prices. `fetch=False` reads the cache only (holdings). `refresh=True`
+        always asks the provider and stores the quote for two worker intervals.
         """
         if not symbols:
             return {}
@@ -69,20 +74,20 @@ class MarketDataService:
         prices: Dict[str, Decimal] = {}
         symbols_upper = [s.upper() for s in symbols]
         symbols_to_fetch = set(symbols_upper)
+        ttl = self.price_cache_ttl
+        if refresh:
+            ttl = max(ttl, 2 * settings.WORKER_INTERVAL_SECONDS)
+        else:
+            cache_keys = [self._get_price_cache_key(s) for s in symbols_upper]
+            cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
 
-        # 1. Check Redis cache using the custom client's mget
-        cache_keys = [self._get_price_cache_key(s) for s in symbols_upper]
-        # Your mget conveniently returns a dictionary of found keys to values
-        cached_data = await asyncio.to_thread(self.redis_client.mget, cache_keys)
+            for symbol in symbols_upper:
+                cache_key = self._get_price_cache_key(symbol)
+                if cache_key in cached_data:
+                    prices[symbol] = Decimal(str(cached_data[cache_key]))
+                    symbols_to_fetch.remove(symbol)
 
-        for symbol in symbols_upper:
-            cache_key = self._get_price_cache_key(symbol)
-            if cache_key in cached_data:
-                # The custom client's mget already deserializes from JSON
-                prices[symbol] = Decimal(str(cached_data[cache_key]))
-                symbols_to_fetch.remove(symbol)
-
-        if symbols_to_fetch:
+        if symbols_to_fetch and fetch:
             logger.info(
                 "Fetching current prices for %d symbols from API.",
                 len(symbols_to_fetch),
@@ -101,17 +106,21 @@ class MarketDataService:
                 await asyncio.to_thread(
                     self.redis_client.mset,
                     new_prices_to_cache,
-                    self.price_cache_ttl,
+                    ttl,
                 )
         return prices
 
-    async def get_yesterdays_close(self, symbol: str) -> Optional[float]:
+    async def get_yesterdays_close(
+        self, symbol: str, *, fetch: bool = True
+    ) -> Optional[float]:
         """OPTIMIZED: Wraps the batch method."""
-        closes = await self.get_yesterdays_closes([symbol])
+        closes = await self.get_yesterdays_closes([symbol], fetch=fetch)
         close_price = closes.get(symbol.upper())
         return float(close_price) if close_price is not None else None
 
-    async def get_yesterdays_closes(self, symbols: List[str]) -> Dict[str, Decimal]:
+    async def get_yesterdays_closes(
+        self, symbols: List[str], *, fetch: bool = True
+    ) -> Dict[str, Decimal]:
         """
         ADAPTED & OPTIMIZED: Fetches previous day's closing prices with caching,
         using a true batch operation for API calls.
@@ -133,7 +142,7 @@ class MarketDataService:
                 closes[symbol] = Decimal(str(cached_data[cache_key]))
                 symbols_to_fetch.remove(symbol)
 
-        if symbols_to_fetch:
+        if symbols_to_fetch and fetch:
             logger.info(
                 "Fetching yesterday's close for %d symbols from API in a single batch.",
                 len(symbols_to_fetch),

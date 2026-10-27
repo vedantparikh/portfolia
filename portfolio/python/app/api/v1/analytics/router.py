@@ -56,27 +56,20 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
     "/portfolios/{portfolio_id}/performance/snapshot",
     response_model=PerformanceSnapshotResponse,
 )
-async def get_performance_snapshot(
+def get_performance_snapshot(
     portfolio_id: int,
-    force_refresh: bool = Query(True, description="Force refresh from yfinance"),
     current_user: User = Depends(get_current_active_user),
     portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
-    """Get portfolio performance snapshot, always refreshing with yfinance data."""
-    analytics_service = PortfolioAnalyticsService(db)
-
-    try:
-        # Use force_refresh parameter to ensure latest data
-        snapshot = await analytics_service.get_or_create_performance_snapshot(
-            portfolio_id, force_refresh
-        )
-        return snapshot
-    except ValueError as e:
+    """The newest snapshot written by the worker."""
+    snapshot = PortfolioAnalyticsService(db).latest_performance_snapshot(portfolio_id)
+    if snapshot is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=public_message(e, "Performance snapshot unavailable"),
-        ) from e
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No performance snapshot yet",
+        )
+    return snapshot
 
 
 @router.delete(
@@ -255,21 +248,15 @@ def delete_portfolio_allocation(
 )
 async def analyze_portfolio_allocation(
     portfolio_id: int,
-    force_refresh: bool = Query(True, description="Force refresh from yfinance"),
+    force_refresh: bool = Query(
+        True, description="Ignored. The worker refreshes prices."
+    ),
     current_user: User = Depends(get_current_active_user),
     portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
-    """Analyze portfolio allocation and detect drift, always using latest yfinance data."""
+    """Analyze portfolio allocation and detect drift from the stored book."""
     analytics_service = PortfolioAnalyticsService(db)
-
-    # Force refresh portfolio asset prices before analysis
-    if force_refresh:
-        try:
-            await analytics_service.force_refresh_all_portfolio_data(portfolio_id)
-        except Exception as e:
-            logger.warning(f"Failed to refresh portfolio data: {e}")
-
     analysis = await analytics_service.analyze_portfolio_allocation(portfolio_id)
 
     return analysis
@@ -436,19 +423,17 @@ def get_rebalancing_events(
 )
 async def get_portfolio_analytics_summary(
     portfolio_id: int,
-    force_refresh: bool = Query(True, description="Force refresh from yfinance"),
+    force_refresh: bool = Query(
+        True, description="Ignored. The worker refreshes prices."
+    ),
     current_user: User = Depends(get_current_active_user),
     portfolio: Portfolio = Depends(get_owned_portfolio),
     db: Session = Depends(get_db),
 ):
-    """Get comprehensive portfolio analytics summary, always refreshing with latest yfinance data."""
+    """Stored analytics summary. The worker refreshes prices and writes snapshots."""
     analytics_service = PortfolioAnalyticsService(db)
 
     try:
-        # Force refresh all portfolio data before getting summary
-        if force_refresh:
-            await analytics_service.force_refresh_all_portfolio_data(portfolio_id)
-
         summary = await analytics_service.get_portfolio_analytics_summary(portfolio_id)
         return PortfolioAnalyticsSummary(**summary)
     except ValueError as e:
@@ -527,35 +512,14 @@ def get_portfolio_performance_comparison(
 # User Analytics Dashboard
 @router.get("/users/dashboard", response_model=UserDashboardResponse)
 async def get_user_analytics_dashboard(
-    force_refresh: bool = Query(True, description="Force refresh from yfinance"),
+    force_refresh: bool = Query(
+        True, description="Ignored. The worker refreshes prices."
+    ),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Get comprehensive analytics dashboard for the current user, always refreshing with latest yfinance data."""
+    """Stored analytics dashboard. The worker refreshes prices and writes snapshots."""
     analytics_service = PortfolioAnalyticsService(db)
-
-    if force_refresh:
-        try:
-            stored = AnalyticsRepository(db)
-            user_assets = stored.active_assets(current_user.id)
-
-            asset_ids = [asset.id for asset in user_assets if asset.symbol]
-            if asset_ids:
-                await analytics_service.bulk_update_asset_prices(asset_ids)
-
-            user_portfolios = stored.active_portfolios(current_user.id)
-
-            for portfolio in user_portfolios:
-                try:
-                    await analytics_service.force_refresh_all_portfolio_data(
-                        portfolio.id
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to refresh portfolio {portfolio.id}: {e}")
-
-        except Exception as e:
-            logger.warning(f"Failed to refresh user data: {e}")
-
     dashboard_data = await analytics_service.get_analytics_dashboard_summary(
         current_user.id
     )

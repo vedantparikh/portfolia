@@ -241,7 +241,9 @@ class PortfolioService:
         )
 
         symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
-        market_prices = await self.market_data_service.get_current_prices(symbols)
+        market_prices = await self.market_data_service.get_current_prices(
+            symbols, fetch=False
+        )
         rates = await load_rates(
             self.market_data_service,
             portfolio.currency,
@@ -555,8 +557,8 @@ class PortfolioService:
 
         symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
         current_prices, yesterdays_prices = await asyncio.gather(
-            self.market_data_service.get_current_prices(symbols),
-            self.market_data_service.get_yesterdays_closes(symbols),
+            self.market_data_service.get_current_prices(symbols, fetch=False),
+            self.market_data_service.get_yesterdays_closes(symbols, fetch=False),
         )
         portfolio = (
             self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()

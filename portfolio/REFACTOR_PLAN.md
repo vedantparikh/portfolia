@@ -202,7 +202,7 @@ Golden tests are written first for every item.
 |---|---|
 | ✅ 3.1 | Merge `portfolio_service`, `portfolio_calculation_service`, `portfolio_analytics_service`, `portfolio_risk_metrics_service`, `portfolio_advance_risk_metrics` and `portfolio_dashboard_service` into `modules/portfolios` (CRUD and holdings) plus `modules/analytics` (which orchestrates the domain functions and owns snapshots). Remove the dead dashboard router and service, or mount them properly. **Done:** Holdings are `modules/portfolios`. Series, risk and snapshot writes are `modules/analytics`. `core.services` still re-exports the two service classes. The dashboard router and service were already gone; the empty `api/v1/dashboard/` directory is removed. `/analytics/users/dashboard` stays, on the analytics service. |
 | ✅ 3.2 | Move all DB access out of the analytics, assets and auth routers into repositories. **Done:** `modules/analytics/repository.py`, `modules/assets/repository.py` and `modules/auth/repository.py` own those queries. The request session still commits. Refresh-token reuse commits inside the auth repository, because the 401 would otherwise roll the revocation back. |
-| 🟡 3.3 | Snapshots are persisted by a **background worker** (daily close, plus on transaction change), not inside request handlers. The same worker refreshes prices and FX. **Now:** `workers/run.py` refreshes watchlist prices and evaluates alerts; snapshots, holdings prices and FX not yet. **Now:** Legacy snapshot writes (`create_performance_snapshot`) still happen in requests (analytics `/summary`). |
+| ✅ 3.3 | Snapshots are persisted by a **background worker** (daily close, plus on transaction change), not inside request handlers. The same worker refreshes prices and FX. **Done:** Each pass refreshes watchlist alerts, holding prices, previous closes, daily history and FX. A snapshot is written when a transaction is newer than the last one, and once after 22:00 UTC if that close is not stored. Analytics reads the stored snapshot. Holding quotes are cache-only. Symbol search, a history or FX cache miss, and an explicit quote lookup still call Yahoo. |
 | ⏳ 3.4 | Replace the pickle `RedisClient` with a typed wrapper. Delete `SingletonMeta`, `watchlist_alert_service` (or finish it), the FHIR leftovers and `fix_asset_quantities_and_pnl.py` (which becomes a management command: `portfolia recalc`). |
 | ⏳ 3.5 | Move the PDF export and transaction export to portfolio currency and formatted money. Stop summing volume across currencies. **Now:** PDF export hard-codes `$`. |
 | ⏳ 3.6 | Enforce mypy (strict on `domain/` and `core/`, gradually elsewhere). Add an OpenAPI snapshot test so contract changes are deliberate. |
@@ -283,7 +283,7 @@ Open:
 |---|---|
 | Numbers change for users after Phase 2 | Characterisation snapshots (0.7), a per-number review (2.11) and a changelog entry |
 | Prod gets data before Alembic owns the schema | Land 1.6 before the first `deploy.sh prod`, and make `alembic check` (model drift) a CI gate |
-| Yahoo rate limits or outages | Provider, cache and backoff are in place (2.4). A background worker so a request never calls Yahoo is still 3.3 |
+| Yahoo rate limits or outages | Provider, cache and backoff are in place (2.4). The worker refreshes holding prices and FX (3.3 ✅). Symbol search and a cold history cache still call Yahoo |
 | A long-running refactor drifts from master | Small PRs, the strangler approach, and CI gates from week 1 |
 | Portfolio starves the other services on the shared Jetson (immich, jellyfin, ollama) | Memory limits per service, log rotation, no GPU by default, image pruning in `deploy.sh` |
 | A bad release breaks prod | Staging soak, `deploy.sh` with automatic rollback, a `pg_dump` before every migration, and expand/contract migrations so the previous version can still run |
@@ -344,6 +344,7 @@ Open:
 | 2026-10-27 | `feat/broker-statement-check` | — | 2.11: characterisation snapshots re-run, unchanged. Open positions on a broker securities statement match the confirmations' share count and cost to the cent |
 | 2026-10-27 | `feat/portfolio-modules` | — | 3.1: holdings in `modules/portfolios`, series/risk/snapshots in `modules/analytics`. Empty dashboard package removed. Live API not restarted |
 | 2026-10-27 | `feat/router-repositories` | — | 3.2: analytics, assets and auth queries live in repositories. Live API not restarted |
+| 2026-10-27 | `feat/worker-snapshots` | — | 3.3: the worker refreshes holding prices and FX and writes snapshots. Requests no longer do. Live API not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -381,7 +382,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 3.3, writing snapshots from the worker.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅, 3.3 worker snapshots ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 3.4, replacing the pickle Redis client.
 
 ---
 

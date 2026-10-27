@@ -60,6 +60,31 @@ def test_price_cache_writes_one_pipeline():
     assert cache.pipelines == [service.price_cache_ttl]
 
 
+def test_holdings_read_the_price_cache_and_do_not_call_yahoo():
+    provider = _Prices()
+    service = MarketDataService(provider=provider, redis_client=_Redis())
+
+    prices = asyncio.run(service.get_current_prices(["AAPL"], fetch=False))
+
+    assert prices == {}
+    assert provider.calls == 0
+
+
+def test_worker_refresh_stores_prices_for_two_intervals():
+    from config import settings
+
+    provider = _Prices()
+    cache = _Redis()
+    service = MarketDataService(provider=provider, redis_client=cache)
+
+    asyncio.run(service.get_current_prices(["AAPL"], refresh=True))
+
+    assert provider.calls == 1
+    assert cache.pipelines == [
+        max(service.price_cache_ttl, 2 * settings.WORKER_INTERVAL_SECONDS)
+    ]
+
+
 def test_search_listings_drop_non_tradeable_quotes():
     class Provider:
         async def search(self, query):

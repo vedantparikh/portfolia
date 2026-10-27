@@ -22,7 +22,7 @@ from core.database.models.portfolio_analytics import (
     PortfolioAllocation,
     PortfolioPerformanceHistory,
 )
-from core.errors import DomainError, public_message
+from core.errors import DomainError
 from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
     AllocationDrift,
@@ -41,63 +41,29 @@ class PortfolioAnalyticsService:
 
     def __init__(self, db: Session):
         self.db = db
-        # Data freshness thresholds
-        self.asset_metrics_freshness_hours = 24  # Refresh asset metrics daily
-        self.portfolio_performance_freshness_hours = (
-            6  # Refresh portfolio performance every 6 hours
-        )
-        self.correlation_freshness_days = 7  # Refresh correlations weekly
-        self.risk_metrics_freshness_hours = 12  # Refresh risk metrics every 12 hours
-
-    def _is_data_fresh(self, last_update: datetime, freshness_hours: int) -> bool:
-        """Check if data is fresh based on last update time."""
-        if not last_update:
-            return False
-
-        now = datetime.now(timezone.utc)
-        threshold = timedelta(hours=freshness_hours)
-        return (now - last_update) < threshold
 
     # Portfolio Performance History
-    async def get_or_create_performance_snapshot(
-        self, portfolio_id: int, force_refresh: bool = False
-    ) -> PerformanceSnapshotResponse:
-        """Get portfolio performance snapshot, auto-refreshing with yfinance if stale."""
-        # If force refresh is requested, always create new snapshot
-        if force_refresh:
-            logger.info(
-                f"Force refreshing performance snapshot for portfolio {portfolio_id}"
-            )
-            return await self.create_performance_snapshot(
-                portfolio_id, datetime.now(timezone.utc)
-            )
-
-        # Check for existing fresh snapshot first
+    def latest_performance_snapshot(
+        self, portfolio_id: int
+    ) -> Optional[PerformanceSnapshotResponse]:
+        """The newest stored snapshot. The worker is the only writer."""
         existing_snapshot = (
             self.db.query(PortfolioPerformanceHistory)
             .filter(PortfolioPerformanceHistory.portfolio_id == portfolio_id)
             .order_by(PortfolioPerformanceHistory.snapshot_date.desc())
             .first()
         )
-
-        if existing_snapshot and self._is_data_fresh(
-            existing_snapshot.created_at, self.portfolio_performance_freshness_hours
-        ):
-            # Return existing fresh data
-            return PerformanceSnapshotResponse(
-                id=existing_snapshot.id,
-                portfolio_id=existing_snapshot.portfolio_id,
-                snapshot_date=existing_snapshot.snapshot_date,
-                total_value=existing_snapshot.total_value,
-                total_cost_basis=existing_snapshot.total_cost_basis,
-                total_unrealized_pnl=existing_snapshot.total_unrealized_pnl,
-                total_unrealized_pnl_percent=existing_snapshot.total_unrealized_pnl_percent,
-                created_at=existing_snapshot.created_at,
-            )
-
-        # Data is stale - create new snapshot
-        return await self.create_performance_snapshot(
-            portfolio_id, datetime.now(timezone.utc)
+        if existing_snapshot is None:
+            return None
+        return PerformanceSnapshotResponse(
+            id=existing_snapshot.id,
+            portfolio_id=existing_snapshot.portfolio_id,
+            snapshot_date=existing_snapshot.snapshot_date,
+            total_value=existing_snapshot.total_value,
+            total_cost_basis=existing_snapshot.total_cost_basis,
+            total_unrealized_pnl=existing_snapshot.total_unrealized_pnl,
+            total_unrealized_pnl_percent=existing_snapshot.total_unrealized_pnl_percent,
+            created_at=existing_snapshot.created_at,
         )
 
     async def create_performance_snapshot(
@@ -874,165 +840,4 @@ class PortfolioAnalyticsService:
 
         except Exception as e:
             logger.error(f"Failed to get analytics dashboard summary: {e}")
-            raise
-
-    async def force_refresh_all_portfolio_data(
-        self, portfolio_id: int
-    ) -> Dict[str, Any]:
-        """Force refresh all portfolio data from yfinance and update database."""
-        try:
-            # Get portfolio assets
-            portfolio_assets = (
-                self.db.query(PortfolioAsset)
-                .filter(PortfolioAsset.portfolio_id == portfolio_id)
-                .all()
-            )
-
-            if not portfolio_assets:
-                raise DomainError("Portfolio has no assets")
-
-            updated_data = {
-                "portfolio_id": portfolio_id,
-                "refresh_timestamp": datetime.now(timezone.utc),
-                "assets_refreshed": 0,
-                "errors": [],
-                "performance_snapshot": None,
-                "risk_metrics": None,
-                "asset_metrics": [],
-            }
-
-            # Refresh asset metrics for all portfolio assets
-            for portfolio_asset in portfolio_assets:
-                if portfolio_asset.asset and portfolio_asset.asset.symbol:
-                    try:
-                        asset_metrics = await self.calculate_asset_metrics(
-                            portfolio_asset.asset.id, datetime.now(timezone.utc)
-                        )
-                        updated_data["asset_metrics"].append(
-                            {
-                                "asset_id": portfolio_asset.asset.id,
-                                "symbol": portfolio_asset.asset.symbol,
-                                "current_price": (
-                                    float(asset_metrics.current_price)
-                                    if asset_metrics.current_price
-                                    else None
-                                ),
-                                "price_change_percent": (
-                                    float(asset_metrics.price_change_percent)
-                                    if asset_metrics.price_change_percent
-                                    else None
-                                ),
-                                "volatility_20d": (
-                                    float(asset_metrics.volatility_20d)
-                                    if asset_metrics.volatility_20d
-                                    else None
-                                ),
-                                "refreshed": True,
-                            }
-                        )
-                        updated_data["assets_refreshed"] += 1
-                    except Exception as e:
-                        updated_data["errors"].append(
-                            f"Asset {portfolio_asset.asset.symbol}: "
-                            + public_message(e, "could not be refreshed")
-                        )
-
-            # Refresh portfolio performance snapshot
-            try:
-                performance_snapshot = await self.create_performance_snapshot(
-                    portfolio_id, datetime.now(timezone.utc)
-                )
-                updated_data["performance_snapshot"] = {
-                    "total_value": (
-                        float(performance_snapshot.total_value)
-                        if performance_snapshot.total_value
-                        else 0
-                    ),
-                    "total_unrealized_pnl": (
-                        float(performance_snapshot.total_unrealized_pnl)
-                        if performance_snapshot.total_unrealized_pnl
-                        else 0
-                    ),
-                    "total_unrealized_pnl_percent": (
-                        float(performance_snapshot.total_unrealized_pnl_percent)
-                        if performance_snapshot.total_unrealized_pnl_percent
-                        else 0
-                    ),
-                    "snapshot_date": performance_snapshot.snapshot_date,
-                }
-            except Exception as e:
-                updated_data["errors"].append(
-                    "Performance snapshot: "
-                    + public_message(e, "could not be refreshed")
-                )
-
-            return updated_data
-
-        except Exception as e:
-            logger.error(f"Failed to force refresh portfolio data: {e}")
-            raise
-
-    async def bulk_update_asset_prices(self, asset_ids: List[int]) -> Dict[str, Any]:
-        """Bulk update current prices for multiple assets using yfinance."""
-        try:
-            # Get assets
-            assets = (
-                self.db.query(Asset)
-                .filter(Asset.id.in_(asset_ids), Asset.is_active == True)
-                .all()
-            )
-
-            if not assets:
-                raise DomainError("No assets found")
-
-            # Get symbols
-            symbols = [asset.symbol for asset in assets if asset.symbol]
-
-            if not symbols:
-                raise DomainError("No symbols found for assets")
-
-            # Bulk fetch current prices
-            current_prices = await market_data_service.get_current_prices(symbols)
-
-            updated_data = {
-                "update_timestamp": datetime.now(timezone.utc),
-                "assets_updated": 0,
-                "price_updates": [],
-                "errors": [],
-            }
-
-            # Update asset records with current prices
-            for asset in assets:
-                if asset.symbol and asset.symbol in current_prices:
-                    current_price = current_prices[asset.symbol]
-                    if current_price:
-                        try:
-                            # Update asset performance metrics with new price
-                            await self.calculate_asset_metrics(
-                                asset.id, datetime.now(timezone.utc)
-                            )
-
-                            updated_data["price_updates"].append(
-                                {
-                                    "asset_id": asset.id,
-                                    "symbol": asset.symbol,
-                                    "current_price": current_price,
-                                    "updated": True,
-                                }
-                            )
-                            updated_data["assets_updated"] += 1
-                        except Exception as e:
-                            updated_data["errors"].append(
-                                f"Asset {asset.symbol}: "
-                                + public_message(e, "could not be updated")
-                            )
-                    else:
-                        updated_data["errors"].append(
-                            f"No price data for {asset.symbol}"
-                        )
-
-            return updated_data
-
-        except Exception as e:
-            logger.error(f"Failed to bulk update asset prices: {e}")
             raise

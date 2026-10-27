@@ -1,8 +1,8 @@
 """
-Background worker: refreshes watchlist prices and records triggered alerts.
+Background worker: watchlist alerts, holding prices, FX and performance snapshots.
 
-Runs `WatchlistService.refresh_prices_and_alerts` every WORKER_INTERVAL_SECONDS
-and touches a heartbeat file after each pass (the container healthcheck reads it).
+Runs one pass every WORKER_INTERVAL_SECONDS and touches a heartbeat file after
+each pass (the container healthcheck reads it).
 """
 
 import asyncio
@@ -14,6 +14,7 @@ from pathlib import Path
 from config import settings
 from core.database.connection import SessionLocal
 from core.services.watchlist_service import WatchlistService
+from workers.book import refresh_book
 
 HEARTBEAT = Path("/tmp/worker-heartbeat")
 logger = logging.getLogger("workers.run")
@@ -22,7 +23,12 @@ logger = logging.getLogger("workers.run")
 async def run_once() -> dict:
     db = SessionLocal()
     try:
-        return await WatchlistService(db).refresh_prices_and_alerts()
+        result = await WatchlistService(db).refresh_prices_and_alerts()
+        try:
+            result.update(await refresh_book(db))
+        except Exception:
+            logger.exception("Holding refresh failed")
+        return result
     finally:
         db.close()
 
@@ -33,7 +39,7 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop.set)
     interval = settings.WORKER_INTERVAL_SECONDS
-    logger.info("Worker started; watchlist refresh every %ss", interval)
+    logger.info("Worker started; refresh every %ss", interval)
     while not stop.is_set():
         started = time.monotonic()
         try:

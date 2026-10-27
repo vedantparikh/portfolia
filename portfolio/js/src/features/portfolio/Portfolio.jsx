@@ -12,13 +12,15 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { API_BASE_URL, apiErrorMessage, portfolioAPI } from "../../services/api";
 import {
-  API_BASE_URL,
-  apiErrorMessage,
-  portfolioAPI,
-  transactionAPI,
-} from "../../services/api";
+  portfolioKeys,
+  usePortfolioAccountSummary,
+  usePortfolios,
+  useRecentPortfolioTransactions,
+} from "../../shared/api/queries";
 import {
   formatCurrency,
   formatDateTime,
@@ -34,33 +36,65 @@ import PortfolioChart from "./PortfolioChart";
 import PortfolioDetail from "./PortfolioDetail";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
+const noPortfolios = [];
+
 const Portfolio = () => {
   const navigate = useNavigate();
-  const [portfolios, setPortfolios] = useState([]);
-  const [selectedPortfolio, setSelectedPortfolio] = useState(null);
-  const [portfoliosLoading, setPortfoliosLoading] = useState(true);
-  const [detailsLoading, setDetailsLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const portfoliosQuery = usePortfolios();
+  const portfolios = portfoliosQuery.data ?? noPortfolios;
+  const [selectedId, setSelectedId] = useState(null);
+  const selectedPortfolio =
+    portfolios.find((portfolio) => portfolio.id === selectedId) ?? null;
+  const summaryQuery = usePortfolioAccountSummary(selectedId);
+  const recentQuery = useRecentPortfolioTransactions(selectedId);
+  const portfolioStats = summaryQuery.data ?? null;
+  const transactions = recentQuery.data ?? noPortfolios;
+  const detailsLoading =
+    selectedPortfolio !== null &&
+    (summaryQuery.isPending || recentQuery.isPending);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
   const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance
-  const [portfolioStats, setPortfolioStats] = useState(null);
-  const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { openSidebar } = useShell();
 
-  // Load portfolios on component mount
   useEffect(() => {
-    loadPortfolios();
-  }, []);
+    const list = portfoliosQuery.data;
+    if (!list) return;
+    setSelectedId((current) => {
+      if (list.length === 0) return null;
+      if (current != null && list.some((portfolio) => portfolio.id === current)) {
+        return current;
+      }
+      return list[0].id;
+    });
+  }, [portfoliosQuery.data]);
 
-  // Load portfolio details when selected
   useEffect(() => {
-    if (selectedPortfolio) {
-      loadPortfolioDetails(selectedPortfolio.id);
+    const error = portfoliosQuery.error;
+    if (!error) return;
+    if (error.response?.status === 401) {
+      toast.error("Authentication failed. Please login again.");
+    } else if (error.response?.status === 404) {
+      toast.error(
+        "Portfolio service not found. Please check if the backend is running."
+      );
+    } else if (error.response?.status >= 500) {
+      toast.error("Server error. Please try again later.");
+    } else if (
+      error.code === "NETWORK_ERROR" ||
+      error.message?.includes("Network Error")
+    ) {
+      toast.error(
+        `Network error: is the API at ${API_BASE_URL} reachable from this browser?`
+      );
+    } else {
+      toast.error(`Failed to load portfolios: ${error.message}`);
     }
-  }, [selectedPortfolio]);
+  }, [portfoliosQuery.error]);
 
   // Check for mobile screen size
   useEffect(() => {
@@ -73,119 +107,8 @@ const Portfolio = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const loadPortfolios = async () => {
-    try {
-      // Use portfoliosLoading state
-      setPortfoliosLoading(true);
-      console.log("[Portfolio] Loading portfolios...");
-      const response = await portfolioAPI.getPortfolios();
-      console.log("[Portfolio] Portfolios response:", response);
-
-      const portfolios = Array.isArray(response) ? response : [];
-
-      console.log("[Portfolio] Processed portfolios:", portfolios);
-      setPortfolios(portfolios);
-
-      if (portfolios.length > 0) {
-        console.log("[Portfolio] Selecting first portfolio:", portfolios[0]);
-        setSelectedPortfolio(portfolios[0]);
-      } else {
-        console.log("[Portfolio] No portfolios found");
-        setSelectedPortfolio(null);
-      }
-    } catch (error) {
-      console.error("Failed to load portfolios:", error);
-      if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please login again.");
-      } else if (error.response?.status === 404) {
-        toast.error(
-          "Portfolio service not found. Please check if the backend is running."
-        );
-      } else if (error.response?.status >= 500) {
-        toast.error("Server error. Please try again later.");
-      } else if (
-        error.code === "NETWORK_ERROR" ||
-        error.message.includes("Network Error")
-      ) {
-        toast.error(
-          `Network error: is the API at ${API_BASE_URL} reachable from this browser?`
-        );
-      } else {
-        toast.error(`Failed to load portfolios: ${error.message}`);
-      }
-      setPortfolios([]);
-      setSelectedPortfolio(null);
-    } finally {
-      // Use portfoliosLoading state
-      setPortfoliosLoading(false);
-    }
-  };
-
-  const loadPortfolioDetails = async (portfolioId) => {
-    // Set details loading to true and clear previous data
-    setDetailsLoading(true);
-    setPortfolioStats(null);
-    setTransactions([]);
-
-    try {
-      console.log("[Portfolio] Loading details for portfolio:", portfolioId);
-
-      // Load portfolio summary
-      try {
-        const summaryResponse = await portfolioAPI.getPortfolioSummary(
-          portfolioId
-        );
-        console.log("[Portfolio] Summary response:", summaryResponse);
-        setPortfolioStats(summaryResponse);
-      } catch (summaryError) {
-        console.warn("Failed to load portfolio summary:", summaryError);
-        setPortfolioStats({
-          total_value: 0,
-          total_cost: 0,
-          day_change: 0,
-          total_assets: 0,
-          total_transactions: 0,
-        });
-      }
-
-      // Load recent transactions
-      try {
-        const transactionsResponse =
-          await transactionAPI.getPortfolioTransactions(portfolioId, {
-            limit: 10,
-            order_by: "created_at",
-            order: "desc",
-          });
-        console.log("[Portfolio] Transactions response:", transactionsResponse);
-
-        const transactions = Array.isArray(transactionsResponse)
-          ? transactionsResponse
-          : [];
-
-        setTransactions(transactions);
-      } catch (transactionError) {
-        console.warn("Failed to load transactions:", transactionError);
-        setTransactions([]);
-      }
-    } catch (error) {
-      console.error("Failed to load portfolio details:", error);
-      if (error.response?.status === 404) {
-        toast.error("Portfolio not found");
-      } else if (
-        error.code === "NETWORK_ERROR" ||
-        error.message.includes("Network Error")
-      ) {
-        toast.error("Network error. Please check backend connectivity.");
-      } else {
-        toast.error(`Failed to load portfolio details: ${error.message}`);
-      }
-      setPortfolioStats(null);
-      setTransactions([]);
-    } finally {
-      // Set details loading to false once complete
-      setDetailsLoading(false);
-    }
-  };
+  const refreshPortfolios = () =>
+    queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
 
   const handleCreatePortfolio = async (portfolioData) => {
     try {
@@ -195,14 +118,10 @@ const Portfolio = () => {
 
       const newPortfolio = response;
 
-      setPortfolios((prev) => [...prev, newPortfolio]);
-      setSelectedPortfolio(newPortfolio);
+      await refreshPortfolios();
+      if (newPortfolio?.id) setSelectedId(newPortfolio.id);
       setShowCreateModal(false);
       toast.success("Portfolio created successfully");
-
-      if (newPortfolio && newPortfolio.id) {
-        loadPortfolioDetails(newPortfolio.id);
-      }
     } catch (error) {
       console.error("Failed to create portfolio:", error);
       if (error.response?.status === 400) {
@@ -233,28 +152,11 @@ const Portfolio = () => {
       );
       console.log("[Portfolio] Update response:", response);
 
-      let updatedPortfolio = response;
-      if (response && response.portfolio) {
-        updatedPortfolio = response.portfolio;
-      } else if (response && response.data) {
-        updatedPortfolio = response.data;
-      }
-
-      setPortfolios((prev) =>
-        prev.map((p) => (p.id === portfolioId ? updatedPortfolio : p))
-      );
-
-      if (selectedPortfolio && selectedPortfolio.id === portfolioId) {
-        setSelectedPortfolio(updatedPortfolio);
-      }
+      await refreshPortfolios();
 
       setShowEditModal(false);
       setEditingPortfolio(null);
       toast.success("Portfolio updated successfully");
-
-      if (updatedPortfolio && updatedPortfolio.id) {
-        loadPortfolioDetails(updatedPortfolio.id);
-      }
     } catch (error) {
       console.error("Failed to update portfolio:", error);
       if (error.response?.status === 400) {
@@ -282,20 +184,8 @@ const Portfolio = () => {
     try {
       console.log("[Portfolio] Deleting portfolio:", portfolioId);
       await portfolioAPI.deletePortfolio(portfolioId);
-
-      const updatedPortfolios = portfolios.filter((p) => p.id !== portfolioId);
-      setPortfolios(updatedPortfolios);
-
-      if (selectedPortfolio && selectedPortfolio.id === portfolioId) {
-        if (updatedPortfolios.length > 0) {
-          setSelectedPortfolio(updatedPortfolios[0]);
-          loadPortfolioDetails(updatedPortfolios[0].id);
-        } else {
-          setSelectedPortfolio(null);
-          setPortfolioStats(null);
-          setTransactions([]);
-        }
-      }
+      if (selectedId === portfolioId) setSelectedId(null);
+      await refreshPortfolios();
 
       toast.success("Portfolio deleted successfully");
     } catch (error) {
@@ -327,11 +217,7 @@ const Portfolio = () => {
   };
 
   const handleRefresh = () => {
-    if (selectedPortfolio) {
-      loadPortfolioDetails(selectedPortfolio.id);
-    } else {
-      loadPortfolios();
-    }
+    refreshPortfolios();
     toast.success("Portfolio data refreshed");
   };
 
@@ -352,7 +238,7 @@ const Portfolio = () => {
     portfolios,
     selectedPortfolio,
     searchQuery,
-    onPortfolioChange: setSelectedPortfolio,
+    onPortfolioChange: (portfolio) => setSelectedId(portfolio?.id ?? null),
     onSearchChange: setSearchQuery,
     onQuickAction: handleQuickAction,
   });
@@ -383,7 +269,7 @@ const Portfolio = () => {
   const stats = getTotalStats();
 
   // Use portfoliosLoading for the initial full-screen spinner
-  if (portfoliosLoading) {
+  if (portfoliosQuery.isPending) {
     return (
       <div className="min-h-screen gradient-bg flex items-center justify-center">
         <div className="text-center">
@@ -465,7 +351,7 @@ const Portfolio = () => {
                     const portfolio = portfolios.find(
                       (p) => p.id === parseInt(e.target.value)
                     );
-                    setSelectedPortfolio(portfolio);
+                    setSelectedId(portfolio.id);
                   }}
                   className="input-field w-full sm:w-auto max-w-full"
                 >

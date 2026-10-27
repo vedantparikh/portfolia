@@ -18,11 +18,17 @@ import { useLocation } from "react-router";
 import {
   accountStatementsAPI,
   apiErrorMessage,
-  portfolioAPI,
   transactionAPI,
 } from "../../services/api";
 import { useQueryClient } from "@tanstack/react-query";
-import { assetKeys, useAssets } from "../../shared/api/queries";
+import {
+  assetKeys,
+  portfolioKeys,
+  transactionKeys,
+  useAssets,
+  usePortfolios,
+  useTransactions,
+} from "../../shared/api/queries";
 import { usePageChrome, useShell } from "../../app/chrome";
 import useIsMobile from "../../hooks/useIsMobile";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
@@ -36,13 +42,16 @@ import TransactionExportModal from "./TransactionExportModal";
 import TransactionFilters from "./TransactionFilters";
 
 const RENDER_PAGE_SIZE = 50; // How many items to render at a time
+const noRows = [];
 
 const Transactions = () => {
   const location = useLocation();
-  const [allTransactions, setAllTransactions] = useState([]);
+  const portfoliosQuery = usePortfolios();
+  const transactionsQuery = useTransactions();
+  const portfolios = portfoliosQuery.data ?? noRows;
+  const allTransactions = transactionsQuery.data ?? noRows;
+  const loading = portfoliosQuery.isPending || transactionsQuery.isPending;
   const [visibleTransactions, setVisibleTransactions] = useState([]);
-  const [portfolios, setPortfolios] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -55,9 +64,9 @@ const Transactions = () => {
   const [parsedData, setParsedData] = useState(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [allAssets, setAllAssets] = useState([]);
   const queryClient = useQueryClient();
   const { data: cachedAssets } = useAssets();
+  const allAssets = cachedAssets ?? noRows;
   const [visibleCount, setVisibleCount] = useState(RENDER_PAGE_SIZE);
   const [initialPortfolioId, setInitialPortfolioId] = useState(null);
 
@@ -69,35 +78,22 @@ const Transactions = () => {
     sortOrder: "desc",
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [portfoliosResponse, transactionsResponse] = await Promise.all([
-        portfolioAPI.getPortfolios(),
-        transactionAPI.getTransactions({
-          limit: 10000, // Fetch all transactions
-          order_by: "transaction_date",
-          order: "desc",
-        }),
-      ]);
-      setPortfolios(portfoliosResponse || []);
-      setAllTransactions(transactionsResponse || []);
-    } catch (error) {
-      console.error("Failed to load data:", error);
+  useEffect(() => {
+    if (portfoliosQuery.isError || transactionsQuery.isError) {
       toast.error("Failed to load transaction data");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [
+    portfoliosQuery.isError,
+    portfoliosQuery.errorUpdatedAt,
+    transactionsQuery.isError,
+    transactionsQuery.errorUpdatedAt,
+  ]);
 
-  // Effect for initial data load and asset preloading
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    setAllAssets(cachedAssets || []);
-  }, [cachedAssets]);
+  const refreshLists = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: portfolioKeys.all }),
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all }),
+    ]);
 
   // This useEffect checks for navigation state on component load
   useEffect(() => {
@@ -213,7 +209,7 @@ const Transactions = () => {
   }, [filters, searchQuery]);
 
   const handleRefresh = () => {
-    loadData();
+    refreshLists();
     toast.success("Transaction data refreshed");
   };
 
@@ -234,13 +230,8 @@ const Transactions = () => {
 
   const handleUpdateTransaction = async (transactionId, transactionData) => {
     try {
-      const response = await transactionAPI.updateTransaction(
-        transactionId,
-        transactionData
-      );
-      setAllTransactions((prev) =>
-        prev.map((t) => (t.id === transactionId ? response : t))
-      );
+      await transactionAPI.updateTransaction(transactionId, transactionData);
+      await refreshLists();
       setShowEditModal(false);
       setEditingTransaction(null);
       toast.success("Transaction updated successfully");
@@ -253,7 +244,7 @@ const Transactions = () => {
   const handleDeleteTransaction = async (transactionId) => {
     try {
       await transactionAPI.deleteTransaction(transactionId);
-      setAllTransactions((prev) => prev.filter((t) => t.id !== transactionId));
+      await refreshLists();
       toast.success("Transaction deleted successfully");
     } catch (error) {
       console.error("Failed to delete transaction:", error);

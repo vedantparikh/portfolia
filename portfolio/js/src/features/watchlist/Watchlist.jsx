@@ -8,11 +8,18 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiErrorMessage, assetAPI, watchlistAPI } from "../../services/api";
+import {
+  watchlistKeys,
+  useWatchlist,
+  useWatchlistAlerts,
+  useWatchlists,
+} from "../../shared/api/queries";
 import { usePageChrome, useShell } from "../../app/chrome";
 import EmailVerificationPrompt from "../../features/auth/EmailVerificationPrompt";
 import { LoadingSpinner } from "../../components/shared";
@@ -22,15 +29,21 @@ import EditWatchlistModal from "./EditWatchlistModal";
 import WatchlistContent from "./WatchlistContent";
 import WatchlistAlerts from "./WatchlistAlerts";
 
+const noWatchlists = [];
+const noAlerts = { unread_count: 0, alerts: [] };
+
 const Watchlist = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [watchlists, setWatchlists] = useState([]);
-  const [selectedWatchlist, setSelectedWatchlist] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const watchlistsQuery = useWatchlists(false);
+  const watchlists = watchlistsQuery.data ?? noWatchlists;
+  const alertsQuery = useWatchlistAlerts();
+  const alerts = alertsQuery.data ?? noAlerts;
+  const [selectedId, setSelectedId] = useState(null);
+  const loading = watchlistsQuery.isPending;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddSymbolModal, setShowAddSymbolModal] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
   const [isMobile, setIsMobile] = useState(false);
@@ -47,37 +60,43 @@ const Watchlist = () => {
   const [updatingWatchlist, setUpdatingWatchlist] = useState(false);
   const [, setDeletingWatchlist] = useState(null); // Store the ID of watchlist being deleted
 
-  const [alerts, setAlerts] = useState({ unread_count: 0, alerts: [] });
+  const detailQuery = useWatchlist(selectedId, {
+    realtime: true,
+    refetchInterval:
+      selectedId && autoRefreshEnabled ? refreshInterval : false,
+  });
+  const isRefreshing = watchlistsQuery.isRefetching || detailQuery.isRefetching;
+  const selectedWatchlist =
+    detailQuery.data ??
+    watchlists.find((watchlist) => watchlist.id === selectedId) ??
+    null;
 
-  const loadAlerts = async () => {
-    try {
-      setAlerts(await watchlistAPI.getAlerts(false, 50));
-    } catch (error) {
-      console.error("Failed to load alerts:", error);
-    }
+  useEffect(() => {
+    if (watchlistsQuery.isError) toast.error("Failed to load watchlists");
+  }, [watchlistsQuery.isError, watchlistsQuery.errorUpdatedAt]);
+
+  const refreshWatchlists = () =>
+    queryClient.invalidateQueries({ queryKey: watchlistKeys.list(false) });
+
+  const refreshSelected = () => {
+    if (selectedId == null) return Promise.resolve();
+    return queryClient.invalidateQueries({
+      queryKey: watchlistKeys.detail(selectedId, true),
+    });
   };
 
   const handleAcknowledgeAlerts = async (alertIds) => {
     try {
       await watchlistAPI.acknowledgeAlerts(alertIds);
-      await loadAlerts();
+      await queryClient.invalidateQueries({ queryKey: watchlistKeys.alerts });
     } catch {
       toast.error("Could not mark alerts as read");
     }
   };
 
   const openAlertItemIds = new Set(
-    alerts.alerts.filter((a) => a.still_true).map((a) => a.item_id)
+    (alerts.alerts || []).filter((a) => a.still_true).map((a) => a.item_id)
   );
-
-  // useRef to store the interval ID so we can clear it later
-  const refreshIntervalRef = useRef(null);
-
-  // Load watchlists on component mount
-  useEffect(() => {
-    loadWatchlists();
-    loadAlerts();
-  }, []);
 
   // Check for mobile screen size
   useEffect(() => {
@@ -90,81 +109,8 @@ const Watchlist = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Set up automatic refresh when component mounts and selectedWatchlist changes
-  useEffect(() => {
-    // Clear any existing interval
-    if (refreshIntervalRef.current) {
-      clearInterval(refreshIntervalRef.current);
-    }
-
-    // Only start auto-refresh if we have a selected watchlist and auto-refresh is enabled
-    if (selectedWatchlist && autoRefreshEnabled) {
-      console.log(
-        `[Watchlist] Starting auto-refresh every ${refreshInterval}ms for watchlist ${selectedWatchlist.id}`
-      );
-
-      refreshIntervalRef.current = setInterval(() => {
-        refreshSelectedWatchlist();
-      }, refreshInterval);
-    }
-
-    // Cleanup function - this runs when component unmounts or dependencies change
-    return () => {
-      if (refreshIntervalRef.current) {
-        console.log("[Watchlist] Clearing auto-refresh interval");
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- interval keyed on watchlist and refresh settings
-  }, [selectedWatchlist, autoRefreshEnabled, refreshInterval]); // Dependencies: re-run when these change
-
-  const loadWatchlists = async () => {
-    try {
-      setLoading(true);
-      const data = await watchlistAPI.getWatchlists(false);
-      console.log("[Watchlist] Watchlists response:", data);
-      setWatchlists(data || []);
-    } catch (error) {
-      console.error("Failed to load watchlists:", error);
-      console.error("Error details:", error.response?.data);
-      toast.error("Failed to load watchlists");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Function to refresh the currently selected watchlist data
-  const refreshSelectedWatchlist = async () => {
-    if (!selectedWatchlist) return;
-
-    try {
-      console.log(
-        `[Watchlist] Refreshing watchlist ${selectedWatchlist.id} with real-time data`
-      );
-      setIsRefreshing(true);
-
-      // Fetch the latest data with real-time prices
-      const updatedWatchlist = await watchlistAPI.getWatchlist(
-        selectedWatchlist.id,
-        true
-      );
-      setSelectedWatchlist(updatedWatchlist);
-
-      console.log("[Watchlist] Watchlist data refreshed successfully");
-    } catch (error) {
-      console.error("Failed to refresh watchlist data:", error);
-      // Don't show toast for background refresh failures to avoid spam
-      if (!autoRefreshEnabled) {
-        toast.error("Failed to refresh watchlist data");
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Manual refresh function (called when user clicks refresh button)
   const handleManualRefresh = async () => {
-    await refreshSelectedWatchlist();
+    await Promise.all([refreshWatchlists(), refreshSelected()]);
     toast.success("Watchlist data refreshed");
   };
 
@@ -235,8 +181,8 @@ const Watchlist = () => {
       console.log("Creating watchlist with data:", watchlistData);
       const newWatchlist = await watchlistAPI.createWatchlist(watchlistData);
       console.log("Watchlist created successfully:", newWatchlist);
-      setWatchlists((prev) => [...prev, newWatchlist]);
-      setSelectedWatchlist(newWatchlist);
+      await refreshWatchlists();
+      setSelectedId(newWatchlist.id);
       setShowCreateModal(false);
       toast.success("Watchlist created successfully");
     } catch (error) {
@@ -251,16 +197,13 @@ const Watchlist = () => {
   const handleUpdateWatchlist = async (watchlistId, updateData) => {
     try {
       setUpdatingWatchlist(true);
-      const updatedWatchlist = await watchlistAPI.updateWatchlist(
-        watchlistId,
-        updateData
-      );
-      setWatchlists((prev) =>
-        prev.map((w) => (w.id === watchlistId ? updatedWatchlist : w))
-      );
-      if (selectedWatchlist?.id === watchlistId) {
-        setSelectedWatchlist(updatedWatchlist);
-      }
+      await watchlistAPI.updateWatchlist(watchlistId, updateData);
+      await Promise.all([
+        refreshWatchlists(),
+        queryClient.invalidateQueries({
+          queryKey: watchlistKeys.detail(watchlistId, true),
+        }),
+      ]);
       toast.success("Watchlist updated successfully");
     } catch (error) {
       console.error("Failed to update watchlist:", error);
@@ -274,19 +217,11 @@ const Watchlist = () => {
     try {
       setDeletingWatchlist(watchlistId);
       await watchlistAPI.deleteWatchlist(watchlistId);
-      setWatchlists((prev) => prev.filter((w) => w.id !== watchlistId));
-
-      // If deleted watchlist was selected, select another one
-      if (selectedWatchlist?.id === watchlistId) {
-        const remainingWatchlists = watchlists.filter(
-          (w) => w.id !== watchlistId
-        );
-        if (remainingWatchlists.length > 0) {
-          setSelectedWatchlist(remainingWatchlists[0]);
-        } else {
-          setSelectedWatchlist(null);
-        }
+      if (selectedId === watchlistId) {
+        const remaining = watchlists.filter((w) => w.id !== watchlistId);
+        setSelectedId(remaining[0]?.id ?? null);
       }
+      await refreshWatchlists();
       toast.success("Watchlist deleted successfully");
     } catch (error) {
       console.error("Failed to delete watchlist:", error);
@@ -326,16 +261,8 @@ const Watchlist = () => {
         symbolData.name;
 
       // Pass the complete symbol data to the API
-      const newItem = await watchlistAPI.addItemToWatchlist(
-        selectedWatchlist.id,
-        symbolData
-      );
-
-      // Update the selected watchlist with the new item
-      setSelectedWatchlist((prev) => ({
-        ...prev,
-        items: [...(prev.items || []), newItem],
-      }));
+      await watchlistAPI.addItemToWatchlist(selectedWatchlist.id, symbolData);
+      await Promise.all([refreshWatchlists(), refreshSelected()]);
 
       setShowAddSymbolModal(false);
       toast.success(`${symbolString} added to watchlist`);
@@ -373,12 +300,7 @@ const Watchlist = () => {
     try {
       setRemovingSymbol(itemId);
       await watchlistAPI.removeItemFromWatchlist(selectedWatchlist.id, itemId);
-
-      // Update the selected watchlist by removing the item
-      setSelectedWatchlist((prev) => ({
-        ...prev,
-        items: prev.items.filter((item) => item.id !== itemId),
-      }));
+      await Promise.all([refreshWatchlists(), refreshSelected()]);
 
       toast.success("Symbol removed from watchlist");
     } catch (error) {
@@ -394,57 +316,46 @@ const Watchlist = () => {
 
     try {
       await watchlistAPI.reorderWatchlistItems(selectedWatchlist.id, itemIds);
-
-      // Update the selected watchlist with reordered items
-      const reorderedItems = itemIds
-        .map((id) => selectedWatchlist.items.find((item) => item.id === id))
-        .filter(Boolean);
-
-      setSelectedWatchlist((prev) => ({
-        ...prev,
-        items: reorderedItems,
-      }));
+      queryClient.setQueryData(
+        watchlistKeys.detail(selectedWatchlist.id, true),
+        (current) => {
+          if (!current?.items) return current;
+          const reorderedItems = itemIds
+            .map((id) => current.items.find((item) => item.id === id))
+            .filter(Boolean);
+          return { ...current, items: reorderedItems };
+        }
+      );
     } catch (error) {
       console.error("Failed to reorder items:", error);
       toast.error("Failed to reorder watchlist items");
     }
   };
 
-  const handleSelectWatchlist = async (watchlist) => {
-    try {
-      // Only load the basic watchlist data first, not the items
-      setSelectedWatchlist(watchlist);
-      setViewMode("content");
-    } catch (error) {
-      console.error("Failed to select watchlist:", error);
-      toast.error("Failed to select watchlist");
-    }
+  const handleSelectWatchlist = (watchlist) => {
+    setSelectedId(watchlist.id);
+    setViewMode("content");
   };
 
   const handleUpdateWatchlistItem = (updatedItem) => {
-    // Update the selected watchlist with the updated item
-    setSelectedWatchlist((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.id === updatedItem.id ? updatedItem : item
-      ),
-    }));
-  };
-
-  const handleLoadWatchlistItems = async (watchlistId) => {
-    try {
-      // Load the full watchlist with items
-      const fullWatchlist = await watchlistAPI.getWatchlist(watchlistId, true);
-      setSelectedWatchlist(fullWatchlist);
-    } catch (error) {
-      console.error("Failed to load watchlist items:", error);
-      throw error; // Re-throw to let the component handle it
-    }
+    if (selectedId == null) return;
+    queryClient.setQueryData(
+      watchlistKeys.detail(selectedId, true),
+      (current) => {
+        if (!current?.items) return current;
+        return {
+          ...current,
+          items: current.items.map((item) =>
+            item.id === updatedItem.id ? updatedItem : item
+          ),
+        };
+      }
+    );
   };
 
   const handleBackToGrid = () => {
     setViewMode("grid");
-    setSelectedWatchlist(null);
+    setSelectedId(null);
   };
 
   if (loading) {
@@ -596,7 +507,6 @@ const Watchlist = () => {
                   isRefreshing={isRefreshing}
                   onManualRefresh={handleManualRefresh}
                   onAddSymbol={() => setShowAddSymbolModal(true)}
-                  onLoadWatchlistItems={handleLoadWatchlistItems}
                   alertItemIds={openAlertItemIds}
                   // Pass loading states
                   addingSymbol={addingSymbol}

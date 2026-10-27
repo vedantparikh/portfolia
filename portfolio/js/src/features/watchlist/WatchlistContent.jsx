@@ -48,7 +48,9 @@ const WatchlistContent = ({
 }) => {
   // useState is a React Hook that lets you add state to functional components
   // Each useState call returns an array with two elements: [currentValue, setterFunction]
-  const [loadingItems, setLoadingItems] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(
+    () => watchlist?.items === undefined,
+  );
   // Search functionality state
   const [searchTerm, setSearchTerm] = useState(""); // Current search input value
 
@@ -56,31 +58,31 @@ const WatchlistContent = ({
   const [sortBy, setSortBy] = useState("symbol"); // Which column to sort by
   const [sortOrder, setSortOrder] = useState("asc"); // Sort direction: ascending or descending
 
-  // Load watchlist items when component mounts or watchlist changes
   useEffect(() => {
-    const loadWatchlistItems = async () => {
-      if (!watchlist?.id) return;
+    if (!watchlist?.id) return;
+    if (watchlist.items !== undefined) {
+      setLoadingItems(false);
+      return;
+    }
+    if (!onLoadWatchlistItems) {
+      setLoadingItems(true);
+      return;
+    }
 
-      // Only load items if they haven't been loaded yet AND items is undefined (not just empty)
-      // This prevents loading when a watchlist is genuinely empty vs not yet loaded
-      if (watchlist.items === undefined) {
-        setLoadingItems(true);
-        try {
-          if (onLoadWatchlistItems) {
-            await onLoadWatchlistItems(watchlist.id);
-          }
-        } catch (error) {
-          console.error("Failed to load watchlist items:", error);
-          toast.error("Failed to load watchlist items");
-        } finally {
-          setLoadingItems(false);
-        }
-      }
+    let cancelled = false;
+    setLoadingItems(true);
+    Promise.resolve(onLoadWatchlistItems(watchlist.id))
+      .catch((error) => {
+        console.error("Failed to load watchlist items:", error);
+        toast.error("Failed to load watchlist items");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingItems(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    loadWatchlistItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load only when the watchlist changes
-  }, [watchlist?.id, onLoadWatchlistItems]);
+  }, [watchlist?.id, watchlist?.items, onLoadWatchlistItems]);
 
   // Modal and dropdown state management
   const [showEditModal, setShowEditModal] = useState(false); // Controls edit modal visibility

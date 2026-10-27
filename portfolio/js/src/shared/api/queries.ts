@@ -74,16 +74,84 @@ export function findAssetBySymbol(
   );
 }
 
+export const portfolioKeys = {
+  all: ["portfolios"] as const,
+  summary: (id: number | string) => ["portfolios", id, "summary"] as const,
+  recentTransactions: (id: number | string) =>
+    ["portfolios", id, "recent-transactions"] as const,
+};
+
+export const transactionKeys = {
+  all: ["transactions"] as const,
+};
+
+export const watchlistKeys = {
+  list: (includeItems: boolean) => ["watchlists", includeItems] as const,
+  detail: (id: number | string, realtime = true) =>
+    ["watchlists", "detail", id, realtime] as const,
+  alerts: ["watchlists", "alerts"] as const,
+};
+
+const emptySummary = {
+  total_value: 0,
+  total_cost: 0,
+  day_change: 0,
+  total_assets: 0,
+  total_transactions: 0,
+};
+
 export function usePortfolios() {
   return useQuery({
-    queryKey: ["portfolios"],
+    queryKey: portfolioKeys.all,
     queryFn: () => portfolioAPI.getPortfolios(),
+  });
+}
+
+export function usePortfolioAccountSummary(
+  portfolioId: number | string | null,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.summary(portfolioId ?? "none"),
+    queryFn: async () => {
+      try {
+        return await portfolioAPI.getPortfolioSummary(portfolioId!);
+      } catch (error) {
+        console.warn("Failed to load portfolio summary:", error);
+        return emptySummary;
+      }
+    },
+    enabled: portfolioId !== null && portfolioId !== "",
+  });
+}
+
+export function useRecentPortfolioTransactions(
+  portfolioId: number | string | null,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.recentTransactions(portfolioId ?? "none"),
+    queryFn: async () => {
+      try {
+        const rows = await transactionAPI.getPortfolioTransactions(
+          portfolioId!,
+          {
+            limit: 10,
+            order_by: "created_at",
+            order: "desc",
+          },
+        );
+        return Array.isArray(rows) ? rows : [];
+      } catch (error) {
+        console.warn("Failed to load transactions:", error);
+        return [];
+      }
+    },
+    enabled: portfolioId !== null && portfolioId !== "",
   });
 }
 
 export function useTransactions() {
   return useQuery({
-    queryKey: ["transactions"],
+    queryKey: transactionKeys.all,
     queryFn: () =>
       transactionAPI.getTransactions({
         limit: 10000,
@@ -95,8 +163,28 @@ export function useTransactions() {
 
 export function useWatchlists(includeItems = false) {
   return useQuery({
-    queryKey: ["watchlists", includeItems],
+    queryKey: watchlistKeys.list(includeItems),
     queryFn: () => watchlistAPI.getWatchlists(includeItems),
+  });
+}
+
+export function useWatchlist(
+  watchlistId: number | string | null,
+  options: { realtime?: boolean; refetchInterval?: number | false } = {},
+) {
+  const realtime = options.realtime ?? true;
+  return useQuery({
+    queryKey: watchlistKeys.detail(watchlistId ?? "none", realtime),
+    queryFn: () => watchlistAPI.getWatchlist(watchlistId!, realtime),
+    enabled: watchlistId !== null && watchlistId !== "",
+    refetchInterval: options.refetchInterval,
+  });
+}
+
+export function useWatchlistAlerts() {
+  return useQuery({
+    queryKey: watchlistKeys.alerts,
+    queryFn: () => watchlistAPI.getAlerts(false, 50),
   });
 }
 

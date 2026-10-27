@@ -18,7 +18,7 @@
 Engine path: `get_transactions` (completed) → `get_market_history` (closes + splits via `MarketDataService.get_daily_history`) → `to_trades` → `daily_series` → `period_summary`. Memoised in `_series_cache` per service instance. First call for a portfolio fetches max history per symbol (~1–2 s each, cached 6 h in Redis).
 
 ## Frontend
-- **Performance Chart** view: `js/src/components/portfolio/PortfolioChart.jsx` — period pills 1M…All, StatCards (Value, Profit, Return TWR, Return money-weighted), `PerformanceSeriesChart` (lightweight-charts: Value area, Invested line, optional Cost basis; an amber note when the hovered day is `stale_price`), Risk card (drawdown, volatility, Sharpe, best/worst day), Money in and out card.
+- **Performance Chart** view: `js/src/features/portfolio/PortfolioChart.jsx` — period pills 1M…All, StatCards (Value, Profit, Return TWR, Return money-weighted), `PerformanceSeriesChart` (lightweight-charts: Value area, Invested line, optional Cost basis; an amber note when the hovered day is `stale_price`), Risk card (drawdown, volatility, Sharpe, best/worst day), Money in and out card.
 - `ValueVsInvestedChart.jsx` (Holdings Detail) and dashboard sparklines (`period=3m`) read the same series.
 - **Performance Metrics** view: `PortfolioPerformanceMetrics.jsx` — `/performance` + `/multi-period`; tiles labelled "this period" / "per year"; MWR-vs-TWR timing insight; a note points to the benchmark comparison.
 - **Benchmark**: in the Performance Chart view, "Compare with" (suggested options for the portfolio currency, or any Yahoo ticker) adds a purple "Same money in X" line to `PerformanceSeriesChart` and a "Versus …" card (You / benchmark / Difference for value, profit, TWR, money-weighted) with the backend warnings.

@@ -18,7 +18,7 @@
 
 `PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Prices: `MarketDataService.get_current_prices` (Redis 60s), previous close `get_yesterdays_closes` (last finished session, 12h, UTC-date key), both multiplied by the FX rate on that day.
 
-## Frontend — `js/src/components/portfolio/`
+## Frontend — `js/src/features/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):
   1. **Overview** — `PortfolioCard` + recent transactions.
   2. **Holdings Detail** — `PortfolioDetail.jsx`: KPI strip (summary), sortable holdings table (footer = summary totals), `AllocationDonut` (allocation analysis), `ValueVsInvestedChart`; tabs Analytics / Allocations / Rebalancing / Benchmarks (see `api/v1/analytics/CLAUDE.md`).

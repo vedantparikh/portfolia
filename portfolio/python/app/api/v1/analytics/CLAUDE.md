@@ -18,7 +18,7 @@
 | `GET /portfolios/{id}/performance/snapshot`, `DELETE …/{snapshot_id}`, `GET /summary`, `GET /performance/comparison` | legacy, read-only | The worker writes `PortfolioPerformanceHistory`. The row still uses the old formula (deposits count as returns). No UI caller |
 | `GET /users/dashboard?force_refresh=` | legacy | Per-portfolio `get_portfolio_analytics_summary` (cost-basis fallback when no price) + snapshot count. `force_refresh` (default true) re-prices every asset from Yahoo and writes snapshots. Wired in `api.js`, no screen uses it |
 
-## Frontend — `js/src/components/analytics/` (tabs inside Holdings Detail)
+## Frontend — `js/src/features/analytics/` (tabs inside Holdings Detail)
 - **Analytics** `PortfolioAnalytics.jsx`: Risk Metrics + Advanced Metrics cards with plain-language hints, period select, risk-level modal (renders `reasoning` HTML via `dangerouslySetInnerHTML` — XSS item 4.6).
 - **Allocations** `PortfolioAllocationManager.jsx`: edit targets.
 - **Rebalancing** `RebalancingRecommendations.jsx`: summary, actions ("SELL 95.88 META ≈ $70,639 · 169.52 → 73.64 shares at $736.72"), current → target allocation.

@@ -21,7 +21,7 @@ Models: `Watchlist`, `WatchlistItem`, `WatchlistAlert`, `WatchlistPerformance` (
 - **Notification**: in-app only (decided 2026-10-16) — Watchlist alerts panel, bell on items with an open alert, dashboard "N new watchlist alerts" link. No ntfy/email.
 - Legacy `create_price_alert` (manual alert rows, no endpoint) is kept only for quarantined tests.
 
-## Frontend — `js/src/components/watchlist/`
+## Frontend — `js/src/features/watchlist/`
 Route `/watchlist` → `Watchlist.jsx` (grid of lists, or one opened list): `WatchlistAlerts` (recent alerts, unread, mark read), `WatchlistSidebar`, `WatchlistContent` (table, `min-w-[960px]` scroll on phones; bell on items whose alert holds), `AddSymbolModal`, `EditSymbolModal` (notes; high/low/% thresholds and alerts on/off), `Create/EditWatchlistModal`. `watchlistAPI` in `services/api.js`.
 
 ## Workflow

@@ -18,7 +18,7 @@
 Tables `users`, `user_profiles`, `user_sessions` (`core/database/models/user.py`). Access token 15 min, refresh 30 min by default (`config.py`). Every other router uses `get_current_active_user` / `get_current_user`; every resource is scoped by `user_id`.
 
 ## Frontend
-Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` (`App.jsx`); `ProtectedRoute`; `contexts/AuthContext.jsx`; `components/auth/*` (`EmailVerificationPrompt` on Dashboard/Watchlist). `authAPI` + refresh interceptor in `services/api.js`.
+Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` live in `js/src/app/router.jsx`. Pages are `js/src/features/auth/`. `ProtectedLayout` gates the signed-in routes. `EmailVerificationPrompt` is used by the dashboard and the watchlist. `contexts/AuthContext.jsx`. `authAPI` and the refresh interceptor are in `services/api.js`. Tokens go through `shared/auth/tokenStore.ts`.
 
 ## Workflow
 Register → email link → `/verify-email` → login (tokens in localStorage) → protected pages; the axios interceptor refreshes on 401. Forgot password → email link → validate → reset. Dev/demo: verification can be set in the DB (`seed_demo_application.py` does this for demouser).

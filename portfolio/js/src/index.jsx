@@ -18,6 +18,7 @@
  */
 
 // Import React library - this is the core library for building user interfaces
+import { QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Import ReactDOM - this handles rendering React components to the DOM (Document Object Model)
@@ -29,6 +30,10 @@ import './index.css';
 
 // Import our main App component - this is the root component that contains all other components
 import App from './App.jsx';
+import { queryClient } from './shared/api/queryClient';
+import { onSessionCleared } from './shared/auth/tokenStore';
+
+onSessionCleared(() => queryClient.clear());
 
 // Create a root container for our React application
 // This tells React where in the HTML to render our app
@@ -38,6 +43,8 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 // React.StrictMode is a wrapper that helps catch potential issues during development
 root.render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </React.StrictMode>
 );

@@ -21,6 +21,7 @@
 
 // Import axios library for making HTTP requests
 import axios from "axios";
+import { tokenStore } from "../shared/auth/tokenStore";
 
 /**
  * API base path used by axios. Defaults to the relative path "/api/v1", which the
@@ -73,7 +74,7 @@ export function apiErrorMessage(error, fallback) {
 api.interceptors.request.use(
   (config) => {
     // Attach the access token, if the user is logged in
-    const token = localStorage.getItem("access_token");
+    const token = tokenStore.getAccess();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -86,10 +87,7 @@ api.interceptors.request.use(
   Clear all authentication data and send the user to the login page
 */
 const forceLogout = () => {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("profile");
+  tokenStore.clear();
   window.location.href = "/login";
 };
 
@@ -101,15 +99,14 @@ let refreshPromise = null;
 
 const refreshAccessToken = () => {
   if (!refreshPromise) {
-    const refreshToken = localStorage.getItem("refresh_token");
+    const refreshToken = tokenStore.getRefresh();
     if (!refreshToken) {
       return Promise.reject(new Error("No refresh token"));
     }
     refreshPromise = authAPI
       .refreshToken(refreshToken)
       .then(({ access_token, refresh_token }) => {
-        localStorage.setItem("access_token", access_token);
-        localStorage.setItem("refresh_token", refresh_token);
+        tokenStore.set(access_token, refresh_token);
         return access_token;
       })
       .finally(() => {
@@ -232,9 +229,7 @@ export const authAPI = {
       console.warn("Logout API call failed:", error);
     } finally {
       // Always clear local storage regardless of server response
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
+      tokenStore.clear();
     }
   },
 
@@ -1723,8 +1718,7 @@ export const authUtils = {
       Returns: boolean (true if user has access token)
     */
   isAuthenticated: () => {
-    const token = localStorage.getItem("access_token");
-    return !!token; // Convert to boolean (true if token exists, false if null)
+    return !!tokenStore.getAccess();
   },
 
   /* 
@@ -1732,7 +1726,7 @@ export const authUtils = {
       Returns: string (access token) or null
     */
   getAccessToken: () => {
-    return localStorage.getItem("access_token");
+    return tokenStore.getAccess();
   },
 
   /* 
@@ -1740,7 +1734,7 @@ export const authUtils = {
       Returns: string (refresh token) or null
     */
   getRefreshToken: () => {
-    return localStorage.getItem("refresh_token");
+    return tokenStore.getRefresh();
   },
 
   /* 
@@ -1748,10 +1742,7 @@ export const authUtils = {
       This is used when logging out or when tokens are invalid
     */
   clearAuth: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("profile");
+    tokenStore.clear();
   },
 
   /* 

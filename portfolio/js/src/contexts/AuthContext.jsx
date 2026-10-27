@@ -24,6 +24,7 @@ import { createContext, useContext, useEffect, useReducer } from 'react';
 
 // Import our API service for authentication calls
 import { apiErrorMessage, authAPI } from '../services/api';
+import { tokenStore } from '../shared/auth/tokenStore';
 
 /* 
   ACTION TYPES - Constants for different state changes
@@ -214,7 +215,7 @@ export const AuthProvider = ({ children }) => {
         const initializeAuth = async () => {
             try {
                 // Check if there's a saved access token in browser storage
-                const token = localStorage.getItem('access_token');
+                const token = tokenStore.getAccess();
                 if (token) {
                     // If token exists, try to get user data from the server
                     const user = await authAPI.getCurrentUser();
@@ -230,8 +231,7 @@ export const AuthProvider = ({ children }) => {
             } catch (error) {
                 // If getting user data fails, clear everything and log out
                 console.error('Failed to initialize auth:', error);
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
+                tokenStore.clear();
                 dispatch({ type: AUTH_ACTIONS.SET_USER, payload: null });
                 dispatch({ type: AUTH_ACTIONS.SET_PROFILE, payload: null });
             }
@@ -260,8 +260,7 @@ export const AuthProvider = ({ children }) => {
             const response = await authAPI.login(credentials);
 
             // Save the tokens in browser storage so user stays logged in
-            localStorage.setItem('access_token', response.access_token);
-            localStorage.setItem('refresh_token', response.refresh_token);
+            tokenStore.set(response.access_token, response.refresh_token);
 
             // Get user data from the server
             const user = await authAPI.getCurrentUser();

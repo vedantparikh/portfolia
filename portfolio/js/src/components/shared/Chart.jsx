@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../services/api";
+import { chartMoney, renderTooltip } from "../../shared/ui/tooltipDom";
 
 const Chart = ({
   data = [],
@@ -403,90 +404,71 @@ const Chart = ({
       }
       const date = new Date(data.time * 1000).toLocaleDateString();
       const time = new Date(data.time * 1000).toLocaleTimeString();
-      let tooltipContent = "";
+      let title = "";
+      let rows = [];
 
       if (isPortfolioChart) {
         const portfolioValue = data.value;
         const comparisonValue = comparisonSeries
           ? param.seriesData.get(comparisonSeries)?.value
           : null;
-
-        tooltipContent = `
-          <div class="text-gray-100 font-semibold mb-2">Portfolio Performance - ${date}</div>
-          <div class="space-y-1 text-xs">
-              <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
-              <div class="flex justify-between"><span class="text-gray-400">Portfolio Value:</span><span class="text-primary-400">$${
-                portfolioValue?.toFixed(2) || "N/A"
-              }</span></div>
-              ${
-                comparisonValue !== null && comparisonValue !== undefined
-                  ? `
-                  <div class="flex justify-between"><span class="text-gray-400">${comparisonLineName}:</span><span class="text-gray-300">$${comparisonValue.toFixed(
-                      2
-                    )}</span></div>
-                  <div class="flex justify-between"><span class="text-gray-400">Unrealized P/L:</span><span class="${
-                    portfolioValue >= comparisonValue
-                      ? "text-success-400"
-                      : "text-danger-400"
-                  }">$${(portfolioValue - comparisonValue).toFixed(
-                      2
-                    )}</span></div>
-              `
-                  : ""
-              }
-          </div>
-        `;
-      } else {
-        if (chartType === "candlestick") {
-          tooltipContent = `
-            <div class="text-gray-100 font-semibold mb-2">${
-              symbol || "Asset"
-            } - ${date}</div>
-            <div class="space-y-1 text-xs">
-                <div class="flex justify-between"><span class="text-gray-400">Open:</span><span class="text-gray-200">$${
-                  data.open?.toFixed(2) || "N/A"
-                }</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">High:</span><span class="text-success-400">$${
-                  data.high?.toFixed(2) || "N/A"
-                }</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Low:</span><span class="text-danger-400">$${
-                  data.low?.toFixed(2) || "N/A"
-                }</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Close:</span><span class="text-gray-200">$${
-                  data.close?.toFixed(2) || "N/A"
-                }</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Change:</span><span class="${
-                  data.close >= data.open
-                    ? "text-success-400"
-                    : "text-danger-400"
-                }">${
-            data.close && data.open
-              ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
-              : "N/A"
-          }</span></div>
-            </div>
-          `;
-        } else {
-          tooltipContent = `
-            <div class="text-gray-100 font-semibold mb-2">${
-              symbol || "Asset"
-            } - ${date}</div>
-            <div class="space-y-1 text-xs">
-                <div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-gray-200">${time}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Price:</span><span class="text-primary-400">$${
-                  data.value?.toFixed(2) || "N/A"
-                }</span></div>
-            </div>
-          `;
+        title = `Portfolio Performance - ${date}`;
+        rows = [
+          { label: "Time:", value: time, className: "text-gray-200" },
+          {
+            label: "Portfolio Value:",
+            value: chartMoney(portfolioValue),
+            className: "text-primary-400",
+          },
+        ];
+        if (comparisonValue !== null && comparisonValue !== undefined) {
+          rows.push(
+            {
+              label: `${comparisonLineName}:`,
+              value: chartMoney(comparisonValue),
+              className: "text-gray-300",
+            },
+            {
+              label: "Unrealized P/L:",
+              value: chartMoney(portfolioValue - comparisonValue),
+              className:
+                portfolioValue >= comparisonValue
+                  ? "text-success-400"
+                  : "text-danger-400",
+            }
+          );
         }
+      } else if (chartType === "candlestick") {
+        title = `${symbol || "Asset"} - ${date}`;
+        rows = [
+          { label: "Open:", value: chartMoney(data.open), className: "text-gray-200" },
+          { label: "High:", value: chartMoney(data.high), className: "text-success-400" },
+          { label: "Low:", value: chartMoney(data.low), className: "text-danger-400" },
+          { label: "Close:", value: chartMoney(data.close), className: "text-gray-200" },
+          {
+            label: "Change:",
+            value:
+              data.close && data.open
+                ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
+                : "N/A",
+            className:
+              data.close >= data.open ? "text-success-400" : "text-danger-400",
+          },
+        ];
+      } else {
+        title = `${symbol || "Asset"} - ${date}`;
+        rows = [
+          { label: "Time:", value: time, className: "text-gray-200" },
+          {
+            label: "Price:",
+            value: chartMoney(data.value),
+            className: "text-primary-400",
+          },
+        ];
       }
 
-      // Add indicator information to tooltip if indicators are shown
+      const indicatorRows = [];
       if (showIndicators && Object.keys(indicatorData).length > 0) {
-        tooltipContent += '<div class="border-t border-gray-600 mt-2 pt-2">';
-        tooltipContent +=
-          '<div class="text-gray-300 font-medium mb-1">Indicators:</div>';
-
         Object.entries(indicatorData).forEach(
           ([indicatorName, indicatorValues]) => {
             if (indicatorValues && indicatorValues.length > 0) {
@@ -494,25 +476,25 @@ const Chart = ({
                 (item) => item.time === data.time
               );
               if (indicatorValue) {
-                const color = getIndicatorColor(indicatorName);
-                const displayName = indicatorName
-                  .replace("_indicator", "")
-                  .toUpperCase();
-                tooltipContent += `
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-400">${displayName}:</span>
-                    <span class="font-medium" style="color: ${color}">${
-                  indicatorValue.value?.toFixed(2) || "N/A"
-                }</span>
-                  </div>`;
+                indicatorRows.push({
+                  label: `${indicatorName.replace("_indicator", "").toUpperCase()}:`,
+                  value: indicatorValue.value?.toFixed(2) || "N/A",
+                  className: "font-medium",
+                  color: getIndicatorColor(indicatorName),
+                });
               }
             }
           }
         );
-        tooltipContent += "</div>";
       }
 
-      tooltip.innerHTML = tooltipContent;
+      renderTooltip(tooltip, {
+        title,
+        rows,
+        sections: indicatorRows.length
+          ? [{ title: "Indicators:", rows: indicatorRows }]
+          : [],
+      });
 
       const container = chartContainerRef.current;
       const tooltipWidth = tooltip.offsetWidth;

@@ -133,7 +133,22 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$ROOT/python/app:/app" -w /app \
 docker run --rm --network none \
   -v "$ROOT/js/src:/app/src:ro" -v "$ROOT/js/eslint.config.js:/app/eslint.config.js:ro" \
   -v "$ROOT/js/vite.config.js:/app/vite.config.js:ro" \
-  "$PROJECT-app" npx eslint . --report-unused-disable-directives --max-warnings 0
+  "$PROJECT-app" sh -c 'npx eslint . --report-unused-disable-directives --max-warnings 0 && npx tsc --noEmit'
+
+step "frontend: generated API types match OpenAPI"
+types_dir=$(mktemp -d)
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$ROOT/python/app:/app" -w /tmp \
+  -v "$types_dir:/out" \
+  -e HOME=/tmp -e TESTING=true -e ENVIRONMENT=test -e TEST_DATABASE_URL=sqlite:////tmp/test.db \
+  -e PYTHONPATH=/app -e PYTHONDONTWRITEBYTECODE=1 \
+  "$PROJECT-api" python -c 'import json,main; json.dump(main.app.openapi(), open("/out/openapi.json","w"))'
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$ROOT/js/src/shared/api/generated/schema.ts:/schema.ts:ro" \
+  -v "$types_dir/openapi.json:/tmp/openapi.json:ro" \
+  -w /app -e HOME=/tmp \
+  "$PROJECT-app" sh -c 'npx openapi-typescript /tmp/openapi.json -o /tmp/schema.ts && diff -q /tmp/schema.ts /schema.ts'
+rm -rf "$types_dir"
 
 step "backend: app import + pytest (throwaway container, not on the stack network)"
 docker run --rm --user "$(id -u):$(id -g)" \

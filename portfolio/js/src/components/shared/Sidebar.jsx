@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
-import { useNavigationPreloader } from "../../hooks/useAssetPreloader";
+import { prefetchAssets } from "../../shared/api/queries";
 
 const Sidebar = ({
   currentView = "dashboard",
@@ -31,8 +31,7 @@ const Sidebar = ({
 }) => {
   const { user, logout } = useAuth();
   const { profile } = useAuth();
-  const { transactionButtonProps, portfolioButtonProps, quickCreateProps } =
-    useNavigationPreloader();
+  const prefetch = { onMouseEnter: () => prefetchAssets() };
 
   const navigationItems = [
     {
@@ -116,12 +115,10 @@ const Sidebar = ({
             const Icon = item.icon;
             const isActive = currentView === item.id;
 
-            // Get preloader props based on item type
-            const getPreloaderProps = () => {
-              if (item.id === "transactions") return transactionButtonProps;
-              if (item.id === "portfolio") return portfolioButtonProps;
-              return {};
-            };
+            const prefetchProps =
+              item.id === "transactions" || item.id === "portfolio"
+                ? prefetch
+                : {};
 
             return (
               <Link
@@ -132,7 +129,7 @@ const Sidebar = ({
                     ? "bg-primary-600/20 text-primary-400"
                     : "text-gray-300 hover:bg-dark-800"
                 }`}
-                {...getPreloaderProps()}
+                {...prefetchProps}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -200,7 +197,7 @@ const Sidebar = ({
             <button
               onClick={() => onQuickAction("create-transaction")}
               className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-dark-800 transition-colors"
-              {...quickCreateProps}
+              {...prefetch}
             >
               <Plus size={16} />
               <span className="text-sm">New Transaction</span>

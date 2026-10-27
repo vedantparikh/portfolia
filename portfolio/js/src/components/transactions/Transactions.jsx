@@ -21,7 +21,8 @@ import {
   portfolioAPI,
   transactionAPI,
 } from "../../services/api";
-import assetCache from "../../services/assetCache";
+import { useQueryClient } from "@tanstack/react-query";
+import { assetKeys, useAssets } from "../../shared/api/queries";
 import useIsMobile from "../../hooks/useIsMobile";
 import { Sidebar } from "../shared";
 import LoadingSpinner from "../shared/LoadingSpinner";
@@ -55,6 +56,8 @@ const Transactions = () => {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [allAssets, setAllAssets] = useState([]);
+  const queryClient = useQueryClient();
+  const { data: cachedAssets } = useAssets();
   const [visibleCount, setVisibleCount] = useState(RENDER_PAGE_SIZE);
   const [initialPortfolioId, setInitialPortfolioId] = useState(null);
 
@@ -90,12 +93,11 @@ const Transactions = () => {
   // Effect for initial data load and asset preloading
   useEffect(() => {
     loadData();
-    const unsubscribe = assetCache.subscribe(({ assets }) => {
-      setAllAssets(assets || []);
-    });
-    assetCache.preloadAssets();
-    return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setAllAssets(cachedAssets || []);
+  }, [cachedAssets]);
 
   // This useEffect checks for navigation state on component load
   useEffect(() => {
@@ -281,7 +283,7 @@ const Transactions = () => {
   const handleCancelParsedData = () => {
     setShowParsedData(false);
     setParsedData(null);
-    assetCache.assets = [];
+    queryClient.removeQueries({ queryKey: assetKeys.all });
   };
 
   const handleBulkCreate = async (

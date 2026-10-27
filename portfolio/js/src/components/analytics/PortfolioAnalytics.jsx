@@ -292,10 +292,9 @@ const PortfolioAnalytics = ({ portfolioId }) => {
                                 </span>
                             </div>
                             <p className="text-sm font-semibold text-gray-100">Reasoning:</p>
-                            <p 
-                                className="text-sm text-gray-400 leading-relaxed"
-                                dangerouslySetInnerHTML={{ __html: riskMetrics.risk_assessment.reasoning }}
-                            />
+                            <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
+                                {riskMetrics.risk_assessment.reasoning}
+                            </p>
                         </div>
                     </div>
                 </div>

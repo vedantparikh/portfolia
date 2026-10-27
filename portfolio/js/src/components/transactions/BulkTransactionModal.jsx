@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, HelpCircle, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import assetCache from "../../services/assetCache";
+import { useAssets } from "../../shared/api/queries";
 import { ClientSideAssetSearch } from "../shared";
 
 /**
@@ -31,10 +31,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
   const [showTips, setShowTips] = useState(true);
   const [focusedRow, setFocusedRow] = useState(null);
 
-  useEffect(() => {
-    // Preload assets to make the asset dropdowns responsive
-    assetCache.preloadAssets();
-  }, []);
+  useAssets();
 
   // useEffect to LOAD transactions from local storage when the portfolio changes.
   useEffect(() => {

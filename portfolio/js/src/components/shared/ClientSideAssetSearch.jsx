@@ -1,7 +1,7 @@
 import { Database, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { marketAPI } from '../../services/api';
-import assetCache from '../../services/assetCache';
+import { filterAssets, useAssets } from '../../shared/api/queries';
 import LoadingSpinner from './LoadingSpinner';
 
 const ClientSideAssetSearch = ({
@@ -15,31 +15,21 @@ const ClientSideAssetSearch = ({
 }) => {
     const [filteredAssets, setFilteredAssets] = useState([]);
     const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [searching, setSearching] = useState(false);
+    const { data: assets = [], isFetching: loading } = useAssets({
+        enabled: preloadAssets,
+    });
     const inputRef = useRef(null);
     const dropdownRef = useRef(null);
     const debounceTimeoutRef = useRef(null);
 
-    // Subscribe to asset cache updates and preload if needed
     useEffect(() => {
-        // Subscribe to cache updates
-        const unsubscribe = assetCache.subscribe(({ isLoading: cacheLoading }) => {
-            setLoading(cacheLoading);
-        });
-
-        // Preload assets if requested
-        if (preloadAssets) {
-            assetCache.preloadAssets();
-        }
-
         return () => {
-            unsubscribe();
             if (debounceTimeoutRef.current) {
                 clearTimeout(debounceTimeoutRef.current);
             }
         };
-    }, [preloadAssets]);
+    }, []);
 
     // Debounced filter function using asset cache
     const debouncedFilter = useCallback((query) => {
@@ -49,13 +39,12 @@ const ClientSideAssetSearch = ({
 
         debounceTimeoutRef.current = setTimeout(() => {
             if (query && query.length >= 2) {
-                const filtered = assetCache.filterAssets(query, 8);
+                const filtered = filterAssets(assets, query, 8);
                 setFilteredAssets(filtered);
                 setShowSuggestionsDropdown(true);
             } else if (query === '') {
                 // Show all assets alphabetically when input is empty
-                const allAssets = assetCache.assets || [];
-                const sortedAssets = allAssets.sort((a, b) => {
+                const sortedAssets = [...assets].sort((a, b) => {
                     const aSymbol = a.symbol?.toLowerCase() || '';
                     const bSymbol = b.symbol?.toLowerCase() || '';
                     return aSymbol.localeCompare(bSymbol);
@@ -67,7 +56,7 @@ const ClientSideAssetSearch = ({
                 setShowSuggestionsDropdown(false);
             }
         }, 200); // Reduced debounce time since filtering is now in-memory
-    }, []);
+    }, [assets]);
 
     // Filter assets based on search query with debouncing
     useEffect(() => {
@@ -155,8 +144,7 @@ const ClientSideAssetSearch = ({
             setShowSuggestionsDropdown(true);
         } else if (value === '') {
             // Show all assets when input is empty and focused
-            const allAssets = assetCache.assets || [];
-            const sortedAssets = allAssets.sort((a, b) => {
+            const sortedAssets = [...assets].sort((a, b) => {
                 const aSymbol = a.symbol?.toLowerCase() || '';
                 const bSymbol = b.symbol?.toLowerCase() || '';
                 return aSymbol.localeCompare(bSymbol);
@@ -164,7 +152,7 @@ const ClientSideAssetSearch = ({
             setFilteredAssets(sortedAssets.slice(0, 20)); // Limit to 20 for performance
             setShowSuggestionsDropdown(true);
         }
-    }, [value]);
+    }, [assets, value]);
 
     // Handle input blur
     const handleBlur = useCallback(() => {

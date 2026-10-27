@@ -4,7 +4,7 @@
 
 ## Routes (`js/src/app/router.jsx`)
 - Public auth pages live in `features/auth/`: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email`.
-- Protected routes render inside `app/ProtectedLayout.jsx`: `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`.
+- Protected routes render inside `app/ProtectedLayout.jsx`: `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`. Their pages live in `features/`, except the concepts page, which stays in this folder.
 - `/` redirects to `/dashboard`. Unknown paths render `app/NotFound.jsx`.
 - Each route is `React.lazy`. `app/ErrorBoundary.jsx` wraps the outlet and resets when the path changes.
 
@@ -30,7 +30,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 | `Chart` | Older chart used only by `AssetModal`; its `isPortfolioChart` branches are dead code |
 | `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`useAssets`, 5 min) |
 
-Portfolio charts: `portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `portfolio/AllocationDonut.jsx` (SVG).
+Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).
 
 ## Conventions
 - All HTTP goes through `services/api.js` (axios, refresh interceptor). Data fetching uses `useEffect` + `useState`; errors show via `react-hot-toast`.
@@ -55,4 +55,4 @@ Plan Phase 4:
 - TanStack Query.
 - `shared/ui` primitives (Modal, Table…), collapsing the 24 modals, 4 search components and 2 charts.
 - Chart tooltips and risk reasoning are text, not HTML. Access and refresh tokens go through `shared/auth/tokenStore.ts` (still `localStorage`; an httpOnly cookie is still an open decision).
-- Feature folders for portfolios, transactions, assets, watchlists, analytics, and dashboard. Auth is already in `features/auth/`.
+- Feature folders are in place. The concepts page still lives in `components/FinancialConcepts.jsx`.

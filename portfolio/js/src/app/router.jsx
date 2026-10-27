@@ -14,14 +14,14 @@ const ValidateResetToken = lazy(
 const EmailVerification = lazy(
   () => import("../features/auth/EmailVerification"),
 );
-const Dashboard = lazy(() => import("../components/dashboard/Dashboard"));
+const Dashboard = lazy(() => import("../features/dashboard/Dashboard"));
 const Watchlist = lazy(() =>
-  import("../components/watchlist").then((mod) => ({ default: mod.Watchlist })),
+  import("../features/watchlist").then((mod) => ({ default: mod.Watchlist })),
 );
-const Assets = lazy(() => import("../components/assets/Assets"));
-const Portfolio = lazy(() => import("../components/portfolio/Portfolio"));
+const Assets = lazy(() => import("../features/assets/Assets"));
+const Portfolio = lazy(() => import("../features/portfolio/Portfolio"));
 const Transactions = lazy(
-  () => import("../components/transactions/Transactions"),
+  () => import("../features/transactions/Transactions"),
 );
 const FinancialConcepts = lazy(
   () => import("../components/FinancialConcepts"),

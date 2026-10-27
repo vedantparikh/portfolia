@@ -69,7 +69,7 @@ Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, kno
 
 - Frontend:
   - App shell, shared UI and conventions: `js/src/components/CLAUDE.md`
-  - Dashboard: `js/src/components/dashboard/CLAUDE.md`
+  - Dashboard: `js/src/features/dashboard/CLAUDE.md`
 - When a change alters a feature's behaviour, state or gaps, update its doc in the same commit.
 
 ## Rules of engagement

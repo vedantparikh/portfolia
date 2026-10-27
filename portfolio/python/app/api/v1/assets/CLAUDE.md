@@ -14,7 +14,7 @@
 - `search_router.py` (prefix `/api/v1/assets/search`): `/popular`, `/breakdown/{sectors,types,exchanges}`, `/suggestions`, `GET /{asset_id}` (declared last). All scoped to the current user's assets. No frontend caller.
 - Services: `asset_search_service.py`, `market_data_service`. Tables `assets` (unique user_id+symbol), `market_indices`.
 
-## Frontend — `js/src/components/assets/`
+## Frontend — `js/src/features/assets/`
 Route `/assets` → `Assets.jsx` ("Asset Analysis"):
 - 8 `StatCard`s computed from the loaded rows: top gainer and loser, dividend, P/E, volume, beta, growth, momentum.
 - `AssetCard` grid/list and `AssetFilters` (only type filtering works; the rest are hidden via `hidden=`).

@@ -18,7 +18,7 @@ Rules:
 - A transfer in opens a lot at its cost (quantity × price + fees + taxes) and a transfer out closes FIFO lots at its proceeds (quantity × price − fees − taxes). Both count in today's P&L and in the performance series like a buy or a sell. Split, fee and the other corporate types are stored and ignored. Splits come from market data.
 - Buys, sells, transfers and splits need quantity > 0. Price is never negative. A dividend may have quantity 0: an imported dividend keeps the statement amount, not shares × rate.
 
-## Frontend — `js/src/components/transactions/`
+## Frontend — `js/src/features/transactions/`
 - Route `/transactions` → `Transactions.jsx`:
   - Search, plus `TransactionFilters` (portfolio, type, dates). Filtering happens client-side over `getTransactions(limit 10000)`.
   - `TransactionCard` rows.

@@ -20,13 +20,13 @@ import polars as pl
 import pytest
 
 from core.database.models import Transaction, TransactionType
-from core.services.portfolio_advance_risk_metrics import (
+from modules.analytics.advance_risk import (
     PortfolioAdvanceRiskMetricsService,
 )
-from core.services.portfolio_analytics_service import PortfolioAnalyticsService
-from core.services.portfolio_calculation_service import PortfolioCalculationService
-from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsService
-from core.services.portfolio_service import compute_position
+from modules.analytics.calculations import PortfolioCalculationService
+from modules.analytics.risk import PortfolioRiskMetricsService
+from modules.analytics.service import PortfolioAnalyticsService
+from modules.portfolios.service import compute_position
 from utils.indicators.momentum_indicators import MomentumIndicators
 from utils.indicators.trend_indicators import TrendIndicators
 from utils.indicators.volatility_indicators import VolatilityIndicators

@@ -14,8 +14,8 @@ from core.schemas.account_statements import BulkTransactionItem
 from core.schemas.portfolio import TransactionCreate
 from core.services.account_statement_service import AccountStatementService
 from core.services.market_data_service import MarketDataService
-from core.services.portfolio_service import PortfolioService
 from main import app
+from modules.portfolios.service import PortfolioService
 
 
 @pytest.fixture

@@ -7,9 +7,9 @@
 ## Backend — `router.py` (prefix `/api/v1/analytics`)
 | Endpoint | Service | Behaviour |
 |---|---|---|
-| `GET /portfolios/{id}/risk?period=` | `portfolio_risk_metrics_service.py` | Volatility, Sharpe, Sortino, VaR 95/99, CVaR, max drawdown, Calmar (percent) + `risk_assessment` {level, reasoning HTML}. Input = engine daily returns (`get_portfolio_history`). Sample std, √252, `RISK_FREE_RATE` |
-| `GET /portfolios/{id}/advance-risk?period=` | `portfolio_advance_risk_metrics.py` | Beta / Jensen's alpha vs `^GSPC` (price index), HHI, diversification ratio, effective number of assets. First call ~20 s (index history) |
-| `GET/POST/PUT/DELETE /portfolios/{id}/allocations[/{aid}]` | `portfolio_analytics_service.py` | Target allocations (percent, min/max, `rebalance_threshold`, frequency) |
+| `GET /portfolios/{id}/risk?period=` | `modules/analytics/risk.py` | Volatility, Sharpe, Sortino, VaR 95/99, CVaR, max drawdown, Calmar (percent) + `risk_assessment` {level, reasoning HTML}. Input = engine daily returns (`get_portfolio_history`). Sample std, √252, `RISK_FREE_RATE` |
+| `GET /portfolios/{id}/advance-risk?period=` | `modules/analytics/advance_risk.py` | Beta / Jensen's alpha vs `^GSPC` (price index), HHI, diversification ratio, effective number of assets. First call ~20 s (index history) |
+| `GET/POST/PUT/DELETE /portfolios/{id}/allocations[/{aid}]` | `modules/analytics/service.py` | Target allocations (percent, min/max, `rebalance_threshold`, frequency) |
 | `GET /portfolios/{id}/allocations/analysis` | same | Weights from live holdings (`PortfolioService.get_portfolio_holdings`), drift = current − target, `requires_rebalancing` when \|drift\| > threshold (default 5). Unpriced positions skipped; targeted-but-unheld assets included at 0% |
 | `GET /portfolios/{id}/rebalancing/recommendations` | same | Actions in **shares**: drift amount ÷ current price, current/target quantity, trade value, price; 0.1% commission estimate; priority/timing from max drift. tax/risk/return impact = null |
 | `POST/GET /portfolios/{id}/rebalancing/events` | same | Stored rebalancing events (no UI) |

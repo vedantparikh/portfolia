@@ -1,5 +1,10 @@
-# Services package for business logic
-from .portfolio_calculation_service import PortfolioCalculationService
-from .portfolio_service import PortfolioService
+"""Business-logic services.
+
+Portfolio holdings and analytics live in `modules`. These names stay importable
+here so existing `from core.services import PortfolioService` calls keep working.
+"""
+
+from modules.analytics.calculations import PortfolioCalculationService
+from modules.portfolios.service import PortfolioService
 
 __all__ = ["PortfolioService", "PortfolioCalculationService"]

@@ -32,7 +32,7 @@ from core.schemas.portfolio_performance import (
     PortfolioRefreshResponse,
     PortfolioSearchResponse,
 )
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 

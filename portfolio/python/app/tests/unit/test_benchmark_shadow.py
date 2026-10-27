@@ -123,7 +123,7 @@ def portfolio(test_db):
 async def test_service_compares_against_the_shadow(test_db, monkeypatch, portfolio):
     from datetime import datetime, timedelta, timezone
 
-    from core.services.portfolio_calculation_service import PortfolioCalculationService
+    from modules.analytics.calculations import PortfolioCalculationService
 
     start = (datetime.now(timezone.utc) - timedelta(days=20)).date()
     days = pd.bdate_range(start, periods=3)
@@ -173,7 +173,7 @@ async def test_service_compares_against_the_shadow(test_db, monkeypatch, portfol
 
 
 def test_default_benchmark_follows_the_portfolio_currency(test_db, portfolio):
-    from core.services.portfolio_calculation_service import PortfolioCalculationService
+    from modules.analytics.calculations import PortfolioCalculationService
 
     assert (
         PortfolioCalculationService(test_db).default_benchmark(portfolio) == "EUNL.DE"

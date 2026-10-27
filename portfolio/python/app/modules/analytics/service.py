@@ -31,7 +31,7 @@ from core.schemas.portfolio_analytics import (
     PortfolioAllocationCreate,
 )
 from core.services.market_data_service import market_data_service
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 logger = logging.getLogger(__name__)
 

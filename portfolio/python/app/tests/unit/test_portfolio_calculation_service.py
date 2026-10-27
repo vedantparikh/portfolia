@@ -25,10 +25,10 @@ from app.core.database.models import (
     TransactionStatus,
     TransactionType,
 )
-from app.core.services.portfolio_calculation_service import (
+from core.services.utils import PeriodType
+from modules.analytics.calculations import (
     PortfolioCalculationService,
 )
-from core.services.utils import PeriodType
 
 
 class TestPortfolioCalculationService:
@@ -289,7 +289,7 @@ class TestPortfolioCalculationService:
         current_value = 25000.0
         end_date = datetime(2024, 12, 31, tzinfo=timezone.utc)
 
-        with patch("app.core.services.portfolio_calculation_service.xirr") as mock_xirr:
+        with patch("modules.analytics.calculations.xirr") as mock_xirr:
             mock_xirr.return_value = 0.15  # 15% return
 
             xirr_result = calculation_service._calculate_xirr(
@@ -332,7 +332,7 @@ class TestPortfolioCalculationService:
         start_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end_date = datetime(2024, 12, 31, tzinfo=timezone.utc)
 
-        with patch("app.core.services.portfolio_calculation_service.xirr") as mock_xirr:
+        with patch("modules.analytics.calculations.xirr") as mock_xirr:
             mock_xirr.return_value = 0.12  # 12% return
 
             mwr = calculation_service._calculate_mwr(
@@ -501,7 +501,7 @@ class TestPortfolioCalculationService:
         current_value = 25000.0
         end_date = datetime(2024, 12, 31, tzinfo=timezone.utc)
 
-        with patch("app.core.services.portfolio_calculation_service.xirr") as mock_xirr:
+        with patch("modules.analytics.calculations.xirr") as mock_xirr:
             mock_xirr.return_value = 0.10  # 10% return
 
             xirr_result = calculation_service._calculate_benchmark_xirr(
@@ -996,7 +996,7 @@ class TestPortfolioCalculationServiceIntegration:
         assert isinstance(cagr, float)
 
         # Test XIRR calculation
-        with patch("app.core.services.portfolio_calculation_service.xirr") as mock_xirr:
+        with patch("modules.analytics.calculations.xirr") as mock_xirr:
             mock_xirr.return_value = 0.08  # 8% return
 
             xirr_result = real_calculation_service._calculate_xirr(

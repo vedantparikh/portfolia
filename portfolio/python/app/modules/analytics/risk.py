@@ -7,10 +7,8 @@ import pandas as pd  # type: ignore
 from sqlalchemy.orm import Session
 
 from core.domain.returns import RISK_FREE_RATE
-from core.services.portfolio_calculation_service import (
-    PortfolioCalculationService,
-)
 from core.services.utils import PeriodType
+from modules.analytics.calculations import PortfolioCalculationService
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ from core.database.models import (
     User,
 )
 from core.database.models.asset import AssetType
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 
 def _history(splits):

@@ -5,7 +5,7 @@
 **State (2026-10-16):** ✅ list/create/bulk-create/detail/delete work. ⚠️ search box and sorting don't filter server-side; `/assets/search/*` has no UI.
 
 ## Backend
-- `router.py` (prefix `/api/v1/assets`):
+- `router.py` (prefix `/api/v1/assets`) reads and writes through `modules/assets/repository.py`:
   - `POST /` (create; fetches ticker info)
   - `POST /bulk-create` (verified users only; `allow_minimal_on_market_data_failure`)
   - `GET /` (`skip`, `limit`, `symbol` ilike, `asset_type`, `include_detail` → `detail` with price, 24h change, market cap, P/E, 52w, volume, dividend yield…; returns a bare list)

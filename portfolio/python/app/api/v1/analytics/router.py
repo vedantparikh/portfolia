@@ -16,9 +16,7 @@ from core.auth.dependencies import get_current_active_user, get_owned_portfolio
 from core.database.connection import get_db
 from core.database.models import Portfolio, User
 from core.database.models.portfolio_analytics import (
-    PortfolioAllocation,
     PortfolioBenchmark,
-    PortfolioPerformanceHistory,
     RebalancingEvent,
 )
 from core.domain.positions import OversellError
@@ -45,6 +43,7 @@ from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
 from core.services.utils import PeriodType
 from modules.analytics.advance_risk import PortfolioAdvanceRiskMetricsService
 from modules.analytics.calculations import PortfolioCalculationService
+from modules.analytics.repository import AnalyticsRepository
 from modules.analytics.risk import PortfolioRiskMetricsService
 from modules.analytics.service import PortfolioAnalyticsService
 
@@ -92,23 +91,15 @@ def delete_performance_snapshot(
     db: Session = Depends(get_db),
 ):
     """Delete a performance snapshot."""
-    # Find and delete the snapshot
-    snapshot = (
-        db.query(PortfolioPerformanceHistory)
-        .filter(
-            PortfolioPerformanceHistory.id == snapshot_id,
-            PortfolioPerformanceHistory.portfolio_id == portfolio_id,
-        )
-        .first()
-    )
+    analytics = AnalyticsRepository(db)
+    snapshot = analytics.get_snapshot(portfolio_id, snapshot_id)
 
     if not snapshot:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Snapshot not found"
         )
 
-    db.delete(snapshot)
-    db.commit()
+    analytics.delete(snapshot)
 
     return {"message": "Performance snapshot deleted successfully"}
 
@@ -199,16 +190,7 @@ def get_portfolio_allocations(
     db: Session = Depends(get_db),
 ):
     """Get portfolio target allocations."""
-    allocations = (
-        db.query(PortfolioAllocation)
-        .filter(
-            PortfolioAllocation.portfolio_id == portfolio_id,
-            PortfolioAllocation.is_active,
-        )
-        .all()
-    )
-
-    return allocations
+    return AnalyticsRepository(db).active_allocations(portfolio_id)
 
 
 @router.put(
@@ -224,22 +206,14 @@ def update_portfolio_allocation(
     db: Session = Depends(get_db),
 ):
     """Update a specific portfolio allocation."""
-    # Find the allocation
-    allocation = (
-        db.query(PortfolioAllocation)
-        .filter(
-            PortfolioAllocation.id == allocation_id,
-            PortfolioAllocation.portfolio_id == portfolio_id,
-        )
-        .first()
-    )
+    analytics = AnalyticsRepository(db)
+    allocation = analytics.get_allocation(portfolio_id, allocation_id)
 
     if not allocation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Allocation not found"
         )
 
-    # Update allocation fields
     allocation.target_percentage = allocation_data.target_percentage
     allocation.min_percentage = allocation_data.min_percentage
     allocation.max_percentage = allocation_data.max_percentage
@@ -247,10 +221,7 @@ def update_portfolio_allocation(
     allocation.rebalance_frequency = allocation_data.rebalance_frequency
     allocation.is_active = allocation_data.is_active
 
-    db.commit()
-    db.refresh(allocation)
-
-    return allocation
+    return analytics.save(allocation)
 
 
 @router.delete(
@@ -265,23 +236,15 @@ def delete_portfolio_allocation(
     db: Session = Depends(get_db),
 ):
     """Delete a portfolio allocation."""
-    # Find and delete the allocation
-    allocation = (
-        db.query(PortfolioAllocation)
-        .filter(
-            PortfolioAllocation.id == allocation_id,
-            PortfolioAllocation.portfolio_id == portfolio_id,
-        )
-        .first()
-    )
+    analytics = AnalyticsRepository(db)
+    allocation = analytics.get_allocation(portfolio_id, allocation_id)
 
     if not allocation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Allocation not found"
         )
 
-    db.delete(allocation)
-    db.commit()
+    analytics.delete(allocation)
 
     return {"message": "Portfolio allocation deleted successfully"}
 
@@ -381,11 +344,9 @@ def add_portfolio_benchmark(
     db: Session = Depends(get_db),
 ):
     """Add a benchmark to a portfolio."""
-    # If this is set as primary, unset other primary benchmarks
+    analytics = AnalyticsRepository(db)
     if benchmark_data.is_primary:
-        db.query(PortfolioBenchmark).filter(
-            PortfolioBenchmark.portfolio_id == portfolio_id
-        ).update({"is_primary": False})
+        analytics.clear_primary_benchmarks(portfolio_id)
 
     benchmark = PortfolioBenchmark(
         portfolio_id=portfolio_id,
@@ -402,11 +363,7 @@ def add_portfolio_benchmark(
         is_primary=benchmark_data.is_primary,
     )
 
-    db.add(benchmark)
-    db.commit()
-    db.refresh(benchmark)
-
-    return benchmark
+    return analytics.add(benchmark)
 
 
 @router.get(
@@ -420,16 +377,7 @@ def get_portfolio_benchmarks(
     db: Session = Depends(get_db),
 ):
     """Get portfolio benchmarks."""
-    benchmarks = (
-        db.query(PortfolioBenchmark)
-        .filter(
-            PortfolioBenchmark.portfolio_id == portfolio_id,
-            PortfolioBenchmark.is_active,
-        )
-        .all()
-    )
-
-    return benchmarks
+    return AnalyticsRepository(db).active_benchmarks(portfolio_id)
 
 
 # Rebalancing Events
@@ -461,11 +409,7 @@ def create_rebalancing_event(
         execution_notes=event_data.execution_notes,
     )
 
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-
-    return event
+    return AnalyticsRepository(db).add(event)
 
 
 @router.get(
@@ -483,17 +427,7 @@ def get_rebalancing_events(
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
-    events = (
-        db.query(RebalancingEvent)
-        .filter(
-            RebalancingEvent.portfolio_id == portfolio_id,
-            RebalancingEvent.event_date >= start_date,
-        )
-        .order_by(RebalancingEvent.event_date.desc())
-        .all()
-    )
-
-    return events
+    return AnalyticsRepository(db).rebalancing_events(portfolio_id, start_date)
 
 
 # Comprehensive Analytics
@@ -561,14 +495,8 @@ def get_portfolio_performance_comparison(
     end_date = datetime.now(timezone.utc)
     start_date = end_date - timedelta(days=days)
 
-    portfolio_history = (
-        db.query(PortfolioPerformanceHistory)
-        .filter(
-            PortfolioPerformanceHistory.portfolio_id == portfolio_id,
-            PortfolioPerformanceHistory.snapshot_date >= start_date,
-        )
-        .order_by(PortfolioPerformanceHistory.snapshot_date)
-        .all()
+    portfolio_history = AnalyticsRepository(db).performance_history(
+        portfolio_id, start_date
     )
 
     if not portfolio_history:
@@ -608,28 +536,14 @@ async def get_user_analytics_dashboard(
 
     if force_refresh:
         try:
-            # Get all user assets and refresh their data
-            from core.database.models import Asset
-
-            user_assets = (
-                db.query(Asset)
-                .filter(Asset.user_id == current_user.id, Asset.is_active == True)
-                .all()
-            )
+            stored = AnalyticsRepository(db)
+            user_assets = stored.active_assets(current_user.id)
 
             asset_ids = [asset.id for asset in user_assets if asset.symbol]
             if asset_ids:
                 await analytics_service.bulk_update_asset_prices(asset_ids)
 
-            # Refresh portfolio data for all user portfolios
-            user_portfolios = (
-                db.query(Portfolio)
-                .filter(
-                    Portfolio.user_id == current_user.id,
-                    Portfolio.is_active == True,
-                )
-                .all()
-            )
+            user_portfolios = stored.active_portfolios(current_user.id)
 
             for portfolio in user_portfolios:
                 try:

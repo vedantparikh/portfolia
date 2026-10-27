@@ -11,11 +11,10 @@ import signal
 import time
 from pathlib import Path
 
-from workers.book import refresh_book
-
 from config import settings
 from core.database.connection import SessionLocal
 from core.services.watchlist_service import WatchlistService
+from workers.book import refresh_book
 
 HEARTBEAT = Path("/tmp/worker-heartbeat")
 logger = logging.getLogger("workers.run")

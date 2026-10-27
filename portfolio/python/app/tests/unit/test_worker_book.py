@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
-from workers.book import refresh_book, snapshot_due
 
 from core.database.models import (
     Asset,
@@ -17,6 +16,7 @@ from core.database.models import (
 from core.database.models.asset import AssetType
 from core.database.models.portfolio_analytics import PortfolioPerformanceHistory
 from modules.analytics.service import PortfolioAnalyticsService
+from workers.book import refresh_book, snapshot_due
 
 
 def test_snapshot_is_due_after_a_trade_and_after_the_close():

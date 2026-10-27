@@ -161,4 +161,4 @@ ignore = [
 "__init__.py" = ["F403", "F405"]  # package re-exports
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "api", "core", "modules", "utils", "config", "main", "health_check", "scripts", "tests"]
+known-first-party = ["app", "api", "core", "modules", "utils", "config", "main", "health_check", "scripts", "tests", "workers"]

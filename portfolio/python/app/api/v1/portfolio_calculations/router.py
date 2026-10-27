@@ -28,11 +28,11 @@ from core.schemas.portfolio_calculations import (
     PortfolioPerformanceOverview,
     PortfolioPerformanceResponse,
 )
-from core.services.portfolio_calculation_service import (
+from core.services.utils import PeriodType
+from modules.analytics.calculations import (
     BENCHMARKS,
     PortfolioCalculationService,
 )
-from core.services.utils import PeriodType
 
 logger = logging.getLogger(__name__)
 

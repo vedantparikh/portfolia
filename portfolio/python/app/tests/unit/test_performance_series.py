@@ -8,7 +8,7 @@ import pytest
 
 from core.database.models import Asset, Portfolio, Transaction, TransactionType, User
 from core.database.models.asset import AssetType
-from core.services.portfolio_calculation_service import PortfolioCalculationService
+from modules.analytics.calculations import PortfolioCalculationService
 
 
 @pytest.fixture

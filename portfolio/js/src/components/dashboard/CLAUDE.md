@@ -2,7 +2,7 @@
 
 **Purpose:** a one-screen overview of everything the user owns, plus the market.
 
-**State (2026-10-16):** ✅ works. It's frontend-only: it aggregates existing endpoints, and there is no dashboard backend router (`api/v1/dashboard/` holds only a stale `__pycache__`).
+**State (2026-10-27):** ✅ works. It's frontend-only: it aggregates existing endpoints, and there is no dashboard backend router.
 
 ## Sections and data sources
 | Section | Source |

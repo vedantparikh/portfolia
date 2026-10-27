@@ -10,7 +10,7 @@ from decimal import Decimal
 from core.database.models import Asset, Portfolio, PortfolioAsset, User
 from core.schemas.portfolio import TransactionCreate
 from core.services.market_data_service import MarketDataService
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 
 async def test_price_is_fetched_before_portfolio_asset_is_staged(test_db, monkeypatch):

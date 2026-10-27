@@ -8,7 +8,7 @@ import pytest
 
 from core.database.models import Asset, Portfolio, Transaction, TransactionType, User
 from core.database.models.asset import AssetType
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 
 def _buy(portfolio, asset, qty, price, when):

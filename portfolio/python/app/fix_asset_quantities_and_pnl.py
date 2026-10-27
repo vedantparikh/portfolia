@@ -2,7 +2,7 @@ import asyncio
 
 from core.database.connection import SessionLocal
 from core.database.models import Portfolio, Transaction
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 
 async def main():

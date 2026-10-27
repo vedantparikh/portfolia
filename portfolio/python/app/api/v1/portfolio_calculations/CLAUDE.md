@@ -4,7 +4,7 @@
 
 **State (2026-10-16):** ✅ series, performance, multi-period agree exactly (one `period_summary`). ✅ benchmark comparison as a shadow portfolio (`core/domain/benchmark.py`). `/overview` is a thin wrapper over inception `/performance`.
 
-## Backend — `router.py` (mounted at `/api/v1/portfolios/calculations`), `core/services/portfolio_calculation_service.py`
+## Backend — `router.py` (mounted at `/api/v1/portfolios/calculations`), `modules/analytics/calculations.py`
 | Endpoint | Behaviour |
 |---|---|
 | `GET /periods` | Period codes for the Performance Metrics dropdown (3m … inception). `1m` is accepted everywhere but not listed |

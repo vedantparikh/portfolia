@@ -4,7 +4,7 @@
 
 **State (2026-10-16):** ✅ core flows work and agree with each other. Numbers come from `core/domain` (see `core/domain/CLAUDE.md`).
 
-## Backend — `router.py` (prefix `/api/v1/portfolios`), `core/services/portfolio_service.py`
+## Backend — `router.py` (prefix `/api/v1/portfolios`), `modules/portfolios/service.py`
 | Endpoint | Behaviour |
 |---|---|
 | `POST/GET /`, `GET/PUT/DELETE /{id}`, `DELETE /{id}/hard` | CRUD; delete is soft (is_active) unless `/hard` |

@@ -42,13 +42,11 @@ from core.schemas.portfolio_analytics import (
     UserDashboardResponse,
 )
 from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
-from core.services.portfolio_advance_risk_metrics import (
-    PortfolioAdvanceRiskMetricsService,
-)
-from core.services.portfolio_analytics_service import PortfolioAnalyticsService
-from core.services.portfolio_calculation_service import PortfolioCalculationService
-from core.services.portfolio_risk_metrics_service import PortfolioRiskMetricsService
 from core.services.utils import PeriodType
+from modules.analytics.advance_risk import PortfolioAdvanceRiskMetricsService
+from modules.analytics.calculations import PortfolioCalculationService
+from modules.analytics.risk import PortfolioRiskMetricsService
+from modules.analytics.service import PortfolioAnalyticsService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["analytics"])

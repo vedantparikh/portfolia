@@ -29,7 +29,7 @@ from core.services.market_data_service import MarketDataService
 from core.services.parsers.portfolia import PortfoliaParser
 from core.services.parsers.pytr_csv import PytrCsvParser
 from core.services.parsers.trade_republic import TradeRepublicParser
-from core.services.portfolio_service import PortfolioService
+from modules.portfolios.service import PortfolioService
 
 logger = logging.getLogger(__name__)
 

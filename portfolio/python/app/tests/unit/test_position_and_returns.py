@@ -19,11 +19,11 @@ from core.schemas.portfolio import (
     TransactionUpdate,
     check_transaction_numbers,
 )
-from core.services.portfolio_calculation_service import (
+from modules.analytics.calculations import (
     PortfolioCalculationService,
     compute_daily_returns,
 )
-from core.services.portfolio_service import OversellError, compute_position
+from modules.portfolios.service import OversellError, compute_position
 
 BUY = TransactionType.BUY
 SELL = TransactionType.SELL

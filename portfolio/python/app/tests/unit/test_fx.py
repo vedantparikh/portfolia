@@ -19,7 +19,7 @@ from core.domain.fx import (
 )
 from core.domain.positions import Trade
 from core.services.market_data_service import MarketDataService
-from core.services.portfolio_calculation_service import PortfolioCalculationService
+from modules.analytics.calculations import PortfolioCalculationService
 
 
 def _series(days, values):

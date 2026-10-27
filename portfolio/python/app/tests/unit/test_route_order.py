@@ -22,8 +22,8 @@ from core.database.models import (
     User,
 )
 from core.database.models.asset import AssetType
-from core.services.portfolio_calculation_service import PortfolioCalculationService
 from main import app
+from modules.analytics.calculations import PortfolioCalculationService
 
 
 @pytest.fixture

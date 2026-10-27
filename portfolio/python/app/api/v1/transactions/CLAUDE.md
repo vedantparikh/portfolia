@@ -7,7 +7,7 @@
 ## Backend — `router.py` (prefix `/api/v1/transactions`), `pdf_export_router.py`
 | Endpoint | Behaviour |
 |---|---|
-| `POST /`, `GET /?portfolio_id&limit≤10000&skip`, `GET/PUT/DELETE /{id}` | CRUD via `portfolio_service.py`. Each write flushes, runs `recalculate_asset_state` (FIFO + splits, see `core/domain`), then commits |
+| `POST /`, `GET /?portfolio_id&limit≤10000&skip`, `GET/PUT/DELETE /{id}` | CRUD via `modules/portfolios`. Each write flushes, runs `recalculate_asset_state` (FIFO + splits, see `core/domain`), then commits |
 | `GET /{portfolio_id}/summary?start_date&end_date` | Completed only; cash moved: buys (with fees/taxes), net sell proceeds, dividends, fees, net investment. Matches the performance series' deposits/withdrawals. No UI caller |
 | `POST /transactions/pdf/export`, `/export/download`, `/export/preview` | `core/services/transaction_pdf_export_service.py` (ReportLab). UI uses preview + download |
 

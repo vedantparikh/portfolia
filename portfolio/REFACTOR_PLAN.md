@@ -195,7 +195,7 @@ Golden tests are written first for every item.
 | ✅ 2.8 | Today's P&L formula and a correct previous close. **Done:** `day_change` is used by holdings, summary and overview. The previous close is the last session that started before the current one, using the bar's timezone, not the older of two downloaded rows. Cached 12 hours under the UTC date. | H5 |
 | ✅ 2.9 | Allocation and rebalancing in shares. Fix the indicator formulas (Wilder RSI/ATR/ADX, population-std Bollinger, CCI, StochRSI). **Done (2026-10-16):** all 17 indicators match `ta` (reference test), real PSAR, configuration UI wired. **Now:** Allocation from live holdings, rebalancing in shares with the stored threshold. Indicator formulas open (PSAR stub, non-Wilder RSI/ATR/ADX, sample-std Bollinger). | M8, Low |
 | ✅ 2.10 | `PortfolioAsset` is a cache rebuilt from transactions on every write and on refresh. **Done:** `PUT /portfolios/{id}/assets/{asset_id}` is gone, so a client cannot write quantity, cost, or P&L. Adding a holding (`POST /assets` and the legacy post) creates a buy. Deleting a holding deletes its transactions. | M1 |
-| 🟡 2.11 | Re-run the Phase 0.7 characterisation snapshots and review **each** changed number against a hand calculation or a broker statement. **Now:** Characterisation snapshots unchanged through the refactor; demo data replayed independently to the cent. Broker-statement check open. | — |
+| ✅ 2.11 | Re-run the Phase 0.7 characterisation snapshots and review **each** changed number against a hand calculation or a broker statement. **Done:** `test_calculation_snapshots.py` was re-run and the snapshot file did not change, so there was no number to review. Separately, every open position on a Trade Republic securities statement matches the share count and the cost basis (quantity × price) from that broker's own trade confirmations, to the cent. The statement's unrealized figure is market value minus that cost. No holdings or amounts are stored in the repo. | — |
 
 ### Phase 3: Consolidate backend modules (≈1.5 weeks)
 | # | Work |
@@ -341,6 +341,7 @@ Open:
 | 2026-10-26 | `feat/previous-close` | — | 2.8: today's P&L uses the last finished session, in the listing's timezone. Live API not restarted |
 | 2026-10-26 | `feat/derived-positions` | — | 2.10: position quantity and P&L are only rebuilt from transactions. The client update route is gone. Live API not restarted |
 | 2026-10-26 | `feat/transfer-lots` | — | 2.1: transfer in/out open and close FIFO lots at the given cost. Quantity and price are checked per type. Live API not restarted |
+| 2026-10-27 | `feat/broker-statement-check` | — | 2.11: characterisation snapshots re-run, unchanged. Open positions on a broker securities statement match the confirmations' share count and cost to the cent |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -378,7 +379,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 2.11, the broker-statement check.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 3.1, merging the portfolio services.
 
 ---
 

@@ -79,7 +79,7 @@ exclude = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -92,6 +92,10 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["pandas", "numpy"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"

@@ -60,8 +60,23 @@ class TransactionExportRequest(BaseModel):
     )
 
 
+class CurrencyVolume(BaseModel):
+    """Buy, sell, fees, and taxes in one currency. These are never mixed."""
+
+    currency: str
+    buy_volume: Decimal
+    sell_volume: Decimal
+    net_flow: Decimal
+    fees: Decimal
+    taxes: Decimal
+
+
 class TransactionSummaryStats(BaseModel):
-    """Summary statistics for transactions."""
+    """Summary statistics for transactions.
+
+    total_buy_volume and the other totals are set only when every amount is in
+    one currency. volumes always lists each currency on its own.
+    """
 
     total_transactions: int
     total_buy_volume: Decimal
@@ -72,6 +87,8 @@ class TransactionSummaryStats(BaseModel):
     unique_assets: int
     date_range: str
     portfolios_included: List[str]
+    currency: Optional[str] = None
+    volumes: List[CurrencyVolume] = Field(default_factory=list)
 
 
 class ExportedTransactionData(BaseModel):
@@ -92,6 +109,7 @@ class ExportedTransactionData(BaseModel):
     notes: Optional[str]
     reference_number: Optional[str]
     currency: str
+    portfolio_currency: str = ""
 
 
 class PDFExportResponse(BaseModel):

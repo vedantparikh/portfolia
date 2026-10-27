@@ -28,7 +28,7 @@ class MissingPriceError(DomainError):
 STALE_PRICE_DAYS = 5
 
 
-def _day_index(index) -> pd.DatetimeIndex:
+def _day_index(index: pd.Index) -> pd.DatetimeIndex:
     index = pd.DatetimeIndex(index)
     if index.tz is not None:
         index = index.tz_localize(None)
@@ -47,9 +47,9 @@ def trading_days(
     return pd.DatetimeIndex(sorted(days))
 
 
-def _price_age(observed: pd.DatetimeIndex, days: pd.DatetimeIndex) -> list:
+def _price_age(observed: pd.DatetimeIndex, days: pd.DatetimeIndex) -> list[int | None]:
     """Trading days on `days` after the last print, through each day. None if none."""
-    ages = []
+    ages: list[int | None] = []
     for day in days:
         pos = int(observed.searchsorted(day, side="right")) - 1
         if pos < 0:

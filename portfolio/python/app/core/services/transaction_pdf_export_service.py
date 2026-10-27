@@ -6,7 +6,9 @@ import io
 import logging
 import re
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import List, Optional, Tuple
 
 from reportlab.lib import colors
@@ -19,16 +21,26 @@ from sqlalchemy.orm import Session, joinedload
 
 from core.database.models import Asset, Portfolio, Transaction, User
 from core.database.models.transaction import TransactionType
+from core.domain.fx import MissingFxError, canonical_currency, convert_amount
 from core.errors import DomainError
 from core.schemas.pdf_export import (
+    CurrencyVolume,
     ExportedTransactionData,
     PDFExportOptions,
     PDFExportResponse,
     TransactionExportFilters,
     TransactionSummaryStats,
 )
+from core.services.fx import load_rates
+from core.services.market_data_service import market_data_service
 
 logger = logging.getLogger(__name__)
+
+
+def format_money(amount: Decimal, currency: str) -> str:
+    """Amount with its currency code. There is no default currency."""
+    code = canonical_currency(currency)[0] if currency else ""
+    return f"{code} {amount:,.2f}".strip()
 
 
 class TransactionPDFService:
@@ -99,13 +111,12 @@ class TransactionPDFService:
             Tuple of (PDF bytes, response data)
         """
         try:
-            # Get filtered transactions
             transactions = await self._get_filtered_transactions(user, filters)
+            transactions = await self._convert_to_portfolio_currency(transactions)
 
             if not transactions:
                 raise DomainError("No transactions found with the specified filters")
 
-            # Calculate summary statistics
             summary_stats = self._calculate_summary_stats(transactions, filters)
 
             # Generate filename
@@ -222,32 +233,100 @@ class TransactionPDFService:
                     notes=txn.notes,
                     reference_number=txn.reference_number,
                     currency=txn.currency,
+                    portfolio_currency=txn.portfolio.currency,
                 )
             )
 
         return exported_data
+
+    async def _convert_to_portfolio_currency(
+        self, rows: List[ExportedTransactionData]
+    ) -> List[ExportedTransactionData]:
+        """Convert each row into its portfolio currency. A missing rate stays in its own currency."""
+        grouped: dict[str, list[ExportedTransactionData]] = defaultdict(list)
+        for row in rows:
+            grouped[row.portfolio_currency or row.currency].append(row)
+        converted: list[ExportedTransactionData] = []
+        for target, group in grouped.items():
+            rates = await load_rates(
+                market_data_service,
+                target,
+                [row.currency for row in group],
+                strict=False,
+            )
+            for row in group:
+                day = row.transaction_date.date()
+                try:
+                    converted.append(
+                        row.model_copy(
+                            update={
+                                "price": convert_amount(
+                                    row.price, row.currency, target, day, rates
+                                ),
+                                "total_amount": convert_amount(
+                                    row.total_amount, row.currency, target, day, rates
+                                ),
+                                "fees": convert_amount(
+                                    row.fees, row.currency, target, day, rates
+                                ),
+                                "taxes": convert_amount(
+                                    row.taxes, row.currency, target, day, rates
+                                ),
+                                "currency": canonical_currency(target)[0],
+                            }
+                        )
+                    )
+                except MissingFxError:
+                    logger.warning(
+                        "Leaving %s in %s; no rate into %s on %s",
+                        row.asset_symbol,
+                        row.currency,
+                        target,
+                        day,
+                    )
+                    converted.append(
+                        row.model_copy(
+                            update={"currency": canonical_currency(row.currency)[0]}
+                        )
+                    )
+        return converted
 
     def _calculate_summary_stats(
         self,
         transactions: List[ExportedTransactionData],
         filters: Optional[TransactionExportFilters] = None,
     ) -> TransactionSummaryStats:
-        """Calculate summary statistics for transactions."""
-        total_transactions = len(transactions)
-        total_buy_volume = sum(
-            txn.total_amount
-            for txn in transactions
-            if txn.transaction_type == TransactionType.BUY
+        """Totals per currency. A single currency also fills the flat total fields."""
+        buckets: dict[str, dict[str, Decimal]] = defaultdict(
+            lambda: {
+                "buy": Decimal("0"),
+                "sell": Decimal("0"),
+                "fees": Decimal("0"),
+                "taxes": Decimal("0"),
+            }
         )
-        total_sell_volume = sum(
-            txn.total_amount
-            for txn in transactions
-            if txn.transaction_type == TransactionType.SELL
-        )
-        net_flow = total_sell_volume - total_buy_volume
-        total_fees = sum(txn.fees for txn in transactions)
-        total_taxes = sum(txn.taxes for txn in transactions)
-        unique_assets = len(set(txn.asset_symbol for txn in transactions))
+        for txn in transactions:
+            code = canonical_currency(txn.currency)[0]
+            bucket = buckets[code]
+            if txn.transaction_type == TransactionType.BUY:
+                bucket["buy"] += txn.total_amount
+            elif txn.transaction_type == TransactionType.SELL:
+                bucket["sell"] += txn.total_amount
+            bucket["fees"] += txn.fees
+            bucket["taxes"] += txn.taxes
+        volumes = [
+            CurrencyVolume(
+                currency=code,
+                buy_volume=bucket["buy"],
+                sell_volume=bucket["sell"],
+                net_flow=bucket["sell"] - bucket["buy"],
+                fees=bucket["fees"],
+                taxes=bucket["taxes"],
+            )
+            for code, bucket in sorted(buckets.items())
+        ]
+        only = volumes[0] if len(volumes) == 1 else None
+        unique_assets = len({txn.asset_symbol for txn in transactions})
 
         # Date range
         if transactions:
@@ -263,15 +342,17 @@ class TransactionPDFService:
         portfolios_included = list(set(txn.portfolio_name for txn in transactions))
 
         return TransactionSummaryStats(
-            total_transactions=total_transactions,
-            total_buy_volume=total_buy_volume,
-            total_sell_volume=total_sell_volume,
-            net_flow=net_flow,
-            total_fees=total_fees,
-            total_taxes=total_taxes,
+            total_transactions=len(transactions),
+            total_buy_volume=only.buy_volume if only else Decimal("0"),
+            total_sell_volume=only.sell_volume if only else Decimal("0"),
+            net_flow=only.net_flow if only else Decimal("0"),
+            total_fees=only.fees if only else Decimal("0"),
+            total_taxes=only.taxes if only else Decimal("0"),
             unique_assets=unique_assets,
             date_range=date_range,
             portfolios_included=portfolios_included,
+            currency=only.currency if only else None,
+            volumes=volumes,
         )
 
     def _generate_filename(
@@ -385,16 +466,33 @@ class TransactionPDFService:
         story.append(Spacer(1, 12))
 
         # Create summary table
-        summary_data = [
-            ["Total Transactions", str(summary.total_transactions)],
-            ["Total Buy Volume", f"${summary.total_buy_volume:,.2f}"],
-            ["Total Sell Volume", f"${summary.total_sell_volume:,.2f}"],
-            ["Net Flow", f"${summary.net_flow:,.2f}"],
-            ["Total Fees", f"${summary.total_fees:,.2f}"],
-            ["Total Taxes", f"${summary.total_taxes:,.2f}"],
-            ["Unique Assets", str(summary.unique_assets)],
-            ["Date Range", summary.date_range],
-        ]
+        summary_data = [["Total Transactions", str(summary.total_transactions)]]
+        for volume in summary.volumes:
+            label = f" ({volume.currency})" if len(summary.volumes) > 1 else ""
+            summary_data.extend(
+                [
+                    [
+                        f"Buy volume{label}",
+                        format_money(volume.buy_volume, volume.currency),
+                    ],
+                    [
+                        f"Sell volume{label}",
+                        format_money(volume.sell_volume, volume.currency),
+                    ],
+                    [
+                        f"Net flow{label}",
+                        format_money(volume.net_flow, volume.currency),
+                    ],
+                    [f"Fees{label}", format_money(volume.fees, volume.currency)],
+                    [f"Taxes{label}", format_money(volume.taxes, volume.currency)],
+                ]
+            )
+        summary_data.extend(
+            [
+                ["Unique Assets", str(summary.unique_assets)],
+                ["Date Range", summary.date_range],
+            ]
+        )
 
         summary_table = Table(summary_data, colWidths=[2.5 * inch, 2.5 * inch])
         summary_table.setStyle(
@@ -472,9 +570,9 @@ class TransactionPDFService:
                     else txn.asset_name
                 ),
                 f"{txn.quantity:.4f}",
-                f"${txn.price:.2f}",
-                f"${txn.total_amount:.2f}",
-                f"${txn.fees:.2f}",
+                format_money(txn.price, txn.currency),
+                format_money(txn.total_amount, txn.currency),
+                format_money(txn.fees, txn.currency),
             ]
             table_data.append(row)
 

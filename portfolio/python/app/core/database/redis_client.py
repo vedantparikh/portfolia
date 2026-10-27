@@ -1,285 +1,148 @@
-import hashlib
+"""JSON Redis wrapper. Values are JSON; keys are JSON strings of the caller's key."""
+
 import json
 import logging
-import pickle
-from functools import wraps
-from typing import List
+import os
+from typing import Any, Dict, List, Optional
 
 import redis
 
-from config import settings
-from core.utils.singletonmeta import SingletonMeta
-
 logger = logging.getLogger(__name__)
 
-
-def ensure_serializable_key(func):
-    """A decorator which ensure that redis keys can be properly serialized."""
-
-    @wraps(func)
-    def _check_key(_self, key, *args, **kwargs):
-        """check if the key is of a serializable type."""
-        if not isinstance(key, str) and not isinstance(key, bytes):
-            key = json.dumps(key)
-
-        return func(_self, key, *args, **kwargs)
-
-    return _check_key
+_client: Optional["RedisClient"] = None
 
 
-class RedisClient(metaclass=SingletonMeta):
-    """
-    RedisClient to communicate with redis Server
-    Redis Commands: https://redis.io/commands
-    """
-
-    class RedisContextManager:
-        """A context manager for redis connection."""
-
-        def __init__(self, connection_pool):
-            self.connection_pool = connection_pool
-
-        def __enter__(self):
-            self.redis = redis.Redis(connection_pool=self.connection_pool)  # noqa pylint: disable=attribute-defined-outside-init
-            try:
-                self.redis.ping()
-            except redis.ConnectionError:
-                self.redis = None
-            return self.redis
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            if exc_tb:
-                logger.error(
-                    f"Error in Redis connection: {exc_type} {exc_val} {exc_tb}"
-                )
-            if self.redis is not None:
-                self.redis.close()
+class RedisClient:
+    """One connection pool, with JSON get and set."""
 
     def __init__(
         self,
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        connect: bool = False,
-        password: str | None = None,
-    ):
-        self.host = host
-        self.port = port
-        self.db = db
-        self.ex_seconds = settings.REDIS_TTL_SECONDS
-        self.ex_seconds_model = settings.REDIS_TTL_MODEL_SECONDS
+        password: Optional[str] = None,
+        ex_seconds: int = 3600,
+    ) -> None:
+        self.ex_seconds = ex_seconds
         self.connection_pool = redis.ConnectionPool(
-            host=self.host,
-            port=self.port,
-            db=self.db,
-            password=password or None,
-            max_connections=1024,
-            socket_timeout=5,
-            health_check_interval=self.ex_seconds,
+            host=host,
+            port=port,
+            db=db,
+            password=password,
+            decode_responses=True,
         )
-
-    def __repr__(self):
-        return f"RedisClient(host={self.host}, port={self.port}, db={self.db})"
 
     @classmethod
-    def make_from_env(cls):
-        """Build the client from application settings."""
+    def make_from_env(cls) -> "RedisClient":
         return cls(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=settings.REDIS_DB,
-            password=settings.REDIS_PASSWORD or None,
+            host=os.environ.get("REDIS_HOST", "localhost"),
+            port=int(os.environ.get("REDIS_PORT", "6379")),
+            db=int(os.environ.get("REDIS_DB", "0")),
+            password=os.environ.get("REDIS_PASSWORD") or None,
+            ex_seconds=int(os.environ.get("REDIS_EX_SECONDS", "3600")),
         )
 
-    def set(self, key, value, ex_seconds=None):
-        """SET the string value of a key."""
+    class RedisContextManager:
+        def __init__(self, connection_pool: redis.ConnectionPool) -> None:
+            self.connection_pool = connection_pool
+            self.connection: Optional[redis.Redis] = None
 
-        # use the expiry time if client passes it or set it to global expiry time
-        ex_seconds = ex_seconds or self.ex_seconds
-        # -1 we use as no expiration
-        if ex_seconds == -1:
-            ex_seconds = None
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                result = client.set(key, json.dumps(value), ex=ex_seconds)
-                logger.info(f"Created new Redis cache with key: {key}.")
+        def __enter__(self) -> redis.Redis:
+            self.connection = redis.Redis(connection_pool=self.connection_pool)
+            return self.connection
 
-                return result
+        def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+            if self.connection:
+                self.connection.close()
 
-    def set_raw(self, resource, value, transformer_class, ex_seconds=None):
-        """SET the string value of a key."""
-        ex_seconds = ex_seconds or self.ex_seconds_model
-        # -1 we use as no expiration
-        if ex_seconds == -1:
-            ex_seconds = None
-        # we can transform same data with different transformers
-        # (e.g. ParentEncounter with ParentEncounterTransformer or EncounterTransformer)
-        key_str = repr(resource) + repr(transformer_class)
-        cache_key = hashlib.sha512(key_str.encode()).hexdigest()
-        value = pickle.dumps(value)
+    def set(self, key: Any, value: Any, ex_seconds: Optional[int] = None) -> bool:
+        ttl = self.ex_seconds if ex_seconds is None else ex_seconds
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
+                return bool(client.set(json.dumps(key), json.dumps(value), ex=ttl))
+        except Exception as exc:
+            logger.error("Redis set failed: %s", exc)
+            return False
 
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                result = client.set(cache_key, value, ex=ex_seconds)
-                logger.info(
-                    f"Created new Redis cache with instance: {resource['id'] + '_' + resource['resourceType']}."
-                )
+    def get(self, key: Any) -> Any:
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
+                raw = client.get(json.dumps(key))
+            return json.loads(raw) if raw is not None else None
+        except Exception as exc:
+            logger.error("Redis get failed: %s", exc)
+            return None
 
-                return result
-
-    def get(self, key):
-        """GET the value of a key."""
-
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                data = client.get(key)
-                result = None
-                if data:
-                    logger.info(
-                        f"Found Redis data for the given key: {key} from cache."
-                    )
-                    result = json.loads(data)
-                else:
-                    logger.info(f"Given key: {key} was not found.")
-                return result
-
-    def get_raw(self, resource, transformer_class) -> [dict, bool]:
-        """GET the value of a key."""
-        # we can transform same data with different transformers
-        # (e.g. ParentEncounter with ParentEncounterTransformer or EncounterTransformer)
-        key_str = repr(resource) + repr(transformer_class)
-        cache_key = hashlib.sha512(key_str.encode()).hexdigest()
-        data = None
-        exist = False
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                data = client.get(cache_key)
-                # check if the data exists in cache, but it's None (e.g. ParentEncounter with EncounterTransformer)
-                if data:
-                    exist = True
-                    data = pickle.loads(data)
-                    logger.info(
-                        f"Found Redis cache for model instance: "
-                        f"{resource['resourceType'] + '_' + resource['id']} "
-                    )
-                else:
-                    logger.info(
-                        f"Given instance: "
-                        f"{resource['resourceType'] + '_' + resource['id']} was not found or changed."
-                    )
-
-            return data, exist
-
-    def getdel(self, key):
-        """Atomically GET and DELETE a key. Returns None if missing or Redis is down."""
-
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                data = client.getdel(key)
-                return json.loads(data) if data else None
-
-    def incr_with_ttl(self, key, ex_seconds: int):
-        """
-        Atomically increment a counter, setting its TTL when first created.
-        Returns the new count, or None if Redis is unavailable.
-        """
-
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
+    def mset(self, mapping: Dict[Any, Any], ex_seconds: Optional[int] = None) -> bool:
+        """Set many keys in one pipeline. An empty mapping is a no-op."""
+        if not mapping:
+            return True
+        ttl = self.ex_seconds if ex_seconds is None else ex_seconds
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
                 pipe = client.pipeline()
-                pipe.incr(key)
-                pipe.expire(key, ex_seconds, nx=True)
-                count, _ = pipe.execute()
-                return count
-
-    def delete(self, key):
-        """DELETE a key."""
-
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                return client.delete(key)
-
-    def exists(self, key):
-        """To check the given key exists in Redis db."""
-
-        key = json.dumps(key)
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                return client.exists(key)
-
-    def clear_on_pattern(self, pattern: str):
-        """
-        This Function matches the input search pattern and deletes that
-        specific redis resource containing the given `pattern`.
-        """
-
-        count = 1
-        pattern = f"*{pattern}*"
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                for key in client.scan_iter(match=pattern, count=10000):
-                    client.unlink(key)
-                    count += 1
-                logging.info(f"Cleared cache for {pattern}.")
-                return count
-
-    def flush_db(self):
-        """Deletes all cache from current."""
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                client.flushdb()
-
-    def flush_all(self):
-        """Deletes all cache."""
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                client.flushall(asynchronous=True)
-
-    # @ensure_connection
-    def get_matching_keys(self, pattern: str):
-        """Returns cache keys"""
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                return client.keys(f"*{pattern}*")
-
-    def mset(self, items: dict, ex_seconds=None):
-        """SET many keys in one pipeline. Keys and values are JSON, same as set()."""
-        if not items:
-            return
-        ex_seconds = ex_seconds or self.ex_seconds
-        if ex_seconds == -1:
-            ex_seconds = None
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                pipe = client.pipeline()
-                for key, value in items.items():
-                    pipe.set(json.dumps(key), json.dumps(value), ex=ex_seconds)
+                for key, value in mapping.items():
+                    pipe.set(json.dumps(key), json.dumps(value), ex=ttl)
                 pipe.execute()
+            return True
+        except Exception as exc:
+            logger.error("Redis mset failed: %s", exc)
+            return False
 
-    def mget(self, keys: List[str]):
-        """Returns cache key value pairs"""
-        byte_list = [json.dumps(item).encode() for item in keys]
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                values = client.mget(byte_list)
-                return {
-                    key: json.loads(values[i])
-                    for i, key in enumerate(keys)
-                    if values[i] is not None
-                }
+    def mget(self, keys: List[Any]) -> Dict[Any, Any]:
+        """Return the keys that are present. Missing keys are omitted."""
+        if not keys:
+            return {}
+        try:
+            encoded = [json.dumps(key) for key in keys]
+            with self.RedisContextManager(self.connection_pool) as client:
+                raw_values = client.mget(encoded)
+            found = {}
+            for key, raw in zip(keys, raw_values):
+                if raw is not None:
+                    found[key] = json.loads(raw)
+            return found
+        except Exception as exc:
+            logger.error("Redis mget failed: %s", exc)
+            return {}
 
-    def ping(self):
-        """Ping the Redis server."""
-        with self.RedisContextManager(self.connection_pool) as client:
-            if client is not None:
-                return client.ping()
+    def getdel(self, key: Any) -> Any:
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
+                raw = client.getdel(json.dumps(key))
+            return json.loads(raw) if raw is not None else None
+        except Exception as exc:
+            logger.error("Redis getdel failed: %s", exc)
+            return None
+
+    def incr_with_ttl(self, key: Any, ex_seconds: int) -> int:
+        """Increment a counter and set its TTL only on the first increment."""
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
+                pipe = client.pipeline()
+                encoded = json.dumps(key)
+                pipe.incr(encoded)
+                pipe.ttl(encoded)
+                count, ttl = pipe.execute()
+                if ttl < 0:
+                    client.expire(encoded, ex_seconds)
+            return int(count)
+        except Exception as exc:
+            logger.error("Redis incr failed: %s", exc)
+            return 0
+
+    def ping(self) -> bool:
+        try:
+            with self.RedisContextManager(self.connection_pool) as client:
+                return bool(client.ping())
+        except Exception as exc:
+            logger.error("Redis ping failed: %s", exc)
+            return False
 
 
-def get_redis():
-    """get the redis client to use."""
-    return RedisClient.make_from_env()
+def get_redis() -> RedisClient:
+    """The process-wide client. The pool is created once."""
+    global _client
+    if _client is None:
+        _client = RedisClient.make_from_env()
+    return _client

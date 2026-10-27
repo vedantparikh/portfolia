@@ -552,23 +552,32 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
                         ", "
                       ) || "All"}
                     </div>
-                    <div>
-                      Total Buy Volume: $
-                      {parseFloat(previewData.summary_stats?.total_buy_volume)?.toFixed(
-                        2
-                      ) || "0.00"}
-                    </div>
-                    <div>
-                      Total Sell Volume: $
-                      {parseFloat(previewData.summary_stats?.total_sell_volume)?.toFixed(
-                        2
-                      ) || "0.00"}
-                    </div>
-                    <div>
-                      Net Flow: $
-                      {parseFloat(previewData.summary_stats?.net_flow)?.toFixed(2) ||
-                        "0.00"}
-                    </div>
+                    {(previewData.summary_stats?.volumes?.length
+                      ? previewData.summary_stats.volumes
+                      : [
+                          {
+                            currency: previewData.summary_stats?.currency || "",
+                            buy_volume: previewData.summary_stats?.total_buy_volume,
+                            sell_volume: previewData.summary_stats?.total_sell_volume,
+                            net_flow: previewData.summary_stats?.net_flow,
+                          },
+                        ]
+                    ).map((volume) => (
+                      <div key={volume.currency || "total"}>
+                        <div>
+                          Buy {volume.currency}{" "}
+                          {Number(volume.buy_volume || 0).toFixed(2)}
+                        </div>
+                        <div>
+                          Sell {volume.currency}{" "}
+                          {Number(volume.sell_volume || 0).toFixed(2)}
+                        </div>
+                        <div>
+                          Net {volume.currency}{" "}
+                          {Number(volume.net_flow || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

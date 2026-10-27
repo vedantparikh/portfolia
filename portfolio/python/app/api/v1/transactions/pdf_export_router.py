@@ -110,8 +110,8 @@ async def preview_export(
     transactions = await pdf_service._get_filtered_transactions(
         user=current_user, filters=export_request.filters
     )
+    transactions = await pdf_service._convert_to_portfolio_currency(transactions)
 
-    # Calculate summary stats
     summary_stats = pdf_service._calculate_summary_stats(
         transactions, export_request.filters
     )

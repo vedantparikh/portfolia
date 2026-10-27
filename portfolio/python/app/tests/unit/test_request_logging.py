@@ -10,7 +10,7 @@ from core.database.connection import engine
 from main import app
 
 APP = Path(__file__).resolve().parents[2]
-_SKIP = {"tests", "fix_asset_quantities_and_pnl.py"}
+_SKIP = {"tests"}
 
 
 def test_sqlalchemy_does_not_echo_sql():

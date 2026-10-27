@@ -27,7 +27,8 @@ import { useAssets } from '../../shared/api/queries';
 import { formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
-import { LoadingSpinner, Sidebar, StatCard } from '../shared';
+import { usePageChrome, useShell } from '../../app/chrome';
+import { LoadingSpinner, StatCard } from '../shared';
 import CreateTransactionModal from '../transactions/CreateTransactionModal';
 import AssetCard from './AssetCard';
 import AssetFilters from './AssetFilters';
@@ -46,7 +47,7 @@ const Assets = () => {
     const [showModal, setShowModal] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const isMobile = useIsMobile();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const { openSidebar } = useShell();
     const [viewMode, setViewMode] = useState('grid');
     const [modalMode, setModalMode] = useState('view');
     const [showAnalytics, setShowAnalytics] = useState(false);
@@ -262,6 +263,12 @@ const Assets = () => {
         if (action === 'refresh') handleRefresh();
     };
 
+    usePageChrome({
+        searchQuery,
+        onSearchChange: setSearchQuery,
+        onQuickAction: handleQuickAction,
+    });
+
     const handleAddToPortfolio = () => {
         toast.info('Use Portfolio section to manage assets in specific portfolios');
     };
@@ -365,30 +372,11 @@ const Assets = () => {
 
     return (
         <div className="min-h-screen gradient-bg flex">
-            <Sidebar
-                currentView="assets"
-                onRefresh={() => handleRefresh(false)}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                showFilters={showFilters}
-                onToggleFilters={() => setShowFilters(!showFilters)}
-                stats={stats}
-                onQuickAction={handleQuickAction}
-                isMobile={isMobile}
-                isOpen={sidebarOpen}
-                onClose={() => setSidebarOpen(false)}
-            />
-            {isMobile && sidebarOpen && (
-              <div
-                className="fixed inset-0 bg-black/50 z-40"
-                onClick={() => setSidebarOpen(false)}
-              />
-            )}
             <div className="flex-1 min-w-0 overflow-y-auto">
               {isMobile && (
                 <div className="bg-dark-900 border-b border-dark-700 p-4 flex items-center justify-between">
                   <button
-                    onClick={() => setSidebarOpen(true)}
+                    onClick={openSidebar}
                     aria-label="Open menu"
                     className="p-2 rounded-lg hover:bg-dark-800 transition-colors"
                   >

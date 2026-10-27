@@ -217,8 +217,8 @@ Golden tests are written first for every item.
 | 🟡 4.5 | Build the `shared/ui` primitives (Button, Modal with focus trap and Esc, FormModal with react-hook-form and zod, Table, Card, Spinner, EmptyState, ErrorState). Collapse the 24 modals, the 4 search components (1 remains) and the 2 charts (1 remains). **Now:** `StatCard`, `Sparkline`, single `LoadingSpinner`, `PerformanceSeriesChart`, `AllocationDonut` added (#73, fix/calculations). |
 | ✅ 4.6 | Security: remove `dangerouslySetInnerHTML` and the `innerHTML` tooltips. Keep a single `tokenStore`. Ideally put the refresh token in an httpOnly cookie, with the access token held in memory. **Done:** Risk reasoning and both chart tooltips are text nodes. Access and refresh tokens are only read and written in `shared/auth/tokenStore.ts`. They are still in `localStorage`. The httpOnly cookie is still an open decision. |
 | 🟡 4.7 | **Delete all frontend financial math.** Display backend values only. One `formatMoney(value, currency, locale)`, with lint rules banning raw `toFixed` and `$`. **Now:** Done for performance chart, holdings price/weight, realized total, totals and allocation. Left: transaction-form helpers, `Chart.jsx` tooltip, hard-coded `$`. |
-| ⏳ 4.8 | Routing: `ProtectedLayout` (Sidebar and `<Outlet/>`), `React.lazy` per route, an error boundary, and a 404 page. |
-| ⏳ 4.9 | Feature-folder layout (see §2.3). Migrate feature by feature: auth → portfolios → transactions → assets → watchlists → analytics → dashboard. |
+| ✅ 4.8 | Routing: `ProtectedLayout` (Sidebar and `<Outlet/>`), `React.lazy` per route, an error boundary, and a 404 page. **Done:** `src/app/ProtectedLayout.jsx` owns the sidebar, the mobile drawer, and an error boundary that resets on navigation. Each route is lazy. Unknown paths render `NotFound`. Pages register search, the portfolio selector, and quick actions with `usePageChrome`. |
+| 🟡 4.9 | Feature-folder layout (see §2.3). Migrate feature by feature: auth → portfolios → transactions → assets → watchlists → analytics → dashboard. **Now:** Auth pages live in `features/auth/`. The app shell is `src/app/`. The other features still live under `components/`. |
 
 ### 2.3 Frontend layout
 ```
@@ -348,6 +348,7 @@ Open:
 | 2026-10-27 | `feat/cleanup-export` | — | 3.4–3.6: JSON Redis client, `python -m portfolia recalc`, PDF totals per portfolio currency, mypy on `core/domain`, OpenAPI operation snapshot. Live API not restarted |
 | 2026-10-27 | `feat/frontend-contract` | — | 4.2 and 4.6: generated API types, text tooltips, one token store. 4.4: query cache replaces the asset preloader. Live UI not restarted |
 | 2026-10-27 | `feat/frontend-contract` | — | 4.2, 4.4, 4.6: generated API types, query cache replaces the asset preloader, chart and risk HTML removed, one token store. Live UI not restarted |
+| 2026-10-27 | `feat/app-shell` | — | 4.8: protected layout, lazy routes, error boundary, 404. 4.9 started: auth pages in `features/auth`. Live UI not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -385,7 +386,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅, 3.3 worker snapshots ✅, 3.4 Redis client ✅, 3.5 PDF currency ✅, 3.6 domain mypy and OpenAPI snapshot ✅, 4.2 generated API types ✅, 4.6 token store and text tooltips ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 4.8, a protected layout with lazy routes. 4.4 still has the portfolio, transaction, and watchlist screens on their own fetches.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅, 3.3 worker snapshots ✅, 3.4 Redis client ✅, 3.5 PDF currency ✅, 3.6 domain mypy and OpenAPI snapshot ✅, 4.2 generated API types ✅, 4.6 token store and text tooltips ✅, 4.8 protected layout ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is the rest of 4.9, moving portfolios into a feature folder. 4.4 still has the portfolio, transaction, and watchlist screens on their own fetches.
 
 ---
 

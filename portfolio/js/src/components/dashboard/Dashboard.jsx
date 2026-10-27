@@ -31,8 +31,9 @@ import {
   formatVolume,
   getChangeColor,
 } from "../../utils/formatters";
-import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
-import { LoadingSpinner, Sidebar, Sparkline, StatCard } from "../shared";
+import { useShell } from "../../app/chrome";
+import EmailVerificationPrompt from "../../features/auth/EmailVerificationPrompt";
+import { LoadingSpinner, Sparkline, StatCard } from "../shared";
 
 const CardLoader = ({ text = "Loading..." }) => (
   <div className="flex items-center justify-center py-8">
@@ -42,8 +43,7 @@ const CardLoader = ({ text = "Loading..." }) => (
 
 const Dashboard = () => {
   const { user, profile, refreshUser } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
-  const [isMobile, setIsMobile] = useState(false);
+  const { toggleSidebar } = useShell();
 
   const [dashboardData, setDashboardData] = useState({
     portfolios: [],
@@ -64,17 +64,6 @@ const Dashboard = () => {
   useEffect(() => {
     loadDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
-  }, []);
-
-  // Check for mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const loadDashboardData = async () => {
@@ -242,25 +231,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen gradient-bg flex">
-      {/* Mobile sidebar overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Shared Sidebar */}
-      <Sidebar
-        currentView="dashboard"
-        portfolios={dashboardData.portfolios}
-        onRefresh={handleRefresh}
-        isMobile={isMobile}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-      />
-
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Header */}
@@ -268,7 +238,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
+                onClick={toggleSidebar}
                 className="lg:hidden p-2 rounded-lg hover:bg-dark-800 transition-colors"
               >
                 <Menu size={20} className="text-gray-400" />

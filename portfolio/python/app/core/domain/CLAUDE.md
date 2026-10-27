@@ -2,7 +2,7 @@
 
 **Purpose:** the only place portfolio maths is defined. Pure functions; no DB, no network, no FastAPI. Every number the app shows about positions, value history, returns or risk comes from here.
 
-**State (2026-10-16):** ✅ in production use. Golden tests in `tests/unit/test_domain_engine.py`; an independent replay of the demo data (real Yahoo prices, splits, dividends) matched `daily_series` to the cent on every day and XIRR to 3 decimals.
+**State (2026-10-27):** ✅ in production use. Golden tests in `tests/unit/test_domain_engine.py`; an independent replay of the demo data (real Yahoo prices, splits, dividends) matched `daily_series` to the cent on every day and XIRR to 3 decimals. The characterisation snapshots were re-run and did not change. Every open position on a broker securities statement matches the share count and cost basis from that broker's trade confirmations, to the cent.
 
 ## Modules
 | File | What | Key rules |

@@ -33,7 +33,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).
 
 ## Conventions
-- All HTTP goes through `services/api.js` (axios, refresh interceptor). Data fetching uses `useEffect` + `useState`; errors show via `react-hot-toast`.
+- All HTTP goes through `services/api.js` (axios, refresh interceptor). The portfolio, transaction, and watchlist screens read through TanStack Query and invalidate those queries after a write. The dashboard, assets page, and analytics tabs still load in their own effects. Errors show via `react-hot-toast`.
 - Money: in portfolio-scoped views `const money = useMoney()` (`hooks/useMoney.js`; `money(v, opts)`, `money.price(v)`, `money.currency`) — `Portfolio.jsx` wraps its views in `CurrencyProvider` with the selected portfolio's currency, the dashboard wraps nothing and passes `currency` per row/total. `formatCurrency` falls back to USD when `currency` is missing.
 - Formatting only through `utils/formatters.jsx`:
   - `formatCurrency` takes Intl options, so use `signDisplay: "exceptZero"`; `showSign` is ignored by it.

@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { accountStatementsAPI } from "../../services/api";
-import assetCache from "../../services/assetCache";
+import { assetKeys, useAssets } from "../../shared/api/queries";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import transactionTypes from "../../utils/transactionTypes";
 import { ClientSideAssetSearch } from "../shared";
@@ -54,6 +55,8 @@ const ParsedDataTable = ({
   const [filterType, setFilterType] = useState("all");
   const [selectedPortfolio, setSelectedPortfolio] = useState("");
   const [localAssets, setLocalAssets] = useState(allAssets);
+  const queryClient = useQueryClient();
+  const { data: queriedAssets } = useAssets();
   const [isSaving, setIsSaving] = useState(false);
   const [importedKeys, setImportedKeys] = useState(() => new Set());
   const [mapping, setMapping] = useState(() => {
@@ -109,14 +112,19 @@ const ParsedDataTable = ({
     );
   }, [localAssets]);
 
-  // Sync allAssets with assetCache
   useEffect(() => {
-    if (localAssets && localAssets.length > 0) {
-      assetCache.assets = localAssets;
-      assetCache.lastFetched = Date.now();
-      assetCache.notifySubscribers();
+    if (queriedAssets) {
+      setLocalAssets(queriedAssets);
     }
-  }, [localAssets]);
+  }, [queriedAssets]);
+
+  useEffect(() => {
+    if (!localAssets || localAssets.length === 0) return;
+    const current = queryClient.getQueryData(assetKeys.all);
+    if (current !== localAssets) {
+      queryClient.setQueryData(assetKeys.all, localAssets);
+    }
+  }, [localAssets, queryClient]);
 
   useEffect(() => {
     return () => {
@@ -257,18 +265,6 @@ const ParsedDataTable = ({
       );
     }
   }, [transactions]); // This runs every time the transactions state is updated
-
-  // Ensure assets are loaded when the component mounts.
-  useEffect(() => {
-    const ensureAssets = async () => {
-      // Use getAssets with forceRefresh=false. The cache will handle
-      // fetching only if the cache is empty or stale.
-      const assets = await assetCache.getAssets(false);
-      setLocalAssets(assets);
-    };
-
-    ensureAssets();
-  }, []); // Empty dependency array means this runs only once on mount.
 
   const isTransactionIncomplete = (txn) => {
     if (txn.excluded || isImported(txn)) return false;

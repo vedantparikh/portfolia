@@ -26,7 +26,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 | `LoadingSpinner` | One ring. `type` only picks the default caption; `centered`, `size`, `text={null}` hides the caption |
 | `EnhancedChart` | lightweight-charts v5 price + indicator panes (imported directly, not via the barrel) |
 | `Chart` | Older chart used only by `AssetModal`; its `isPortfolioChart` branches are dead code |
-| `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`services/assetCache.js`, 5 min TTL) |
+| `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`useAssets`, 5 min) |
 
 Portfolio charts: `portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `portfolio/AllocationDonut.jsx` (SVG).
 
@@ -52,6 +52,6 @@ Plan Phase 4:
 - Split `api.js` per feature.
 - TanStack Query.
 - `shared/ui` primitives (Modal, Table…), collapsing the 24 modals, 4 search components and 2 charts.
-- Remove `innerHTML` and `dangerouslySetInnerHTML`; tokens out of localStorage.
+- Chart tooltips and risk reasoning are text, not HTML. Access and refresh tokens go through `shared/auth/tokenStore.ts` (still `localStorage`; an httpOnly cookie is still an open decision).
 - `ProtectedLayout` with lazy routes and an error boundary.
 - Feature folders.

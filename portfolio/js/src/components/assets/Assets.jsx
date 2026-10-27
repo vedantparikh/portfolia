@@ -23,7 +23,7 @@ import useIsMobile from '../../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { InView } from 'react-intersection-observer';
 import { apiErrorMessage, portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
-import assetCache from '../../services/assetCache';
+import { useAssets } from '../../shared/api/queries';
 import { formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
@@ -155,9 +155,7 @@ const Assets = () => {
         loadData(1, true);
     }, [filters, searchQuery, loadData]);
 
-    useEffect(() => {
-        assetCache.preloadAssets();
-    }, []);
+    useAssets();
 
     const handleRefresh = useCallback((silent = false) => {
         setPage(1);

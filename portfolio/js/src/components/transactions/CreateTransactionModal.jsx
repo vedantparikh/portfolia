@@ -2,8 +2,13 @@ import { Calculator, Plus, Save, TrendingUp, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { assetAPI, marketAPI } from "../../services/api";
-import assetCache from "../../services/assetCache";
+import {
+  assetKeys,
+  findAssetBySymbol,
+  useAssets,
+} from "../../shared/api/queries";
 import { ClientSideAssetSearch, SymbolSearch } from "../shared";
 import { formatCurrency } from "../../utils/formatters.jsx";
 import transactionTypes, { colorSchemes } from "../../utils/transactionTypes";
@@ -50,6 +55,8 @@ const CreateTransactionModal = ({
     is_active: true,
   });
   const [assetCreationLoading, setAssetCreationLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const { data: cachedAssets = [] } = useAssets();
 
   // Helper function to get the selected transaction type details
   const getSelectedTransactionType = () => {
@@ -91,12 +98,6 @@ const CreateTransactionModal = ({
       setFormData((prev) => ({ ...prev, portfolio_id: initialPortfolioId }));
     }
   }, [initialPortfolioId]);
-
-  // Preload assets when the modal opens
-  useEffect(() => {
-    console.log("[CreateTransactionModal] Modal opened, preloading assets...");
-    assetCache.preloadAssets();
-  }, []);
 
   // Prefill form data when prefilledAsset is provided
   useEffect(() => {
@@ -239,7 +240,7 @@ const CreateTransactionModal = ({
       setSelectedAsset(null);
     } else {
       // Try to find the asset in cache if user typed a complete symbol
-      const cachedAsset = assetCache.findAssetBySymbol(value);
+      const cachedAsset = findAssetBySymbol(cachedAssets, value);
       if (cachedAsset) {
         console.log(
           "[CreateTransactionModal] Found asset in cache:",
@@ -363,7 +364,7 @@ const CreateTransactionModal = ({
 
       // Refresh the asset cache to include the new asset
       try {
-        await assetCache.refreshCache();
+        await queryClient.invalidateQueries({ queryKey: assetKeys.all });
         console.log(
           "[CreateTransactionModal] Asset cache refreshed after creating new asset"
         );
@@ -401,7 +402,7 @@ const CreateTransactionModal = ({
 
     // Try to find the asset in cache if asset_id is missing
     if (!formData.asset_id && formData.symbol) {
-      const cachedAsset = assetCache.findAssetBySymbol(formData.symbol);
+      const cachedAsset = findAssetBySymbol(cachedAssets, formData.symbol);
       if (cachedAsset) {
         setFormData((prev) => ({
           ...prev,

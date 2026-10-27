@@ -211,11 +211,11 @@ Golden tests are written first for every item.
 | # | Work |
 |---|---|
 | 🟡 4.1 | Tooling: Vitest, React Testing Library, MSW and Playwright. Move ESLint 9 to flat config with jsx-a11y, `no-console` and `max-lines`. Add Prettier, husky with lint-staged, and `knip`. Remove unused deps and declare `prop-types`, or move to TS. **Now:** ESLint 9 flat config done; no Vitest/Playwright yet. |
-| ⏳ 4.2 | **TypeScript, gradually** (`allowJs`, strict for new files). API types are generated from FastAPI's `openapi.json` (`openapi-typescript`), and CI fails on drift. |
+| ✅ 4.2 | **TypeScript, gradually** (`allowJs`, strict for new files). API types are generated from FastAPI's `openapi.json` (`openapi-typescript`), and CI fails on drift. **Done:** `tsconfig.json` checks new `.ts` files and leaves the existing JavaScript unchecked. `src/shared/api/generated/schema.ts` is generated from the OpenAPI schema, and the verify gate fails if it drifts. |
 | 🟡 4.3 | Split `api.js` into `shared/api/client.ts` (axios, single-flight refresh, `ApiError`) plus a per-feature `api.ts`. Remove the duplicate endpoints and the `portfolios[0]` bug. **Now:** Dead client functions removed (#72, #73, fix/calculations); `api.js` still 1,731 lines. |
-| ⏳ 4.4 | Adopt **TanStack Query**: one hook per resource, invalidation on mutation, cache cleared on logout. Replace `assetCache` and `useAssetPreloader`. |
+| 🟡 4.4 | Adopt **TanStack Query**: one hook per resource, invalidation on mutation, cache cleared on logout. Replace `assetCache` and `useAssetPreloader`. **Now:** The asset cache and the hover preloader are gone. Asset search, the transaction modals, and the sidebar use `useAssets` / `prefetchAssets`. Logout clears the query cache. Hooks also exist for portfolios, transactions, watchlists, user assets, and a portfolio summary. Those screens still fetch in their own effects. |
 | 🟡 4.5 | Build the `shared/ui` primitives (Button, Modal with focus trap and Esc, FormModal with react-hook-form and zod, Table, Card, Spinner, EmptyState, ErrorState). Collapse the 24 modals, the 4 search components (1 remains) and the 2 charts (1 remains). **Now:** `StatCard`, `Sparkline`, single `LoadingSpinner`, `PerformanceSeriesChart`, `AllocationDonut` added (#73, fix/calculations). |
-| ⏳ 4.6 | Security: remove `dangerouslySetInnerHTML` and the `innerHTML` tooltips. Keep a single `tokenStore`. Ideally put the refresh token in an httpOnly cookie, with the access token held in memory. **Now:** `dangerouslySetInnerHTML` for risk reasoning remains; tokens in localStorage. |
+| ✅ 4.6 | Security: remove `dangerouslySetInnerHTML` and the `innerHTML` tooltips. Keep a single `tokenStore`. Ideally put the refresh token in an httpOnly cookie, with the access token held in memory. **Done:** Risk reasoning and both chart tooltips are text nodes. Access and refresh tokens are only read and written in `shared/auth/tokenStore.ts`. They are still in `localStorage`. The httpOnly cookie is still an open decision. |
 | 🟡 4.7 | **Delete all frontend financial math.** Display backend values only. One `formatMoney(value, currency, locale)`, with lint rules banning raw `toFixed` and `$`. **Now:** Done for performance chart, holdings price/weight, realized total, totals and allocation. Left: transaction-form helpers, `Chart.jsx` tooltip, hard-coded `$`. |
 | ⏳ 4.8 | Routing: `ProtectedLayout` (Sidebar and `<Outlet/>`), `React.lazy` per route, an error boundary, and a 404 page. |
 | ⏳ 4.9 | Feature-folder layout (see §2.3). Migrate feature by feature: auth → portfolios → transactions → assets → watchlists → analytics → dashboard. |
@@ -346,6 +346,8 @@ Open:
 | 2026-10-27 | `feat/router-repositories` | — | 3.2: analytics, assets and auth queries live in repositories. Live API not restarted |
 | 2026-10-27 | `feat/worker-snapshots` | — | 3.3: the worker refreshes holding prices and FX and writes snapshots. Requests no longer do. Live API not restarted |
 | 2026-10-27 | `feat/cleanup-export` | — | 3.4–3.6: JSON Redis client, `python -m portfolia recalc`, PDF totals per portfolio currency, mypy on `core/domain`, OpenAPI operation snapshot. Live API not restarted |
+| 2026-10-27 | `feat/frontend-contract` | — | 4.2 and 4.6: generated API types, text tooltips, one token store. 4.4: query cache replaces the asset preloader. Live UI not restarted |
+| 2026-10-27 | `feat/frontend-contract` | — | 4.2, 4.4, 4.6: generated API types, query cache replaces the asset preloader, chart and risk HTML removed, one token store. Live UI not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)
@@ -383,7 +385,7 @@ Open:
 4. ✅ Shadowed routes and the two 500s (1.2); ✅ `str(e)` leaks (1.3, envelope still open).
 5. ✅ Watchlist alerts + worker (3.3 partly). Open: watchlist enrichment (UI Batch 4).
 6. ✅ Indicator formulas and configuration wiring (2.9).
-7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅, 3.3 worker snapshots ✅, 3.4 Redis client ✅, 3.5 PDF currency ✅, 3.6 domain mypy and OpenAPI snapshot ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 4.2, generating TypeScript types from the OpenAPI snapshot.
+7. **Phase R release platform**, before any real data (1.6 Alembic baseline ✅, 1.1 settings ✅, 1.2 app factory ✅, 1.3 error envelope ✅, 1.4 request logging ✅, 1.5 unit of work ✅, 1.7 model types ✅, 1.8 health checks ✅, 1.9 auth hardening ✅, 2.2 Trade Republic import ✅, 2.4 market-data provider ✅, 2.5 stale-price flags ✅, 2.8 previous close ✅, 2.10 derived positions ✅, 2.1 transfer lots ✅, 2.11 broker-statement check ✅, 3.1 portfolio modules ✅, 3.2 router repositories ✅, 3.3 worker snapshots ✅, 3.4 Redis client ✅, 3.5 PDF currency ✅, 3.6 domain mypy and OpenAPI snapshot ✅, 4.2 generated API types ✅, 4.6 token store and text tooltips ✅). R.1 through R.7 are in place. Tailnet HTTPS is `https://ubuntu-1.tail13e229.ts.net:3443`. The backup and restore-drill timers are not installed. Next is 4.8, a protected layout with lazy routes. 4.4 still has the portfolio, transaction, and watchlist screens on their own fetches.
 
 ---
 

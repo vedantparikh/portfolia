@@ -29,4 +29,4 @@ Symbol search also exists on the assets router. New UI should not add a fourth c
 - There is no concurrency limit and no backoff. A cold portfolio with many symbols is slow because each history fetch is a Yahoo call.
 - No FX. EURUSD and similar pairs are not fetched.
 
-The worker refreshes watchlist quotes through `get_current_prices`. It does not refresh holdings.
+The worker refreshes watchlist quotes and, for every holding, the current price, previous close, daily history and FX. Holdings read the current-price cache and do not call Yahoo.

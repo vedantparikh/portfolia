@@ -15,7 +15,7 @@
 | `POST/GET /portfolios/{id}/rebalancing/events` | same | Stored rebalancing events (no UI) |
 | `POST/GET /portfolios/{id}/benchmarks` | router | Benchmark records (symbol, name, primary) |
 | `GET /portfolios/{id}/performance/history?days=` | engine | Daily value + FIFO cost basis, newest first, read-only (no snapshot writes). Used by no screen now |
-| `GET /portfolios/{id}/performance/snapshot`, `DELETE …/{snapshot_id}`, `GET /summary`, `GET /performance/comparison` | legacy | Persisted `PortfolioPerformanceHistory` rows from `create_performance_snapshot`; metrics count deposits as returns, calendar days, fractions. No UI caller |
+| `GET /portfolios/{id}/performance/snapshot`, `DELETE …/{snapshot_id}`, `GET /summary`, `GET /performance/comparison` | legacy, read-only | The worker writes `PortfolioPerformanceHistory`. The row still uses the old formula (deposits count as returns). No UI caller |
 | `GET /users/dashboard?force_refresh=` | legacy | Per-portfolio `get_portfolio_analytics_summary` (cost-basis fallback when no price) + snapshot count. `force_refresh` (default true) re-prices every asset from Yahoo and writes snapshots. Wired in `api.js`, no screen uses it |
 
 ## Frontend — `js/src/components/analytics/` (tabs inside Holdings Detail)
@@ -28,6 +28,6 @@
 
 ## Known gaps / planned
 - Point the Benchmarks tab at the shadow comparison (plan 2.7 is done on the chart). Beta should use a total-return index.
-- Delete or rebuild the legacy snapshot endpoints on the engine; snapshots should be written by a worker (plan 3.3), not in requests.
+- The worker writes snapshots (plan 3.3). Rebuild the legacy snapshot metrics on the engine; the stored row still uses the old formula.
 - Risk endpoints are slow cold (Yahoo); acceptable for now per user.
 - `risk_assessment.reasoning` is HTML from the backend.

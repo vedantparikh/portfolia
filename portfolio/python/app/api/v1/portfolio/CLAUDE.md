@@ -37,4 +37,4 @@ Create portfolio → add transactions (Transactions page, PDF import, or Add Pos
 - Delete flows have no undo; holdings include zero-quantity rows in the table.
 
 ## Planned
-Plan 3.1 (module consolidation), 3.3 (worker refreshes prices), 2.3 FX.
+Holdings read the price cache the worker fills (plan 3.3). A history or FX cache miss still fetches.

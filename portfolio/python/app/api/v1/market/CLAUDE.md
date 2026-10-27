@@ -2,7 +2,7 @@
 
 **Purpose:** quotes, price history, corporate actions and symbol search from Yahoo, cached in Redis. The **only** path to market data (tests mock the provider, never the network).
 
-**State (2026-10-26):** ✅ one Yahoo provider. Free Yahoo is still slow on a cold call. Requests still call Yahoo when the cache misses (a worker refresh is 3.3).
+**State (2026-10-27):** ✅ one Yahoo provider. The worker refreshes holding prices, previous closes, daily history and FX. Holdings read the price cache and do not call Yahoo. Symbol search, an explicit quote, and a cold history or FX cache still do.
 
 ## Provider — `core/services/market_data/`
 `MarketDataProvider` is the only Yahoo surface. `YahooMarketDataProvider` runs every call through one semaphore (4 at a time) and retries twice with exponential backoff (0.5s, 1s). `MarketDataService` caches in front of it. Batch price, close and profile writes use one Redis pipeline (`mset`).
@@ -33,7 +33,4 @@
 ## Known gaps
 - Unused client fns `getMajorIndices`, `getBulkPrices`, `getTickerInfo`, `getTickerData`.
 - Market status ignores US holidays.
-- A cache miss still calls Yahoo inside the request. Plan 3.3 moves that to the worker.
-
-## Planned
-Plan 3.3: the worker refreshes prices so a request never calls Yahoo.
+- A cold daily-history or FX cache still calls Yahoo inside the request. The worker fills those for symbols the book already holds.

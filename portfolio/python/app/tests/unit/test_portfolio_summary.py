@@ -50,10 +50,10 @@ def service(test_db, monkeypatch):
 
     service = PortfolioService(test_db)
 
-    async def prices(symbols):
+    async def prices(symbols, **_kwargs):
         return {"PRC": Decimal("105")}
 
-    async def closes(symbols):
+    async def closes(symbols, **_kwargs):
         return {"PRC": Decimal("100")}
 
     async def no_price(symbol):

@@ -10,12 +10,12 @@ browser :3000
               ├─ core/domain     pure functions: positions, valuation, returns, benchmark
               └─ Postgres, Redis
         worker (same image)
-              └─ every WORKER_INTERVAL_SECONDS: watchlist prices and alerts
+              └─ every WORKER_INTERVAL_SECONDS: watchlist alerts, holding prices, FX, snapshots
 ```
 
 ## Request path
 
-`api/v1/<feature>/router.py` validates the body, requires `get_current_active_user`, and calls a service. The service takes a SQLAlchemy `Session` in `__init__`. New code puts queries and commits in the service. Some older routers still query the database directly (analytics, assets, auth). There is no repository layer.
+`api/v1/<feature>/router.py` validates the body, requires `get_current_active_user`, and calls a service. The service takes a SQLAlchemy `Session` in `__init__`. Analytics, assets and auth keep their queries in `modules/*/repository.py`. Other routers still query directly.
 
 Services that need a portfolio number call `core/domain`. They do not reimplement FIFO, TWR, or risk. The UI displays those numbers and does not recompute them. The rules are in [core/domain/CLAUDE.md](../../core/domain/CLAUDE.md).
 
@@ -35,4 +35,4 @@ Alembic is the only schema authority. `start_api.sh` runs `alembic upgrade head`
 
 - No GPU. Optional later use of the shared Ollama server is described in [REFACTOR_PLAN.md](../../../../REFACTOR_PLAN.md) and is not wired up.
 - No Sentry. Failures go to the API log.
-- The worker does not refresh holding prices or write performance snapshots. Snapshot writes that still happen do so inside analytics requests, on the old code path.
+- The worker refreshes holding prices, previous closes, daily history and FX, and writes a performance snapshot after a transaction and after 22:00 UTC. Analytics reads that row. Holding quotes do not call Yahoo.

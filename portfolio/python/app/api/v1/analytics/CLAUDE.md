@@ -4,7 +4,7 @@
 
 **State (2026-10-26):** ✅ risk, advance-risk, allocation analysis, rebalancing, history. Benchmark *comparison* is the shadow portfolio on the performance chart (`GET /portfolios/calculations/.../benchmark`), not these records. The Benchmarks tab still shows "comparison is coming". ⚠️ `/summary`, `/performance/snapshot`, `/performance/comparison` use legacy snapshot metrics. ⚠️ `/users/dashboard` responds but uses legacy metrics.
 
-## Backend — `router.py` (prefix `/api/v1/analytics`)
+## Backend — `router.py` (prefix `/api/v1/analytics`). Stored rows go through `modules/analytics/repository.py`.
 | Endpoint | Service | Behaviour |
 |---|---|---|
 | `GET /portfolios/{id}/risk?period=` | `modules/analytics/risk.py` | Volatility, Sharpe, Sortino, VaR 95/99, CVaR, max drawdown, Calmar (percent) + `risk_assessment` {level, reasoning HTML}. Input = engine daily returns (`get_portfolio_history`). Sample std, √252, `RISK_FREE_RATE` |

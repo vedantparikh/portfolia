@@ -57,6 +57,7 @@ from core.schemas.auth import (
     UserResponse,
     UserUpdate,
 )
+from modules.auth.repository import AuthRepository
 
 logger = get_logger(__name__)
 
@@ -67,18 +68,6 @@ LOGIN_MAX_ATTEMPTS = 10
 REGISTER_MAX_ATTEMPTS = 5
 PASSWORD_RESET_MAX_ATTEMPTS = 5
 RATE_LIMIT_WINDOW_SECONDS = 15 * 60
-
-
-def revoke_user_sessions(
-    db: Session, user_id: int, keep_session_id: str | None = None
-) -> None:
-    """Deactivate all of a user's sessions, optionally keeping one (e.g. the current one)."""
-    query = db.query(UserSession).filter(
-        UserSession.user_id == user_id, UserSession.is_active.is_(True)
-    )
-    if keep_session_id:
-        query = query.filter(UserSession.session_id != keep_session_id)
-    query.update({UserSession.is_active: False}, synchronize_session=False)
 
 
 @router.post(
@@ -116,13 +105,9 @@ def register_user(
         logger.debug(
             f"Checking for existing user | Email: {user_data.email} | Username: {user_data.username}"
         )
-        existing_user = (
-            db.query(User)
-            .filter(
-                (User.email == user_data.email.lower())
-                | (User.username == sanitize_username(user_data.username))
-            )
-            .first()
+        accounts = AuthRepository(db)
+        existing_user = accounts.find_by_email_or_username(
+            user_data.email.lower(), sanitize_username(user_data.username)
         )
 
         if existing_user:
@@ -193,10 +178,8 @@ def register_user(
             is_verified=False,  # Email verification required
         )
 
-        db.add(new_user)
-        db.flush()  # Get the user ID
+        accounts.add(new_user)
 
-        # Create user profile
         user_profile = UserProfile(
             user_id=new_user.id,
             first_name=user_data.first_name,
@@ -206,9 +189,8 @@ def register_user(
             language_preference="en",
         )
 
-        db.add(user_profile)
-        db.commit()
-        db.refresh(new_user)
+        accounts.add(user_profile)
+        accounts.refresh(new_user)
 
         # Generate and send verification email
         try:
@@ -249,7 +231,6 @@ def register_user(
         return new_user
 
     except IntegrityError as exc:
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="User registration failed"
         ) from exc
@@ -271,7 +252,8 @@ def login_user(
     )
 
     # Find user by username. An unknown name still runs bcrypt against a fixed hash.
-    user = db.query(User).filter(User.username == username).first()
+    accounts = AuthRepository(db)
+    user = accounts.find_by_username(username)
     password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
     password_ok = verify_password(user_credentials.password, password_hash)
 
@@ -309,8 +291,7 @@ def login_user(
     )
     user.last_login = datetime.now(timezone.utc)
 
-    db.add(user_session)
-    db.commit()
+    accounts.add(user_session)
 
     # Log successful login
     log_security_event(
@@ -343,16 +324,8 @@ def refresh_access_token(
         raise invalid
 
     now = datetime.now(timezone.utc)
-    user_session = (
-        db.query(UserSession)
-        .filter(
-            UserSession.session_id == session_id,
-            UserSession.user_id == int(payload.get("sub")),
-            UserSession.is_active.is_(True),
-            UserSession.expires_at > now,
-        )
-        .first()
-    )
+    accounts = AuthRepository(db)
+    user_session = accounts.active_session(session_id, int(payload.get("sub")), now)
     if not user_session:
         raise invalid
 
@@ -360,8 +333,7 @@ def refresh_access_token(
         user_session.refresh_token, refresh_request.refresh_token
     ):
         # Token reuse: an old refresh token was presented. Assume theft and revoke.
-        user_session.is_active = False
-        db.commit()
+        accounts.revoke_stolen_session(user_session)
         log_security_event(
             logger,
             "refresh_token_reuse",
@@ -378,7 +350,6 @@ def refresh_access_token(
     tokens = create_tokens(user.id, user.email, user.username, session_id)
     user_session.refresh_token = hash_refresh_token(tokens["refresh_token"])
     user_session.expires_at = now + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
-    db.commit()
 
     return tokens
 
@@ -394,11 +365,7 @@ def logout_user(
     if auth_header.startswith("Bearer "):
         session_id = get_token_data(auth_header.split(" ", 1)[1]).session_id
         if session_id:
-            db.query(UserSession).filter(
-                UserSession.user_id == current_user.id,
-                UserSession.session_id == session_id,
-            ).update({UserSession.is_active: False}, synchronize_session=False)
-            db.commit()
+            AuthRepository(db).deactivate_session(current_user.id, session_id)
 
     # Log logout event
     client_ip = get_client_ip(request)
@@ -435,16 +402,14 @@ def update_current_user(
 ):
     """Update current user's profile."""
     # Update user profile
-    profile = (
-        db.query(UserProfile).filter(UserProfile.user_id == current_user.id).first()
-    )
+    accounts = AuthRepository(db)
+    profile = accounts.profile(current_user.id)
     if profile:
         for field, value in user_update.dict(exclude_unset=True).items():
             setattr(profile, field, value)
         profile.updated_at = datetime.now(timezone.utc)
 
-    db.commit()
-    db.refresh(current_user)
+    accounts.refresh(current_user)
 
     return current_user
 
@@ -477,9 +442,9 @@ def change_password(
     current_session_id = get_token_data(
         request.headers.get("Authorization", "").split(" ", 1)[-1]
     ).session_id
-    revoke_user_sessions(db, current_user.id, keep_session_id=current_session_id)
-
-    db.commit()
+    AuthRepository(db).revoke_sessions(
+        current_user.id, keep_session_id=current_session_id
+    )
 
     # Log password change
     log_security_event(
@@ -514,7 +479,7 @@ def forgot_password(
         RATE_LIMIT_WINDOW_SECONDS,
     )
 
-    user = db.query(User).filter(User.email == password_reset.email.lower()).first()
+    user = AuthRepository(db).find_by_email(password_reset.email.lower())
 
     if user and user.is_active:
         # Generate reset token
@@ -670,7 +635,8 @@ def reset_password(
 
     try:
         # Find user
-        user = db.query(User).filter(User.id == token_data["user_id"]).first()
+        accounts = AuthRepository(db)
+        user = accounts.find_by_id(token_data["user_id"])
 
         if not user or not user.is_active:
             raise HTTPException(
@@ -681,10 +647,7 @@ def reset_password(
         # Update password and sign out every existing session
         user.password_hash = get_password_hash(password_reset.new_password)
         user.updated_at = datetime.now(timezone.utc)
-        revoke_user_sessions(db, user.id)
-
-        # Commit changes
-        db.commit()
+        accounts.revoke_sessions(user.id)
 
         # Log successful password reset
         log_security_event(
@@ -701,10 +664,8 @@ def reset_password(
         }
 
     except HTTPException:
-        db.rollback()
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Failed to reset password: {e}")
 
         log_security_event(
@@ -749,7 +710,8 @@ def verify_email(verification: EmailVerification, db: Session = Depends(get_db))
         )
 
     # Find user in database
-    user = db.query(User).filter(User.id == user_id).first()
+    accounts = AuthRepository(db)
+    user = accounts.find_by_id(user_id)
     if not user:
         logger.error(f"❌ User not found | User ID: {user_id}")
         raise HTTPException(
@@ -773,7 +735,6 @@ def verify_email(verification: EmailVerification, db: Session = Depends(get_db))
 
     # Mark user as verified
     user.is_verified = True
-    db.commit()
 
     # Mark token as used
     mark_verification_token_used(verification.token)
@@ -848,11 +809,7 @@ def delete_account(
     current_user.updated_at = datetime.now(timezone.utc)
 
     # Expire all sessions
-    db.query(UserSession).filter(UserSession.user_id == current_user.id).update(
-        {UserSession.expires_at: datetime.now(timezone.utc)}
-    )
-
-    db.commit()
+    AuthRepository(db).expire_sessions(current_user.id, datetime.now(timezone.utc))
 
     # Log account deletion
     log_security_event(

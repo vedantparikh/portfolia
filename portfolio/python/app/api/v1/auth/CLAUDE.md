@@ -4,7 +4,7 @@
 
 **State (2026-10-26):** ✅ register/login/refresh/logout/verify/reset work. Access tokens are PyJWT. The database stores the SHA-256 of the refresh token, not the token. An unknown username still runs one bcrypt check. ⚠️ no profile/settings UI; tokens in localStorage.
 
-## Backend — `router.py` (prefix `/api/v1/auth`), `core/auth/utils.py`, `core/auth/dependencies.py`
+## Backend — `router.py` (prefix `/api/v1/auth`), `modules/auth/repository.py`, `core/auth/utils.py`, `core/auth/dependencies.py`
 | Endpoint | Behaviour |
 |---|---|
 | `POST /register` | Creates user + profile, sends verification email (Brevo SMTP). Rate limited |

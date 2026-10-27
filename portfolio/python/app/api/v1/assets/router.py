@@ -33,6 +33,7 @@ from core.schemas.portfolio import (
 )
 from core.services.asset_factory import asset_from_ticker_info
 from core.services.market_data_service import market_data_service
+from modules.assets.repository import AssetRepository
 
 logger = get_logger(__name__)
 
@@ -55,15 +56,8 @@ async def create_asset(
     )
     start_time = time.time()
 
-    # Check if asset already exists for this user
-    existing_asset = (
-        db.query(AssetModel)
-        .filter(
-            AssetModel.symbol == asset_data.symbol.upper(),
-            AssetModel.user_id == current_user.id,
-        )
-        .first()
-    )
+    assets = AssetRepository(db)
+    existing_asset = assets.find_by_symbol(current_user.id, asset_data.symbol.upper())
 
     if existing_asset:
         raise HTTPException(
@@ -77,9 +71,7 @@ async def create_asset(
         asset_data.symbol.upper(), ticker_data, current_user.id
     )
 
-    db.add(new_asset)
-    db.commit()
-    db.refresh(new_asset)
+    assets.add(new_asset)
 
     response_time = time.time() - start_time
     log_api_response(logger, "POST", "/assets", 200, response_time)
@@ -109,14 +101,8 @@ async def create_assets_bulk(
     unique_symbols = sorted(list(set([s.upper() for s in asset_data.symbols])))
 
     # Get existing assets for the user to prevent duplicates
-    existing_symbols = {
-        r[0]
-        for r in db.query(AssetModel.symbol)
-        .filter(
-            AssetModel.user_id == current_user.id, AssetModel.symbol.in_(unique_symbols)
-        )
-        .all()
-    }
+    assets = AssetRepository(db)
+    existing_symbols = assets.symbols_for_user(current_user.id, unique_symbols)
 
     created_assets = []
     failed_assets = []
@@ -167,11 +153,7 @@ async def create_assets_bulk(
                 )
 
     if assets_to_create:
-        db.add_all(assets_to_create)
-        db.commit()
-        for asset in assets_to_create:
-            db.refresh(asset)
-        created_assets.extend(assets_to_create)
+        created_assets.extend(assets.add_all(assets_to_create))
 
     response_time = time.time() - start_time
     log_api_response(logger, "POST", "/assets/bulk-create", 201, response_time)
@@ -194,17 +176,13 @@ async def get_assets(
     db: Session = Depends(get_db),
 ):
     """Get list of financial assets for the authenticated user with optional filtering."""
-    query = db.query(AssetModel).filter(
-        AssetModel.is_active == True, AssetModel.user_id == current_user.id
+    assets = AssetRepository(db).list_active(
+        current_user.id,
+        symbol=symbol,
+        asset_type=asset_type,
+        skip=skip,
+        limit=limit,
     )
-
-    if symbol:
-        query = query.filter(AssetModel.symbol.ilike(f"%{symbol.upper()}%"))
-
-    if asset_type:
-        query = query.filter(AssetModel.asset_type == asset_type)
-
-    assets = query.offset(skip).limit(limit).all()
 
     if include_detail:
         asset_details = []
@@ -247,15 +225,7 @@ def get_asset(
     db: Session = Depends(get_db),
 ):
     """Get a specific financial asset by ID for the authenticated user."""
-    asset = (
-        db.query(AssetModel)
-        .filter(
-            AssetModel.id == asset_id,
-            AssetModel.is_active == True,
-            AssetModel.user_id == current_user.id,
-        )
-        .first()
-    )
+    asset = AssetRepository(db).get_active(current_user.id, asset_id)
 
     if not asset:
         raise HTTPException(
@@ -273,30 +243,19 @@ def update_asset(
     db: Session = Depends(get_db),
 ):
     """Update a financial asset for the authenticated user."""
-    asset = (
-        db.query(AssetModel)
-        .filter(
-            AssetModel.id == asset_id,
-            AssetModel.is_active == True,
-            AssetModel.user_id == current_user.id,
-        )
-        .first()
-    )
+    assets = AssetRepository(db)
+    asset = assets.get_active(current_user.id, asset_id)
 
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
         )
 
-    # Update only provided fields
     update_data = asset_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(asset, field, value)
 
-    db.commit()
-    db.refresh(asset)
-
-    return asset
+    return assets.save(asset)
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -306,24 +265,16 @@ def delete_asset(
     db: Session = Depends(get_db),
 ):
     """Delete a financial asset for the authenticated user."""
-    asset = (
-        db.query(AssetModel)
-        .filter(
-            AssetModel.id == asset_id,
-            AssetModel.is_active == True,
-            AssetModel.user_id == current_user.id,
-        )
-        .first()
-    )
+    assets = AssetRepository(db)
+    asset = assets.get_active(current_user.id, asset_id)
 
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found"
         )
 
-    # Soft delete by marking as inactive
     asset.is_active = False
-    db.commit()
+    assets.save(asset)
 
     return None
 
@@ -337,15 +288,7 @@ async def get_asset_prices(
     db: Session = Depends(get_db),
 ):
     """Get price data for a specific asset for the authenticated user."""
-    asset = (
-        db.query(AssetModel)
-        .filter(
-            AssetModel.id == asset_id,
-            AssetModel.is_active == True,
-            AssetModel.user_id == current_user.id,
-        )
-        .first()
-    )
+    asset = AssetRepository(db).get_active(current_user.id, asset_id)
 
     if not asset:
         raise HTTPException(

@@ -56,7 +56,7 @@ def split_factor(splits: Iterable[Split], on: date) -> Decimal:
     return factor
 
 
-def _as_date(value) -> date:
+def _as_date(value: datetime | date) -> date:
     return value.date() if isinstance(value, datetime) else value
 
 

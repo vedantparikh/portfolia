@@ -29,7 +29,7 @@ COPY --from=build /install /usr/local
 
 WORKDIR /app
 COPY --chown=portfolia:portfolia \
-    __init__.py main.py config.py health_check.py alembic.ini ./
+    __init__.py main.py config.py health_check.py alembic.ini portfolia.py ./
 COPY --chown=portfolia:portfolia alembic ./alembic
 COPY --chown=portfolia:portfolia api ./api
 COPY --chown=portfolia:portfolia core ./core

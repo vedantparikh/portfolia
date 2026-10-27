@@ -23,6 +23,8 @@ Services that need a portfolio number call `core/domain`. They do not reimplemen
 
 Only `core/services/market_data_service.py` talks to Yahoo. Valuation uses split-adjusted, not dividend-adjusted, daily closes, plus the split and dividend events. Dividends affect performance only through dividend transactions. Tests mock this service.
 
+Redis values are JSON. `get_redis()` keeps one client for the process. Rebuilding holdings from transactions is `python -m portfolia recalc`.
+
 ## Auth
 
 JWT access token (15 minutes) and rotating refresh token (30 minutes). The UI keeps both in `localStorage`. Every row a user can see is filtered by `user_id`.

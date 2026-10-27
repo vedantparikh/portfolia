@@ -102,7 +102,7 @@ def _factor(
 
 
 def convert_amount(
-    amount,
+    amount: Decimal | float | int | str,
     currency: str | None,
     portfolio_currency: str,
     day: date,

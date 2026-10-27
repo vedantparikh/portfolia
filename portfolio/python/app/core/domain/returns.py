@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import pyxirr  # type: ignore
+import pyxirr
 
 TRADING_DAYS_PER_YEAR = 252
 RISK_FREE_RATE = 0.03

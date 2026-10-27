@@ -32,3 +32,17 @@ def test_routes_match_the_recorded_api():
 def test_operation_ids_are_unique():
     _found, ids = _operations()
     assert len(ids) == len(set(ids))
+
+
+def test_openapi_operations_match_the_snapshot():
+    schema = app.openapi()
+    found = []
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            if method not in _METHODS:
+                continue
+            found.append(f"{method.upper()} {path} {operation['operationId']}")
+    expected = (
+        Path(__file__).with_name("openapi_operations.txt").read_text().splitlines()
+    )
+    assert sorted(found) == expected

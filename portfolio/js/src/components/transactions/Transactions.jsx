@@ -23,8 +23,8 @@ import {
 } from "../../services/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { assetKeys, useAssets } from "../../shared/api/queries";
+import { usePageChrome, useShell } from "../../app/chrome";
 import useIsMobile from "../../hooks/useIsMobile";
-import { Sidebar } from "../shared";
 import LoadingSpinner from "../shared/LoadingSpinner";
 import BulkTransactionModal from "./BulkTransactionModal";
 import CreateTransactionModal from "./CreateTransactionModal";
@@ -49,7 +49,7 @@ const Transactions = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useShell();
   const [showPDFUpload, setShowPDFUpload] = useState(false);
   const [showParsedData, setShowParsedData] = useState(false);
   const [parsedData, setParsedData] = useState(null);
@@ -274,6 +274,17 @@ const Transactions = () => {
     if (action === "export-pdf") setShowExportModal(true);
   };
 
+  usePageChrome({
+    portfolios,
+    selectedPortfolio:
+      portfolios.find((p) => p.id === parseInt(filters.portfolio)) || null,
+    searchQuery,
+    onPortfolioChange: (portfolio) =>
+      setFilters((prev) => ({ ...prev, portfolio: portfolio?.id || "all" })),
+    onSearchChange: setSearchQuery,
+    onQuickAction: handleQuickAction,
+  });
+
   const handleParsedData = (data) => {
     setParsedData(data);
     setShowPDFUpload(false);
@@ -334,38 +345,11 @@ const Transactions = () => {
 
   return (
     <div className="min-h-screen gradient-bg flex">
-      <Sidebar
-        currentView="transactions"
-        portfolios={portfolios}
-        selectedPortfolio={
-          portfolios.find((p) => p.id === parseInt(filters.portfolio)) || null
-        }
-        onPortfolioChange={(portfolio) =>
-          setFilters((prev) => ({ ...prev, portfolio: portfolio?.id || "all" }))
-        }
-        onRefresh={handleRefresh}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showFilters={showFilters}
-        onToggleFilters={() => setShowFilters(!showFilters)}
-        stats={null}
-        isMobile={isMobile}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        recentTransactions={allTransactions.slice(0, 5)}
-        onQuickAction={handleQuickAction}
-      />
-{isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
       <div className="flex-1 min-w-0 overflow-y-auto">
         {isMobile && (
           <div className="bg-dark-900 border-b border-dark-700 p-4 flex items-center justify-between">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={openSidebar}
               aria-label="Open menu"
               className="p-2 rounded-lg hover:bg-dark-800 transition-colors"
             >

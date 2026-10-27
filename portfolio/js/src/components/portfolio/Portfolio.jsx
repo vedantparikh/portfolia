@@ -24,7 +24,8 @@ import {
   formatDateTime,
   formatQuantity,
 } from "../../utils/formatters";
-import { LoadingSpinner, Sidebar } from "../shared";
+import { usePageChrome, useShell } from "../../app/chrome";
+import { LoadingSpinner } from "../shared";
 import CreatePortfolioModal from "./CreatePortfolioModal";
 import EditPortfolioModal from "./EditPortfolioModal";
 import PortfolioAssets from "./PortfolioAssets";
@@ -46,9 +47,8 @@ const Portfolio = () => {
   const [portfolioStats, setPortfolioStats] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { openSidebar } = useShell();
 
   // Load portfolios on component mount
   useEffect(() => {
@@ -348,6 +348,15 @@ const Portfolio = () => {
     }
   };
 
+  usePageChrome({
+    portfolios,
+    selectedPortfolio,
+    searchQuery,
+    onPortfolioChange: setSelectedPortfolio,
+    onSearchChange: setSearchQuery,
+    onQuickAction: handleQuickAction,
+  });
+
   const getTotalStats = () => {
     if (!portfolioStats) return null;
 
@@ -391,36 +400,12 @@ const Portfolio = () => {
 
   return (
     <div className="min-h-screen gradient-bg flex">
-      <Sidebar
-        currentView="portfolio"
-        portfolios={portfolios}
-        selectedPortfolio={selectedPortfolio}
-        onPortfolioChange={setSelectedPortfolio}
-        onRefresh={handleRefresh}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        showFilters={showFilters}
-        onToggleFilters={() => setShowFilters(!showFilters)}
-        stats={stats}
-        recentTransactions={transactions.slice(0, 5)}
-        onQuickAction={handleQuickAction}
-        isMobile={isMobile}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-      {/* Mobile Overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
       <div className="flex-1 min-w-0 overflow-y-auto">
         {/* Mobile Header */}
         {isMobile && (
           <div className="bg-dark-900 border-b border-dark-700 p-4 flex items-center justify-between">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={openSidebar}
               className="p-2 rounded-lg hover:bg-dark-800 transition-colors"
             >
               <BarChart3 size={20} className="text-gray-400" />

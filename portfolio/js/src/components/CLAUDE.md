@@ -2,13 +2,15 @@
 
 **Purpose:** routing, navigation, shared components and conventions every page uses. Feature docs live next to the backend router of each feature (each feature folder here has a pointer).
 
-## Routes (`js/src/App.jsx`)
-- Public routes: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email`.
-- Protected routes (`ProtectedRoute`): `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`.
-- `/` redirects to `/dashboard`, and `*` redirects to `/`.
-- There are no lazy routes, no error boundary and no 404 page (plan 4.8).
+## Routes (`js/src/app/router.jsx`)
+- Public auth pages live in `features/auth/`: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email`.
+- Protected routes render inside `app/ProtectedLayout.jsx`: `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`.
+- `/` redirects to `/dashboard`. Unknown paths render `app/NotFound.jsx`.
+- Each route is `React.lazy`. `app/ErrorBoundary.jsx` wraps the outlet and resets when the path changes.
 
 ## Shell
+`ProtectedLayout` owns `shared/Sidebar.jsx`, the mobile overlay, and the error boundary. Pages register the portfolio selector, search, and quick actions with `usePageChrome` (`app/chrome.js`). `currentView` comes from the path. The desktop sidebar stays visible (`lg:translate-x-0`); `isOpen` only matters on mobile.
+
 `shared/Sidebar.jsx` provides:
 - nav links;
 - a portfolio selector, shown only on the portfolio and transactions views;
@@ -16,7 +18,7 @@
 - quick actions (new portfolio, new transaction, refresh), via `onQuickAction`;
 - logout.
 
-Each page renders its own header: `text-3xl` title, subtitle, actions on the right. Mobile uses a sidebar overlay and the `useIsMobile(768)` hook.
+Each page renders its own header: `text-3xl` title, subtitle, actions on the right. The mobile menu button calls `openSidebar` or `toggleSidebar` from `useShell`.
 
 ## Shared components (`shared/`, barrel `index.js`)
 | Component | Notes |
@@ -53,5 +55,4 @@ Plan Phase 4:
 - TanStack Query.
 - `shared/ui` primitives (Modal, Table…), collapsing the 24 modals, 4 search components and 2 charts.
 - Chart tooltips and risk reasoning are text, not HTML. Access and refresh tokens go through `shared/auth/tokenStore.ts` (still `localStorage`; an httpOnly cookie is still an open decision).
-- `ProtectedLayout` with lazy routes and an error boundary.
-- Feature folders.
+- Feature folders for portfolios, transactions, assets, watchlists, analytics, and dashboard. Auth is already in `features/auth/`.

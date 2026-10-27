@@ -13,8 +13,9 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiErrorMessage, assetAPI, watchlistAPI } from "../../services/api";
-import EmailVerificationPrompt from "../auth/EmailVerificationPrompt";
-import { LoadingSpinner, Sidebar } from "../shared";
+import { usePageChrome, useShell } from "../../app/chrome";
+import EmailVerificationPrompt from "../../features/auth/EmailVerificationPrompt";
+import { LoadingSpinner } from "../shared";
 import AddSymbolModal from "./AddSymbolModal";
 import CreateWatchlistModal from "./CreateWatchlistModal";
 import EditWatchlistModal from "./EditWatchlistModal";
@@ -33,7 +34,7 @@ const Watchlist = () => {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
   const [isMobile, setIsMobile] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const { openSidebar } = useShell();
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWatchlist, setEditingWatchlist] = useState(null);
   const [showDropdown, setShowDropdown] = useState(null);
@@ -182,6 +183,8 @@ const Watchlist = () => {
         break;
     }
   };
+
+  usePageChrome({ onQuickAction: handleQuickAction });
 
   const handleEditWatchlist = (watchlist) => {
     setEditingWatchlist(watchlist);
@@ -454,32 +457,13 @@ const Watchlist = () => {
 
   return (
     <div className="min-h-screen gradient-bg flex">
-      {/* Mobile sidebar overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Shared Sidebar */}
-      <Sidebar
-        currentView="watchlist"
-        onRefresh={handleManualRefresh}
-        onQuickAction={handleQuickAction}
-        isMobile={isMobile}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-      />
-
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile Header */}
         {isMobile && (
           <div className="bg-dark-900 border-b border-dark-700 p-4 flex items-center justify-between">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={openSidebar}
               className="p-2 rounded-lg hover:bg-dark-800 transition-colors"
             >
               <Bookmark size={20} className="text-gray-400" />

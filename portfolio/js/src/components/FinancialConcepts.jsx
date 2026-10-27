@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Sidebar } from "./shared";
+import { useShell } from "../app/chrome";
 
 // ConceptCard component
 const ConceptCard = ({ concept }) => {
@@ -164,7 +164,7 @@ const FinancialConcepts = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState("asc");
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const { openSidebar } = useShell();
   const [isMobile, setIsMobile] = useState(false);
 
   // Mobile detection
@@ -760,26 +760,6 @@ const FinancialConcepts = () => {
 
   return (
     <div className="min-h-screen gradient-bg flex">
-      {/* Mobile sidebar overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Shared Sidebar */}
-      <Sidebar
-        currentView="concepts"
-        portfolios={[]}
-        onRefresh={() => { }}
-        onQuickAction={() => { }}
-        isMobile={isMobile}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-      />
-
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top Header */}
@@ -789,7 +769,7 @@ const FinancialConcepts = () => {
               {/* Mobile menu button */}
               {isMobile && (
                 <button
-                  onClick={() => setSidebarOpen(true)}
+                  onClick={openSidebar}
                   className="text-gray-400 hover:text-gray-200 transition-colors"
                 >
                   <Menu className="w-6 h-6" />

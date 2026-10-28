@@ -45,14 +45,14 @@ export const formatCurrency = (amount, options = {}) => {
  * @param {number|string|null|undefined} marketCap - The market cap value to format
  * @returns {string} Formatted market cap string
  */
-export const formatMarketCap = (marketCap) => {
+export const formatMarketCap = (marketCap, currency = 'USD') => {
     if (marketCap === null || marketCap === undefined) return 'N/A';
     const numericMarketCap = parseFloat(marketCap);
     if (isNaN(numericMarketCap)) return 'N/A';
-    if (numericMarketCap >= 1e12) return `$${(numericMarketCap / 1e12).toFixed(2)}T`;
-    if (numericMarketCap >= 1e9) return `$${(numericMarketCap / 1e9).toFixed(2)}B`;
-    if (numericMarketCap >= 1e6) return `$${(numericMarketCap / 1e6).toFixed(2)}M`;
-    return `$${numericMarketCap.toFixed(0)}`;
+    if (numericMarketCap >= 1e12) return `${formatCurrency(numericMarketCap / 1e12, { currency })}T`;
+    if (numericMarketCap >= 1e9) return `${formatCurrency(numericMarketCap / 1e9, { currency })}B`;
+    if (numericMarketCap >= 1e6) return `${formatCurrency(numericMarketCap / 1e6, { currency })}M`;
+    return formatCurrency(numericMarketCap, { currency, minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
 /**
@@ -466,6 +466,9 @@ export const formatMetricValue = (value, isPercentage = false) => {
     return formatCurrency(value);
 };
 
+
+/** A form value derived from other inputs (amount / price etc.), as the input's string. */
+export const toInputDecimal = (value, digits) => Number(value).toFixed(digits);
 
 export const formatRatio = (value, precision = 2) => {
     const n = parseFloat(value);

@@ -3,6 +3,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { transactionPDFExportAPI } from "./api";
 import transactionTypesList from "../../utils/transactionTypes";
+import { formatDecimal } from "../../utils/formatters.jsx";
 
 const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   const [selectedPortfolios, setSelectedPortfolios] = useState([]);
@@ -566,15 +567,15 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
                       <div key={volume.currency || "total"}>
                         <div>
                           Buy {volume.currency}{" "}
-                          {Number(volume.buy_volume || 0).toFixed(2)}
+                          {formatDecimal(volume.buy_volume || 0)}
                         </div>
                         <div>
                           Sell {volume.currency}{" "}
-                          {Number(volume.sell_volume || 0).toFixed(2)}
+                          {formatDecimal(volume.sell_volume || 0)}
                         </div>
                         <div>
                           Net {volume.currency}{" "}
-                          {Number(volume.net_flow || 0).toFixed(2)}
+                          {formatDecimal(volume.net_flow || 0)}
                         </div>
                       </div>
                     ))}

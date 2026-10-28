@@ -11,7 +11,7 @@ import {
   useAssets,
 } from "../assets/queries";
 import { ClientSideAssetSearch, SymbolSearch } from "../../components/shared";
-import { formatCurrency } from "../../utils/formatters.jsx";
+import { formatCurrency, toInputDecimal } from "../../utils/formatters.jsx";
 import transactionTypes, { colorSchemes } from "../../utils/transactionTypes";
 
 const CreateTransactionModal = ({
@@ -89,7 +89,7 @@ const CreateTransactionModal = ({
     if (!quantity) return "";
     const num = parseFloat(quantity);
     if (isNaN(num)) return "";
-    return num.toFixed(4).replace(/\.?0+$/, "");
+    return toInputDecimal(num, 4).replace(/\.?0+$/, "");
   };
 
   // This useEffect is an alternative way to set the ID if your state
@@ -186,7 +186,7 @@ const CreateTransactionModal = ({
         const calculatedQuantity =
           parseFloat(value || 0) / parseFloat(newFormData.price);
         newFormData.quantity =
-          calculatedQuantity > 0 ? calculatedQuantity.toFixed(6) : "";
+          calculatedQuantity > 0 ? toInputDecimal(calculatedQuantity, 6) : "";
       } else if (
         name === "price" &&
         newFormData.amount &&
@@ -195,7 +195,7 @@ const CreateTransactionModal = ({
         const calculatedQuantity =
           parseFloat(newFormData.amount) / parseFloat(value);
         newFormData.quantity =
-          calculatedQuantity > 0 ? calculatedQuantity.toFixed(6) : "";
+          calculatedQuantity > 0 ? toInputDecimal(calculatedQuantity, 6) : "";
       }
 
       setFormData(newFormData);
@@ -933,7 +933,7 @@ const CreateTransactionModal = ({
                       />
                       {formData.quantity && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Exact: {parseFloat(formData.quantity || 0).toFixed(6)}
+                          Exact: {toInputDecimal(parseFloat(formData.quantity || 0), 6)}
                         </div>
                       )}
                     </div>

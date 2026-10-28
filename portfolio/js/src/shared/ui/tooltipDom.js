@@ -1,9 +1,20 @@
-export function chartMoney(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "N/A";
-  }
-  return `$${Number(value).toFixed(2)}`;
+import {
+  formatCurrency,
+  formatPercentage,
+  formatRatio,
+} from "../../utils/formatters.jsx";
+
+export function chartMoney(value, currency) {
+  return formatCurrency(value, { currency, defaultValue: "N/A" });
 }
+
+export function barChange(open, close) {
+  return open && close
+    ? formatPercentage(((close - open) / open) * 100, { showSign: false })
+    : "N/A";
+}
+
+export const indicatorValue = (value) => formatRatio(value);
 
 function addRows(parent, rows) {
   const body = document.createElement("div");

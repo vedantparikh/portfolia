@@ -6,6 +6,7 @@ import {
   formatMarketCap,
   formatPercentage,
   formatPrice,
+  formatRatio,
   formatVolume,
   getChangeColor,
   getChangeIcon,
@@ -651,7 +652,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                           </span>
                           <p className="text-lg font-semibold text-gray-100">
                             {asset?.detail?.market_cap
-                              ? `${formatMarketCap(asset.detail?.market_cap)}`
+                              ? `${formatMarketCap(asset.detail?.market_cap, asset.currency)}`
                               : "N/A"}
                           </p>
                         </div>
@@ -706,7 +707,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             <span className="text-sm text-gray-400">Beta</span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.beta
-                                ? Number(asset.detail.beta).toFixed(2)
+                                ? formatRatio(asset.detail.beta)
                                 : "N/A"}
                             </p>
                           </div>
@@ -716,7 +717,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.trailing_PE
-                                ? Number(asset.detail.trailing_PE).toFixed(2)
+                                ? formatRatio(asset.detail.trailing_PE)
                                 : "N/A"}
                             </p>
                           </div>
@@ -726,7 +727,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.forward_PE
-                                ? Number(asset.detail.forward_PE).toFixed(2)
+                                ? formatRatio(asset.detail.forward_PE)
                                 : "N/A"}
                             </p>
                           </div>
@@ -744,7 +745,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.price_to_book
-                                ? Number(asset.detail.price_to_book).toFixed(2)
+                                ? formatRatio(asset.detail.price_to_book)
                                 : "N/A"}
                             </p>
                           </div>
@@ -754,7 +755,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.dividend_yield
-                                ? `${Number(asset.detail.dividend_yield).toFixed(2)}%`
+                                ? formatPercentage(asset.detail.dividend_yield, { showSign: false })
                                 : "N/A"}
                             </p>
                           </div>
@@ -764,9 +765,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.payout_ratio
-                                ? `${(
-                                  Number(asset.detail.payout_ratio) * 100
-                                ).toFixed(2)}%`
+                                ? formatPercentage(Number(asset.detail.payout_ratio) * 100, { showSign: false })
                                 : "N/A"}
                             </p>
                           </div>
@@ -813,9 +812,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.return_on_asset
-                                ? `${(
-                                  Number(asset.detail.return_on_asset) * 100
-                                ).toFixed(2)}%`
+                                ? formatPercentage(Number(asset.detail.return_on_asset) * 100, { showSign: false })
                                 : "N/A"}
                             </p>
                           </div>
@@ -825,9 +822,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             </span>
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.return_on_equity
-                                ? `${(
-                                  Number(asset.detail.return_on_equity) * 100
-                                ).toFixed(2)}%`
+                                ? formatPercentage(Number(asset.detail.return_on_equity) * 100, { showSign: false })
                                 : "N/A"}
                             </p>
                           </div>
@@ -839,7 +834,8 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.operating_cashflow
                                 ? `${formatMarketCap(
-                                  asset.detail.operating_cashflow
+                                  asset.detail.operating_cashflow,
+                                  asset.currency
                                 )}`
                                 : "N/A"}
                             </p>
@@ -851,7 +847,8 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.free_cashflow
                                 ? `${formatMarketCap(
-                                  asset.detail.free_cashflow
+                                  asset.detail.free_cashflow,
+                                  asset.currency
                                 )}`
                                 : "N/A"}
                             </p>
@@ -863,7 +860,8 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.total_cash
                                 ? `${formatMarketCap(
-                                  asset.detail.total_cash
+                                  asset.detail.total_cash,
+                                  asset.currency
                                 )}`
                                 : "N/A"}
                             </p>
@@ -875,7 +873,8 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                             <p className="text-lg font-semibold text-gray-100">
                               {asset.detail?.total_debt
                                 ? `${formatMarketCap(
-                                  asset.detail.total_debt
+                                  asset.detail.total_debt,
+                                  asset.currency
                                 )}`
                                 : "N/A"}
                             </p>
@@ -922,6 +921,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
                     <Chart
                       data={priceHistory}
                       symbol={asset?.symbol}
+                      currency={asset?.currency}
                       period={chartPeriod}
                       onPeriodChange={handlePeriodChange}
                       height={500}
@@ -981,6 +981,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
             <Chart
               data={priceHistory}
               symbol={asset?.symbol}
+              currency={asset?.currency}
               period={chartPeriod}
               onPeriodChange={handlePeriodChange}
               height={window.innerHeight - 120}

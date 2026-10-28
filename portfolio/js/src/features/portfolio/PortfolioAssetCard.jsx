@@ -44,7 +44,7 @@ const AllocationDonut = ({ percentage = 0 }) => {
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xs font-semibold text-gray-300">
-                    {`${percentage.toFixed(0)}%`}
+                    {formatPercentage(percentage, { showSign: false, precision: 0, defaultValue: '0%' })}
                 </span>
             </div>
         </div>

@@ -13,11 +13,17 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
-import { chartMoney, renderTooltip } from "../../shared/ui/tooltipDom";
+import {
+  barChange,
+  chartMoney,
+  indicatorValue as formatIndicatorValue,
+  renderTooltip,
+} from "../../shared/ui/tooltipDom";
 
 const Chart = ({
   data = [],
   symbol = "",
+  currency,
   period = "30d",
   onPeriodChange,
   height = 400,
@@ -417,7 +423,7 @@ const Chart = ({
           { label: "Time:", value: time, className: "text-gray-200" },
           {
             label: "Portfolio Value:",
-            value: chartMoney(portfolioValue),
+            value: chartMoney(portfolioValue, currency),
             className: "text-primary-400",
           },
         ];
@@ -425,12 +431,12 @@ const Chart = ({
           rows.push(
             {
               label: `${comparisonLineName}:`,
-              value: chartMoney(comparisonValue),
+              value: chartMoney(comparisonValue, currency),
               className: "text-gray-300",
             },
             {
               label: "Unrealized P/L:",
-              value: chartMoney(portfolioValue - comparisonValue),
+              value: chartMoney(portfolioValue - comparisonValue, currency),
               className:
                 portfolioValue >= comparisonValue
                   ? "text-success-400"
@@ -441,16 +447,13 @@ const Chart = ({
       } else if (chartType === "candlestick") {
         title = `${symbol || "Asset"} - ${date}`;
         rows = [
-          { label: "Open:", value: chartMoney(data.open), className: "text-gray-200" },
-          { label: "High:", value: chartMoney(data.high), className: "text-success-400" },
-          { label: "Low:", value: chartMoney(data.low), className: "text-danger-400" },
-          { label: "Close:", value: chartMoney(data.close), className: "text-gray-200" },
+          { label: "Open:", value: chartMoney(data.open, currency), className: "text-gray-200" },
+          { label: "High:", value: chartMoney(data.high, currency), className: "text-success-400" },
+          { label: "Low:", value: chartMoney(data.low, currency), className: "text-danger-400" },
+          { label: "Close:", value: chartMoney(data.close, currency), className: "text-gray-200" },
           {
             label: "Change:",
-            value:
-              data.close && data.open
-                ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
-                : "N/A",
+            value: barChange(data.open, data.close),
             className:
               data.close >= data.open ? "text-success-400" : "text-danger-400",
           },
@@ -461,7 +464,7 @@ const Chart = ({
           { label: "Time:", value: time, className: "text-gray-200" },
           {
             label: "Price:",
-            value: chartMoney(data.value),
+            value: chartMoney(data.value, currency),
             className: "text-primary-400",
           },
         ];
@@ -478,7 +481,7 @@ const Chart = ({
               if (indicatorValue) {
                 indicatorRows.push({
                   label: `${indicatorName.replace("_indicator", "").toUpperCase()}:`,
-                  value: indicatorValue.value?.toFixed(2) || "N/A",
+                  value: formatIndicatorValue(indicatorValue.value),
                   className: "font-medium",
                   color: getIndicatorColor(indicatorName),
                 });
@@ -538,6 +541,7 @@ const Chart = ({
     height,
     chartType,
     symbol,
+    currency,
     showIndicators,
     indicatorData,
     isPortfolioChart,

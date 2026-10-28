@@ -11,6 +11,7 @@ import { useIndicatorCalculation, useIndicatorConfigurations } from "./queries";
 import EnhancedChart from "../../components/shared/EnhancedChart";
 import { seriesLabel } from "../../utils/indicatorLabels";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import { formatRatio } from "../../utils/formatters.jsx";
 
 const DEFAULT_INDICATORS = ["rsi_indicator", "macd_indicator"];
 
@@ -150,6 +151,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
           period={period}
           onPeriodChange={handlePeriodChange}
           symbol={asset?.symbol}
+          currency={asset?.currency}
           assetId={asset?.id}
           height={height}
           loading={loading}
@@ -223,7 +225,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
                                 : "text-gray-400"
                               }`}
                           >
-                            {value?.toFixed(2) || "N/A"}
+                            {formatRatio(value)}
                           </span>
                         </div>
 

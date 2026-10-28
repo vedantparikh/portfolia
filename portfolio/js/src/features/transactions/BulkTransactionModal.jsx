@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useAssets } from "../assets/queries";
 import { ClientSideAssetSearch } from "../../components/shared";
+import { toInputDecimal } from "../../utils/formatters.jsx";
 
 /**
  * Creates a blank transaction object with a unique temporary ID for React's key prop.
@@ -111,7 +112,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
     ) {
       const newQuantity = (total - fees) / prc;
       if (newQuantity > 0) {
-        transaction.quantity = newQuantity.toFixed(6);
+        transaction.quantity = toInputDecimal(newQuantity, 6);
       }
     }
     // PRIORITY 2: Calculate Price from Total and Quantity.
@@ -123,7 +124,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
     ) {
       const newPrice = (total - fees) / qty;
       if (newPrice > 0) {
-        transaction.price = newPrice.toFixed(4);
+        transaction.price = toInputDecimal(newPrice, 4);
       }
     }
     // PRIORITY 3 (Fallback): Calculate Total from Quantity and Price.
@@ -133,7 +134,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
       qty > 0 &&
       prc > 0
     ) {
-      transaction.total_amount = (qty * prc + fees).toFixed(4);
+      transaction.total_amount = toInputDecimal(qty * prc + fees, 4);
     }
 
     newTransactions[index] = transaction;

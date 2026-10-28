@@ -33,6 +33,7 @@ import {
   formatDateTime,
   formatPercentage,
   formatQuantity,
+  formatRatio,
   formatVolume,
   getChangeColor,
 } from "../../utils/formatters";
@@ -555,7 +556,7 @@ const Dashboard = () => {
                             <span className="text-gray-400">P/E Ratio</span>
                             <span className="font-medium text-gray-100">
                               {asset.detail?.trailing_PE
-                                ? Number(asset.detail.trailing_PE).toFixed(2)
+                                ? formatRatio(asset.detail.trailing_PE)
                                 : "N/A"}
                             </span>
                           </div>

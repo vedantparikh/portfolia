@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
-import { chartMoney, renderTooltip } from "../../shared/ui/tooltipDom";
+import {
+  barChange,
+  chartMoney,
+  indicatorValue as formatIndicatorValue,
+  renderTooltip,
+} from "../../shared/ui/tooltipDom";
 import { isFlagSeries, seriesLabel } from "../../utils/indicatorLabels";
 import {
   formatCurrency,
@@ -29,6 +34,7 @@ import {
 const EnhancedChart = ({
   data = [],
   symbol = "",
+  currency,
   period = "30d",
   onPeriodChange = () => {},
   height = 400,
@@ -534,17 +540,14 @@ const EnhancedChart = ({
       const rows =
         chartType === "candlestick"
           ? [
-              { label: "Open:", value: chartMoney(data.open), className: "text-gray-200" },
-              { label: "High:", value: chartMoney(data.high), className: "text-success-400" },
-              { label: "Low:", value: chartMoney(data.low), className: "text-danger-400" },
-              { label: "Close:", value: chartMoney(data.close), className: "text-gray-200" },
+              { label: "Open:", value: chartMoney(data.open, currency), className: "text-gray-200" },
+              { label: "High:", value: chartMoney(data.high, currency), className: "text-success-400" },
+              { label: "Low:", value: chartMoney(data.low, currency), className: "text-danger-400" },
+              { label: "Close:", value: chartMoney(data.close, currency), className: "text-gray-200" },
               { label: "Volume:", value: formatVolume(volume), className: "text-gray-200" },
               {
                 label: "Change:",
-                value:
-                  data.close && data.open
-                    ? (((data.close - data.open) / data.open) * 100).toFixed(2) + "%"
-                    : "N/A",
+                value: barChange(data.open, data.close),
                 className:
                   data.close >= data.open ? "text-success-400" : "text-danger-400",
               },
@@ -553,7 +556,7 @@ const EnhancedChart = ({
               { label: "Time:", value: time, className: "text-gray-200" },
               {
                 label: "Price:",
-                value: chartMoney(data.value),
+                value: chartMoney(data.value, currency),
                 className: "text-primary-400",
               },
               { label: "Volume:", value: formatVolume(volume), className: "text-gray-200" },
@@ -570,7 +573,7 @@ const EnhancedChart = ({
               if (indicatorValue) {
                 indicatorRows.push({
                   label: `${indicatorName.replace("_indicator", "").toUpperCase()}:`,
-                  value: indicatorValue.value?.toFixed(2) || "N/A",
+                  value: formatIndicatorValue(indicatorValue.value),
                   className: "font-medium",
                   color: getIndicatorColor(indicatorName),
                 });
@@ -632,6 +635,7 @@ const EnhancedChart = ({
     showVolume,
     chartType,
     symbol,
+    currency,
     showIndicators,
     indicatorData,
     indicatorFamilies,
@@ -996,7 +1000,7 @@ const EnhancedChart = ({
                       />
                       <span className="text-gray-300">{displayName}</span>
                       <span className="text-gray-400">
-                        {latestValue?.value?.toFixed(2) || "N/A"}
+                        {formatIndicatorValue(latestValue?.value)}
                       </span>
                     </div>
                   );

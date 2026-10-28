@@ -9,7 +9,7 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { useRebalancingRecommendations } from './queries';
-import { formatPercentage, formatQuantity } from '../../utils/formatters.jsx';
+import { formatPercentage, formatQuantity, formatRatio } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 // "allocation_drift_exceeds_threshold_11.2%" -> "Allocation drift exceeds threshold 11.2%"
@@ -122,7 +122,7 @@ const RebalancingRecommendations = ({ portfolioId }) => {
                     <div className="text-center">
                         <p className="text-sm text-gray-400">Urgency Score</p>
                         <p className={`text-lg font-semibold ${getUrgencyScore(parseFloat(recommendations.urgency_score || 0))}`}>
-                            {recommendations.urgency_score ? parseFloat(recommendations.urgency_score).toFixed(0) : 'N/A'}
+                            {recommendations.urgency_score ? formatRatio(recommendations.urgency_score, 0) : 'N/A'}
                         </p>
                     </div>
 

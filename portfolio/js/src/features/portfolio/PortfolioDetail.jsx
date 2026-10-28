@@ -362,7 +362,7 @@ const PortfolioDetail = ({ portfolio }) => {
                               }`}
                           >
                             {(holding.change || 0) >= 0 ? "+" : ""}
-                            {(holding.change || 0).toFixed(2)}%
+                            {formatPercentage(holding.change || 0, { showSign: false })}
                           </p>
                         </td>
 
@@ -385,7 +385,7 @@ const PortfolioDetail = ({ portfolio }) => {
                             {(holding.todayGainLossPercent || 0) >= 0
                               ? "+"
                               : ""}
-                            {(holding.todayGainLossPercent || 0).toFixed(2)}%
+                            {formatPercentage(holding.todayGainLossPercent || 0, { showSign: false })}
                           </p>
                         </td>
 
@@ -408,8 +408,7 @@ const PortfolioDetail = ({ portfolio }) => {
                             {(holding.realizedGainLossPercent || 0) >= 0
                               ? "+"
                               : ""}
-                            {(holding.realizedGainLossPercent || 0).toFixed(2)}
-                            %
+                            {formatPercentage(holding.realizedGainLossPercent || 0, { showSign: false })}
                           </p>
                         </td>
                       </tr>

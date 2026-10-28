@@ -1,4 +1,17 @@
 import { Filter, X } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters.jsx';
+
+const usd = (n) =>
+    formatCurrency(n, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+        notation: n >= 1e6 ? 'compact' : 'standard',
+    });
+
+const range = (value, low, high) => ({
+    value,
+    label: low === null ? `Under ${usd(high)}` : high === null ? `Over ${usd(low)}` : `${usd(low)} - ${usd(high)}`,
+});
 
 // `hidden` lets a page drop filters its data source cannot honour
 const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
@@ -17,19 +30,19 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
 
     const priceRanges = [
         { value: 'all', label: 'All Prices' },
-        { value: '0-1', label: 'Under $1' },
-        { value: '1-10', label: '$1 - $10' },
-        { value: '10-100', label: '$10 - $100' },
-        { value: '100-1000', label: '$100 - $1,000' },
-        { value: '1000-', label: 'Over $1,000' }
+        range('0-1', null, 1),
+        range('1-10', 1, 10),
+        range('10-100', 10, 100),
+        range('100-1000', 100, 1000),
+        range('1000-', 1000, null)
     ];
 
     const valueRanges = [
         { value: 'all', label: 'All Values' },
-        { value: '0-100', label: 'Under $100' },
-        { value: '100-1000', label: '$100 - $1,000' },
-        { value: '1000-10000', label: '$1,000 - $10,000' },
-        { value: '10000-', label: 'Over $10,000' }
+        range('0-100', null, 100),
+        range('100-1000', 100, 1000),
+        range('1000-10000', 1000, 10000),
+        range('10000-', 10000, null)
     ];
 
     const changeRanges = [
@@ -41,10 +54,10 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
 
     const marketCapRanges = [
         { value: 'all', label: 'All Market Caps' },
-        { value: '0-1e6', label: 'Under $1M' },
-        { value: '1e6-1e9', label: '$1M - $1B' },
-        { value: '1e9-1e12', label: '$1B - $1T' },
-        { value: '1e12-', label: 'Over $1T' }
+        range('0-1e6', null, 1e6),
+        range('1e6-1e9', 1e6, 1e9),
+        range('1e9-1e12', 1e9, 1e12),
+        range('1e12-', 1e12, null)
     ];
 
     const sortOptions = [

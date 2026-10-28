@@ -10,10 +10,11 @@ import {
     formatMarketCap,
     formatPercentage,
     formatPrice,
+    formatRatio,
     formatVolume,
     getChangeArrow,
     getChangeColor,
-    getChangeIcon
+    getChangeIcon,
 } from '../../utils/formatters.jsx';
 
 const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, onTransaction }) => {
@@ -80,7 +81,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, o
                         <div className="text-right">
                             <p className="text-sm text-gray-400">Market Cap</p>
                             <p className="text-sm font-medium text-gray-100">
-                                {formatMarketCap(asset.detail?.market_cap)}
+                                {formatMarketCap(asset.detail?.market_cap, asset.currency)}
                             </p>
                         </div>
 
@@ -213,7 +214,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, o
                 <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-400">Market Cap</span>
                     <span className="text-sm font-medium text-gray-100">
-                        {formatMarketCap(asset.detail?.market_cap)}
+                        {formatMarketCap(asset.detail?.market_cap, asset.currency)}
                     </span>
                 </div>
 
@@ -245,7 +246,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, o
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-500">RSI (14)</span>
                                 <span className={`text-xs font-medium ${asset.rsi > 70 ? 'text-danger-400' : asset.rsi < 30 ? 'text-success-400' : 'text-gray-300'}`}>
-                                    {asset.rsi.toFixed(1)}
+                                    {formatRatio(asset.rsi, 1)}
                                     {asset.rsi > 70 && <span className="text-xs text-danger-400 ml-1">(Overbought)</span>}
                                     {asset.rsi < 30 && <span className="text-xs text-success-400 ml-1">(Oversold)</span>}
                                 </span>
@@ -255,7 +256,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, o
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-500">MACD</span>
                                 <span className={`text-xs font-medium ${asset.macd > 0 ? 'text-success-400' : 'text-danger-400'}`}>
-                                    {asset.macd.toFixed(4)}
+                                    {formatRatio(asset.macd, 4)}
                                 </span>
                             </div>
                         )}
@@ -274,7 +275,7 @@ const AssetCard = ({ asset, viewMode = 'grid', onClick, onDelete, onAnalytics, o
                             <div className="flex items-center justify-between">
                                 <span className="text-xs text-gray-500">Volatility (20d)</span>
                                 <span className={`text-xs font-medium ${asset.volatility_20d > 0.3 ? 'text-warning-400' : 'text-gray-300'}`}>
-                                    {(asset.volatility_20d * 100).toFixed(1)}%
+                                    {formatPercentage(asset.volatility_20d * 100, { showSign: false, precision: 1 })}
                                 </span>
                             </div>
                         )}

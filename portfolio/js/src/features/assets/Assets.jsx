@@ -29,7 +29,7 @@ import { queryClient } from '../../shared/api/queryClient';
 import { portfolioKeys, usePortfolios } from '../portfolio/queries';
 import { transactionKeys } from '../transactions/queries';
 import { invalidateAssets, useAssetPages, useAssets } from './queries';
-import { formatVolume, getChangeColor } from '../../utils/formatters';
+import { formatPercentage, formatRatio, formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
 import { usePageChrome, useShell } from '../../app/chrome';
@@ -383,14 +383,14 @@ const Assets = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <StatCard label="Top Gainer (24h)" icon={Award} tone="success" value={stats.topGainer.symbol} valueTitle={stats.topGainer.symbol} sub={stats.topGainer.name} detail={`+${stats.topGainer.value.toFixed(2)}%`} detailClassName={getChangeColor(stats.topGainer.value)} />
-                        <StatCard label="Highest Dividend Yield" icon={Landmark} value={stats.highestDividend.symbol} valueTitle={stats.highestDividend.symbol} sub={stats.highestDividend.name} detail={`${stats.highestDividend.value.toFixed(2)}% Yield`} />
-                        <StatCard label="Best Value (Lowest P/E)" icon={Gem} tone="gray" value={stats.bestValue.symbol} valueTitle={stats.bestValue.symbol} sub={stats.bestValue.name} detail={`${stats.bestValue.value.toFixed(2)} P/E Ratio`} />
+                        <StatCard label="Top Gainer (24h)" icon={Award} tone="success" value={stats.topGainer.symbol} valueTitle={stats.topGainer.symbol} sub={stats.topGainer.name} detail={formatPercentage(stats.topGainer.value)} detailClassName={getChangeColor(stats.topGainer.value)} />
+                        <StatCard label="Highest Dividend Yield" icon={Landmark} value={stats.highestDividend.symbol} valueTitle={stats.highestDividend.symbol} sub={stats.highestDividend.name} detail={`${formatPercentage(stats.highestDividend.value, { showSign: false })} Yield`} />
+                        <StatCard label="Best Value (Lowest P/E)" icon={Gem} tone="gray" value={stats.bestValue.symbol} valueTitle={stats.bestValue.symbol} sub={stats.bestValue.name} detail={`${formatRatio(stats.bestValue.value)} P/E Ratio`} />
                         <StatCard label="Most Traded (24h)" icon={Zap} tone="warning" value={stats.mostTraded.symbol} valueTitle={stats.mostTraded.symbol} sub={stats.mostTraded.name} detail={`${formatVolume(stats.mostTraded.value)} Volume`} />
-                        <StatCard label="Most Stable" icon={Shield} tone="success" value={stats.mostStable.symbol} valueTitle={stats.mostStable.symbol} sub={stats.mostStable.name} detail={`${stats.mostStable.value.toFixed(2)} Beta`} />
-                        <StatCard label="Highest Growth" icon={TrendingUp} value={stats.highestGrowth.symbol} valueTitle={stats.highestGrowth.symbol} sub={stats.highestGrowth.name} detail={`+${(stats.highestGrowth.value * 100).toFixed(2)}% Revenue`} />
-                        <StatCard label="Strongest Momentum" icon={ChevronsUp} tone="gray" value={stats.strongestMomentum.symbol} valueTitle={stats.strongestMomentum.symbol} sub={stats.strongestMomentum.name} detail={`${stats.strongestMomentum.value.toFixed(1)}% of 52-Wk High`} />
-                        <StatCard label="Top Loser (24h)" icon={AlertTriangle} tone="danger" value={stats.topLoser.symbol} valueTitle={stats.topLoser.symbol} sub={stats.topLoser.name} detail={`${stats.topLoser.value.toFixed(2)}%`} detailClassName={getChangeColor(stats.topLoser.value)} />
+                        <StatCard label="Most Stable" icon={Shield} tone="success" value={stats.mostStable.symbol} valueTitle={stats.mostStable.symbol} sub={stats.mostStable.name} detail={`${formatRatio(stats.mostStable.value)} Beta`} />
+                        <StatCard label="Highest Growth" icon={TrendingUp} value={stats.highestGrowth.symbol} valueTitle={stats.highestGrowth.symbol} sub={stats.highestGrowth.name} detail={`${formatPercentage(stats.highestGrowth.value * 100)} Revenue`} />
+                        <StatCard label="Strongest Momentum" icon={ChevronsUp} tone="gray" value={stats.strongestMomentum.symbol} valueTitle={stats.strongestMomentum.symbol} sub={stats.strongestMomentum.name} detail={`${formatPercentage(stats.strongestMomentum.value, { showSign: false, precision: 1 })} of 52-Wk High`} />
+                        <StatCard label="Top Loser (24h)" icon={AlertTriangle} tone="danger" value={stats.topLoser.symbol} valueTitle={stats.topLoser.symbol} sub={stats.topLoser.name} detail={formatPercentage(stats.topLoser.value)} detailClassName={getChangeColor(stats.topLoser.value)} />
                     </div>
 
                     {showFilters && (

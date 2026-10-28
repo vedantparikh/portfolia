@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { accountStatementsAPI } from './api';
 import { apiErrorMessage } from '../../shared/api/client';
+import { formatRatio } from "../../utils/formatters.jsx";
 
 const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
     const [providers, setProviders] = useState([]);
@@ -186,7 +187,7 @@ const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
                                     <CheckCircle className="w-12 h-12 text-success-400 mx-auto" />
                                     <div className="text-gray-100 font-medium">{selectedFile.name}</div>
                                     <div className="text-sm text-gray-400">
-                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                        {formatRatio(selectedFile.size / 1024 / 1024)} MB
                                     </div>
                                     <button
                                         onClick={() => setSelectedFile(null)}

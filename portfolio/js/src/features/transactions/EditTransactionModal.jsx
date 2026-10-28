@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatQuantity } from '../../utils/formatters';
+import { formatCurrency, formatQuantity, toInputDecimal } from '../../utils/formatters';
 import transactionTypes, { colorSchemes } from '../../utils/transactionTypes';
 
 const EditTransactionModal = ({ isOpen, onClose, transaction, onUpdate }) => {
@@ -63,10 +63,10 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onUpdate }) => {
             // Auto-calculate quantity if both amount and price are present
             if (name === 'amount' && newFormData.price && parseFloat(newFormData.price) > 0) {
                 const calculatedQuantity = parseFloat(value || 0) / parseFloat(newFormData.price);
-                newFormData.quantity = calculatedQuantity > 0 ? calculatedQuantity.toFixed(6) : '';
+                newFormData.quantity = calculatedQuantity > 0 ? toInputDecimal(calculatedQuantity, 6) : '';
             } else if (name === 'price' && newFormData.amount && parseFloat(value) > 0) {
                 const calculatedQuantity = parseFloat(newFormData.amount) / parseFloat(value);
-                newFormData.quantity = calculatedQuantity > 0 ? calculatedQuantity.toFixed(6) : '';
+                newFormData.quantity = calculatedQuantity > 0 ? toInputDecimal(calculatedQuantity, 6) : '';
             }
 
             setFormData(newFormData);
@@ -291,7 +291,7 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onUpdate }) => {
                                                 />
                                                 {formData.quantity && (
                                                     <div className="text-xs text-gray-500 mt-1">
-                                                        Exact: {parseFloat(formData.quantity || 0).toFixed(6)}
+                                                        Exact: {formatQuantity(formData.quantity || 0, { precision: 6, showCommas: false })}
                                                     </div>
                                                 )}
                                             </div>

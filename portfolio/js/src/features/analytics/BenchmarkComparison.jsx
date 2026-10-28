@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { analyticsAPI } from './api';
 import { invalidateAnalytics, usePortfolioBenchmarks } from './queries';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import { formatRatio } from "../../utils/formatters.jsx";
 
 const BenchmarkComparison = ({ portfolioId }) => {
     const query = usePortfolioBenchmarks(portfolioId);
@@ -107,7 +108,7 @@ const BenchmarkComparison = ({ portfolioId }) => {
                                     <div className="text-right">
                                         <p className="text-sm text-gray-400">Beta</p>
                                         <p className="font-medium text-gray-100">
-                                            {parseFloat(benchmark.beta).toFixed(2)}
+                                            {formatRatio(benchmark.beta)}
                                         </p>
                                     </div>
                                 )}

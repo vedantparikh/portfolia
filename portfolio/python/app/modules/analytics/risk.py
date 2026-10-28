@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd  # type: ignore
 from sqlalchemy.orm import Session
 
-from core.domain.returns import RISK_FREE_RATE
+from core.domain.returns import RISK_FREE_RATE, value_at_risk_pct
 from core.services.utils import PeriodType
 from modules.analytics.calculations import PortfolioCalculationService
 
@@ -274,14 +274,7 @@ class PortfolioRiskMetricsService:
         period for a given confidence interval. A 95% VaR indicates the threshold
         that losses are not expected to exceed on 95% of trading days.
         """
-        try:
-            # The VaR is the quantile of the historical returns distribution.
-            # For a 95% confidence level, we look at the 5th percentile.
-            var = daily_returns.quantile(1 - confidence_level)
-            return float(var * 100)  # Return as a percentage loss
-        except Exception as e:
-            logger.error(f"Error calculating Value at Risk (VaR): {e}")
-            return None
+        return value_at_risk_pct(daily_returns, confidence_level)
 
     def _calculate_max_drawdown(self, daily_returns: pd.Series) -> Optional[float]:
         """

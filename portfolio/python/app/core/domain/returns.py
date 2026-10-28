@@ -97,6 +97,14 @@ def max_drawdown_pct(returns: pd.Series) -> Optional[float]:
     return float((equity / peak - 1).min() * 100)
 
 
+def value_at_risk_pct(returns: pd.Series, confidence: float) -> Optional[float]:
+    """Historical one-day VaR: the daily return at the (1 - confidence) quantile."""
+    returns = returns.dropna()
+    if returns.empty:
+        return None
+    return float(returns.quantile(1 - confidence) * 100)
+
+
 def split_period(
     series: pd.DataFrame, start: Optional[date]
 ) -> Tuple[pd.DataFrame, float, date]:

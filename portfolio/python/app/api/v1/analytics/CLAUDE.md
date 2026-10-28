@@ -2,12 +2,12 @@
 
 **Purpose:** risk metrics, target allocations with drift and rebalancing trades, benchmark records, and the daily value history.
 
-**State (2026-10-26):** ✅ risk, advance-risk, allocation analysis, rebalancing, history. Benchmark *comparison* is the shadow portfolio on the performance chart (`GET /portfolios/calculations/.../benchmark`), not these records. The Benchmarks tab still shows "comparison is coming". ⚠️ `/summary`, `/performance/snapshot`, `/performance/comparison` use legacy snapshot metrics. ⚠️ `/users/dashboard` responds but uses legacy metrics.
+**State (2026-10-28):** ✅ risk, advance-risk, allocation analysis, rebalancing, history, summary, snapshots, user dashboard — all on the engine. Benchmark *comparison* is the shadow portfolio on the performance chart (`GET /portfolios/calculations/.../benchmark`), not these records.
 
 ## Backend — `router.py` (prefix `/api/v1/analytics`). Stored rows go through `modules/analytics/repository.py`.
 | Endpoint | Service | Behaviour |
 |---|---|---|
-| `GET /portfolios/{id}/risk?period=` | `modules/analytics/risk.py` | Volatility, Sharpe, Sortino, VaR 95/99, CVaR, max drawdown, Calmar (percent) + `risk_assessment` {level, reasoning HTML}. Input = engine daily returns (`get_portfolio_history`). Sample std, √252, `RISK_FREE_RATE` |
+| `GET /portfolios/{id}/risk?period=` | `modules/analytics/risk.py` | Volatility, Sharpe, Sortino, VaR 95/99 (`value_at_risk_pct`), CVaR, max drawdown, Calmar (percent) + `risk_assessment` {level, reasoning text}. Input = engine daily returns (`get_portfolio_history`). Sample std, √252, `RISK_FREE_RATE` |
 | `GET /portfolios/{id}/advance-risk?period=` | `modules/analytics/advance_risk.py` | Beta / Jensen's alpha vs `^GSPC` (price index), HHI, diversification ratio, effective number of assets. First call ~20 s (index history) |
 | `GET/POST/PUT/DELETE /portfolios/{id}/allocations[/{aid}]` | `modules/analytics/service.py` | Target allocations (percent, min/max, `rebalance_threshold`, frequency) |
 | `GET /portfolios/{id}/allocations/analysis` | same | Weights from live holdings (`PortfolioService.get_portfolio_holdings`), drift = current − target, `requires_rebalancing` when \|drift\| > threshold (default 5). Unpriced positions skipped; targeted-but-unheld assets included at 0% |
@@ -15,11 +15,12 @@
 | `POST/GET /portfolios/{id}/rebalancing/events` | same | Stored rebalancing events (no UI) |
 | `POST/GET /portfolios/{id}/benchmarks` | router | Benchmark records (symbol, name, primary) |
 | `GET /portfolios/{id}/performance/history?days=` | engine | Daily value + FIFO cost basis, newest first, read-only (no snapshot writes). Used by no screen now |
-| `GET /portfolios/{id}/performance/snapshot`, `DELETE …/{snapshot_id}`, `GET /summary`, `GET /performance/comparison` | legacy, read-only | The worker writes `PortfolioPerformanceHistory`. The row still uses the old formula (deposits count as returns). No UI caller |
-| `GET /users/dashboard?force_refresh=` | legacy | Per-portfolio `get_portfolio_analytics_summary` (cost-basis fallback when no price) + snapshot count. `force_refresh` (default true) re-prices every asset from Yahoo and writes snapshots. Wired in `api.js`, no screen uses it |
+| `GET /portfolios/{id}/performance/snapshot`, `DELETE …/{snapshot_id}`, `GET /performance/comparison` | stored rows | The worker writes `PortfolioPerformanceHistory` with `engine_metrics`: value and FIFO cost at the last close, and one-year TWR, annualised TWR, volatility, Sharpe, max drawdown, VaR 95/99, all percent. A missing price raises; nothing is valued at cost. Rows written before migration `d4e8a2f61c07` keep value and cost but their metrics are null. No UI caller |
+| `GET /portfolios/{id}/summary` | `engine_metrics` | Live engine run: value, cost, unrealized, one-year TWR (`total_return`) and annualised TWR, in the portfolio currency. No UI caller |
+| `GET /users/dashboard` | same | One summary per portfolio plus `portfolios.totals`, one entry per currency (never added across currencies), and the snapshot count of the last 7 days. `force_refresh` is ignored. No UI caller |
 
 ## Frontend — `js/src/features/analytics/` (tabs inside Holdings Detail)
-- **Analytics** `PortfolioAnalytics.jsx`: Risk Metrics + Advanced Metrics cards with plain-language hints, period select, risk-level modal (renders `reasoning` HTML via `dangerouslySetInnerHTML` — XSS item 4.6).
+- **Analytics** `PortfolioAnalytics.jsx`: Risk Metrics + Advanced Metrics cards with plain-language hints, period select, risk-level modal (`reasoning` rendered as text).
 - **Allocations** `PortfolioAllocationManager.jsx`: edit targets.
 - **Rebalancing** `RebalancingRecommendations.jsx`: summary, actions ("SELL 95.88 META ≈ $70,639 · 169.52 → 73.64 shares at $736.72"), current → target allocation.
 - **Benchmarks** `BenchmarkComparison.jsx`: list/add benchmarks. The comparison note on this tab is stale: the chart's "Compare with" is the live comparison. This tab does not call `/portfolios/calculations/.../benchmark`.
@@ -28,6 +29,4 @@
 
 ## Known gaps / planned
 - Point the Benchmarks tab at the shadow comparison (plan 2.7 is done on the chart). Beta should use a total-return index.
-- The worker writes snapshots (plan 3.3). Rebuild the legacy snapshot metrics on the engine; the stored row still uses the old formula.
 - Risk endpoints are slow cold (Yahoo); acceptable for now per user.
-- `risk_assessment.reasoning` is HTML from the backend.

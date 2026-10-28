@@ -3,44 +3,7 @@
   "alpha": 15.30161856,
   "beta": 0.51391717,
   "concentration": 0.52,
-  "diversification": 1.14328683,
-  "performance": {
-   "total_return_1m": 0.15930645,
-   "total_return_1y": "None",
-   "total_return_3m": 0.12432685,
-   "total_return_3y": "None",
-   "total_return_5y": "None",
-   "total_return_6m": 0.24373354
-  },
-  "performance_yf": {
-   "total_return_1d": -0.1720673,
-   "total_return_1m": 14.57075761,
-   "total_return_1w": 7.092355,
-   "total_return_1y": 32.79588272,
-   "total_return_3m": 5.63566012
-  },
-  "risk": {
-   "beta": 1.0,
-   "sharpe_ratio": 0.49721469,
-   "volatility_20d": 0.14925918,
-   "volatility_252d": 0.19175862,
-   "volatility_60d": 0.18376319
-  },
-  "risk_yf": {
-   "max_drawdown": -0.18740631,
-   "sharpe_ratio": 1.06889298,
-   "volatility_20d": 0.12491585,
-   "volatility_60d": 0.1866132
-  },
-  "technical_yf": {
-   "ema_12": 127.82004086,
-   "ema_26": 123.2090418,
-   "rsi": 97.41695074,
-   "sma_20": 122.634885,
-   "sma_200": 114.1011605,
-   "sma_50": 120.604192,
-   "volume_sma": 1013500.0
-  }
+  "diversification": 1.14328683
  },
  "engine": {
   "cagr": 17.40002344,

@@ -25,7 +25,6 @@ from modules.analytics.advance_risk import (
 )
 from modules.analytics.calculations import PortfolioCalculationService
 from modules.analytics.risk import PortfolioRiskMetricsService
-from modules.analytics.service import PortfolioAnalyticsService
 from modules.portfolios.service import compute_position
 from utils.indicators.momentum_indicators import MomentumIndicators
 from utils.indicators.trend_indicators import TrendIndicators
@@ -255,8 +254,6 @@ def _analytics_outputs():
     asset_prices = pd.concat(
         [p1["Close"].rename("A1"), p2["Close"].rename("A2")], axis=1
     )
-    analytics = PortfolioAnalyticsService(db=None)
-    lower = p2.rename(columns=str.lower)
     return {
         "beta": _num(beta),
         "alpha": _num(alpha),
@@ -266,15 +263,6 @@ def _analytics_outputs():
                 weights, asset_prices.ffill().pct_change().dropna()
             )
         ),
-        "technical_yf": _numbers(
-            analytics._calculate_technical_indicators_from_yfinance(p1)
-        ),
-        "risk_yf": _numbers(analytics._calculate_risk_metrics_from_yfinance(p1)),
-        "performance_yf": _numbers(
-            analytics._calculate_performance_metrics_from_yfinance(p1)
-        ),
-        "risk": _numbers(analytics._calculate_risk_metrics(lower)),
-        "performance": _numbers(analytics._calculate_performance_metrics(lower)),
     }
 
 

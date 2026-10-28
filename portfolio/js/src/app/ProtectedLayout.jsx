@@ -4,7 +4,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import useIsMobile from "../hooks/useIsMobile";
 import Sidebar from "../components/shared/Sidebar";
-import LoadingSpinner from "../components/shared/LoadingSpinner";
+import LoadingSpinner from "../shared/ui/Spinner";
 import ErrorBoundary from "./ErrorBoundary";
 import { ShellContext } from "./chrome";
 

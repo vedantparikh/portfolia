@@ -9,7 +9,7 @@ import {
   formatRatio,
   getChangeColor,
 } from "../../utils/formatters.jsx";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import StatCard from "../../components/shared/StatCard";
 import PerformanceSeriesChart from "./PerformanceSeriesChart";
 

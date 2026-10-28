@@ -1,7 +1,7 @@
 import { Search, TrendingUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { marketAPI } from '../../shared/api/market';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
 
 const SymbolSearch = ({
     value,

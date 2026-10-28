@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { transactionPDFExportAPI } from "./api";
 import transactionTypesList from "../../utils/transactionTypes";
 import { formatDecimal } from "../../utils/formatters.jsx";
+import { Modal } from "../../shared/ui";
 
 const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   const [selectedPortfolios, setSelectedPortfolios] = useState([]);
@@ -195,7 +196,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <Modal onClose={handleClose}>
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
@@ -632,7 +633,7 @@ const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

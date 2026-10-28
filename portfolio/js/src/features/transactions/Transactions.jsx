@@ -23,7 +23,7 @@ import { portfolioKeys, usePortfolios } from "../portfolio/queries";
 import { transactionKeys, useTransactions } from "./queries";
 import { usePageChrome, useShell } from "../../app/chrome";
 import useIsMobile from "../../hooks/useIsMobile";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import BulkTransactionModal from "./BulkTransactionModal";
 import CreateTransactionModal from "./CreateTransactionModal";
 import EditTransactionModal from "./EditTransactionModal";

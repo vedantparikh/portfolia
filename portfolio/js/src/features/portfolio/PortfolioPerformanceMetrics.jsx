@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { portfolioCalculationsAPI } from "./api";
 import { formatMetricValue, getMetricColor } from "../../utils/formatters.jsx";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import StatCard from "../../components/shared/StatCard";
 
 const PortfolioPerformanceMetrics = ({ portfolio }) => {

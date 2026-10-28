@@ -11,7 +11,8 @@ import { useState } from 'react';
 import { useCalculationPeriods } from '../portfolio/queries';
 import { useRiskMetrics } from './queries';
 import { formatPercentage, formatRatio } from '../../utils/formatters.jsx';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
+import { EmptyState, ErrorState, Modal } from '../../shared/ui';
 
 const pct = (value, showSign = true) =>
     value === null || value === undefined ? 'N/A' : formatPercentage(value, { showSign });
@@ -71,24 +72,13 @@ const PortfolioAnalytics = ({ portfolioId }) => {
 
     if (error) {
         return (
-            <div className="text-center py-12">
-                <XCircle className="w-16 h-16 text-danger-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Error Loading Analytics</h3>
-                <p className="text-gray-500 mb-4">{error}</p>
-                <button onClick={handleRefresh} className="btn-primary">
-                    Try Again
-                </button>
-            </div>
+            <ErrorState icon={XCircle} title="Error Loading Analytics" message={error} onRetry={handleRefresh} />
         );
     }
 
     if (!analyticsData) {
         return (
-            <div className="text-center py-12">
-                <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">No Analytics Data</h3>
-                <p className="text-gray-500">Analytics data is not available for this portfolio.</p>
-            </div>
+            <EmptyState icon={BarChart3} title="No Analytics Data" message="Analytics data is not available for this portfolio." />
         );
     }
 
@@ -210,14 +200,12 @@ const PortfolioAnalytics = ({ portfolioId }) => {
             )}
 
             {showRiskModal && riskMetrics?.risk_assessment && (
-                <div 
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-                    onClick={() => setShowRiskModal(false)}
+                <Modal
+                    onClose={() => setShowRiskModal(false)}
+                    closeOnBackdrop
+                    overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
                 >
-                    <div 
-                        className="card p-6 rounded-lg max-w-md w-full m-4 shadow-xl border border-dark-600"
-                        onClick={e => e.stopPropagation()}
-                    >
+                    <div className="card p-6 rounded-lg max-w-md w-full m-4 shadow-xl border border-dark-600">
                         <div className="flex items-center justify-between mb-4">
                             <h4 className="text-lg font-semibold text-gray-100 flex items-center">
                                 <Shield className="w-5 h-5 mr-2 text-primary-400" />
@@ -244,7 +232,7 @@ const PortfolioAnalytics = ({ portfolioId }) => {
                             </p>
                         </div>
                     </div>
-                </div>
+                </Modal>
             )}
 
         </div>

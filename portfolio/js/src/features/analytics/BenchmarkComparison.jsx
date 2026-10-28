@@ -6,8 +6,9 @@ import {
 import { useState } from 'react';
 import { analyticsAPI } from './api';
 import { invalidateAnalytics, usePortfolioBenchmarks } from './queries';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
 import { formatRatio } from "../../utils/formatters.jsx";
+import { ErrorState, Modal } from '../../shared/ui';
 
 const BenchmarkComparison = ({ portfolioId }) => {
     const query = usePortfolioBenchmarks(portfolioId);
@@ -44,14 +45,7 @@ const BenchmarkComparison = ({ portfolioId }) => {
 
     if (error) {
         return (
-            <div className="text-center py-12">
-                <BarChart3 className="w-16 h-16 text-danger-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Error Loading Benchmarks</h3>
-                <p className="text-gray-500 mb-4">{error}</p>
-                <button onClick={loadBenchmarkData} className="btn-primary">
-                    Try Again
-                </button>
-            </div>
+            <ErrorState icon={BarChart3} title="Error Loading Benchmarks" message={error} onRetry={loadBenchmarkData} />
         );
     }
 
@@ -178,7 +172,7 @@ const AddBenchmarkModal = ({ portfolioId, onSave, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Modal onClose={onClose} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md">
                 <h3 className="text-lg font-semibold text-gray-100 mb-4">Add Benchmark</h3>
 
@@ -297,7 +291,7 @@ const AddBenchmarkModal = ({ portfolioId, onSave, onClose }) => {
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     );
 };
 

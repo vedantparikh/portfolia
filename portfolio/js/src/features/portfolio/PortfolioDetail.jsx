@@ -18,7 +18,7 @@ import {
   PortfolioAnalytics,
   RebalancingRecommendations,
 } from "../analytics";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import StatCard from "../../components/shared/StatCard";
 import AllocationDonut from "./AllocationDonut";
 import ValueVsInvestedChart from "./ValueVsInvestedChart";

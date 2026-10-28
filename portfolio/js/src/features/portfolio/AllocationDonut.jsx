@@ -2,7 +2,7 @@ import { useMoney } from "../../hooks/useMoney";
 import { useEffect, useState } from "react";
 import { analyticsAPI } from "../analytics/api";
 import { formatPercentage } from "../../utils/formatters.jsx";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 
 const COLORS = [
   "#38bdf8", "#818cf8", "#34d399", "#fbbf24", "#f472b6", "#a78bfa",

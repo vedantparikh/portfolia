@@ -12,6 +12,7 @@ import {
   getChangeIcon,
 } from "../../utils/formatters.jsx";
 import { Chart, SymbolSearch } from "../../components/shared";
+import { Modal } from "../../shared/ui";
 
 const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = [] }) => {
   const [priceHistory, setPriceHistory] = useState([]);
@@ -187,7 +188,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
   const isViewMode = mode === "view";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <Modal onClose={onClose}>
       <div
         className={`bg-dark-900 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col ${isChartFullscreen ? "max-w-full max-h-full" : ""
           }`}
@@ -964,7 +965,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
       </div>
 
       {isChartFullscreen && (
-        <div className="fixed inset-0 z-60 bg-dark-950 flex flex-col">
+        <Modal onClose={() => setIsChartFullscreen(false)} overlayClassName="fixed inset-0 z-60 bg-dark-950 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-dark-700">
             <h3 className="text-2xl font-semibold text-gray-100">
               {asset?.symbol} - Price Chart
@@ -996,9 +997,9 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
               onFullscreenToggle={handleChartFullscreenToggle}
             />
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+    </Modal>
   );
 };
 

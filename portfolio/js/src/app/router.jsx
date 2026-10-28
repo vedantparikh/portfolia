@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
-import LoadingSpinner from "../components/shared/LoadingSpinner";
+import LoadingSpinner from "../shared/ui/Spinner";
 import NotFound from "./NotFound";
 import ProtectedLayout from "./ProtectedLayout";
 

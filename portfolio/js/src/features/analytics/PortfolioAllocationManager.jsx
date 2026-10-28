@@ -12,7 +12,8 @@ import { useState } from 'react';
 import { analyticsAPI } from './api';
 import { invalidateAnalytics, useAllocations } from './queries';
 import { formatPercentage } from '../../utils/formatters.jsx';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
+import { ErrorState, Modal } from "../../shared/ui";
 
 const PortfolioAllocationManager = ({ portfolioId }) => {
   const money = useMoney();
@@ -74,14 +75,7 @@ const PortfolioAllocationManager = ({ portfolioId }) => {
 
     if (error) {
         return (
-            <div className="text-center py-12">
-                <AlertTriangle className="w-16 h-16 text-danger-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Error Loading Allocations</h3>
-                <p className="text-gray-500 mb-4">{error}</p>
-                <button onClick={loadAllocationData} className="btn-primary">
-                    Try Again
-                </button>
-            </div>
+            <ErrorState icon={AlertTriangle} title="Error Loading Allocations" message={error} onRetry={loadAllocationData} />
         );
     }
 
@@ -302,7 +296,7 @@ const AllocationModal = ({ portfolioId, allocation, onSave, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Modal onClose={onClose} overlayClassName="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-dark-900 rounded-lg p-6 w-full max-w-md">
                 <h3 className="text-lg font-semibold text-gray-100 mb-4">
                     {allocation ? 'Edit Allocation' : 'Add Allocation'}
@@ -431,7 +425,7 @@ const AllocationModal = ({ portfolioId, allocation, onSave, onClose }) => {
                     </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     );
 };
 

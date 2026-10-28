@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { useRebalancingRecommendations } from './queries';
 import { formatPercentage, formatQuantity, formatRatio } from '../../utils/formatters.jsx';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
+import { EmptyState, ErrorState } from "../../shared/ui";
 
 // "allocation_drift_exceeds_threshold_11.2%" -> "Allocation drift exceeds threshold 11.2%"
 const humanize = (code) => {
@@ -61,24 +62,13 @@ const RebalancingRecommendations = ({ portfolioId }) => {
 
     if (error) {
         return (
-            <div className="text-center py-12">
-                <AlertTriangle className="w-16 h-16 text-danger-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">Error Loading Recommendations</h3>
-                <p className="text-gray-500 mb-4">{error}</p>
-                <button onClick={handleRefresh} className="btn-primary">
-                    Try Again
-                </button>
-            </div>
+            <ErrorState icon={AlertTriangle} title="Error Loading Recommendations" message={error} onRetry={handleRefresh} />
         );
     }
 
     if (!recommendations) {
         return (
-            <div className="text-center py-12">
-                <Target className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-300 mb-2">No Recommendations</h3>
-                <p className="text-gray-500">No rebalancing recommendations available for this portfolio.</p>
-            </div>
+            <EmptyState icon={Target} title="No Recommendations" message="No rebalancing recommendations available for this portfolio." />
         );
     }
 

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { assetAPI } from './api';
 import { apiErrorMessage } from '../../shared/api/client';
 import { SymbolSearch } from '../../components/shared'; // Make sure this path is correct
+import { Modal } from '../../shared/ui';
 
 const BulkAssetModal = ({ onClose, onSuccess }) => {
     // State is now much simpler!
@@ -68,7 +69,7 @@ const BulkAssetModal = ({ onClose, onSuccess }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <Modal onClose={onClose} overlayClassName="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div className="bg-dark-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
                 <div className="flex items-center justify-between p-6 border-b border-dark-700">
                     <h3 className="text-xl font-semibold text-gray-100">Add Assets in Bulk</h3>
@@ -124,7 +125,7 @@ const BulkAssetModal = ({ onClose, onSuccess }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

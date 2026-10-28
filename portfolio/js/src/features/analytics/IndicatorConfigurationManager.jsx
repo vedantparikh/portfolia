@@ -16,7 +16,8 @@ import {
     useAvailableIndicators,
     useIndicatorConfigurations,
 } from './queries';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
+import { Modal } from '../../shared/ui';
 
 const IndicatorConfigurationManager = ({
     onConfigurationSelect,
@@ -416,7 +417,7 @@ const ConfigurationModal = ({
     const categories = [...new Set(availableIndicators.map(ind => ind.category))];
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Modal onClose={onClose}>
             <div className="bg-dark-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-dark-700">
                     <h3 className="text-xl font-semibold text-gray-100">{title}</h3>
@@ -540,7 +541,7 @@ const ConfigurationModal = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

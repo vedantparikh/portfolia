@@ -18,6 +18,7 @@ import { formatCurrency, formatDate } from "../../utils/formatters";
 import transactionTypes from "../../utils/transactionTypes";
 import { ClientSideAssetSearch } from "../../components/shared";
 import InstrumentMappingPanel from "./InstrumentMappingPanel";
+import { Modal } from "../../shared/ui";
 
 const LOCAL_STORAGE_DRAFT_KEY = "parsedImportDraftTransactions";
 const LOCAL_STORAGE_SOURCE_KEY = "parsedImportSourceData";
@@ -568,7 +569,7 @@ const ParsedDataTable = ({
   if (!parsedData) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <Modal onClose={onCancel} closeOnEscape={false}>
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <div className="flex items-center space-x-3">
@@ -1044,7 +1045,7 @@ const ParsedDataTable = ({
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

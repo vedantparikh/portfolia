@@ -1,6 +1,7 @@
 import { DollarSign, Plus, Target, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { Modal } from '../../shared/ui';
 
 const CreatePortfolioModal = ({ onClose, onCreate }) => {
     const [formData, setFormData] = useState({
@@ -74,7 +75,7 @@ const CreatePortfolioModal = ({ onClose, onCreate }) => {
     ];
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Modal onClose={onClose}>
             <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-2xl max-h-[95vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-dark-700 shrink-0">
@@ -254,7 +255,7 @@ const CreatePortfolioModal = ({ onClose, onCreate }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

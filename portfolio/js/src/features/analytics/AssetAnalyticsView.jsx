@@ -10,8 +10,9 @@ import { useEffect, useState } from "react";
 import { useIndicatorCalculation, useIndicatorConfigurations } from "./queries";
 import EnhancedChart from "../../components/shared/EnhancedChart";
 import { seriesLabel } from "../../utils/indicatorLabels";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import { formatRatio } from "../../utils/formatters.jsx";
+import { ErrorState } from "../../shared/ui";
 
 const DEFAULT_INDICATORS = ["rsi_indicator", "macd_indicator"];
 
@@ -90,16 +91,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-16 h-16 text-danger-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-300 mb-2">
-          Analysis Error
-        </h3>
-        <p className="text-gray-500 mb-4">{error}</p>
-        <button onClick={handleRefresh} className="btn-primary">
-          Try Again
-        </button>
-      </div>
+      <ErrorState icon={AlertTriangle} title="Analysis Error" message={error} onRetry={handleRefresh} />
     );
   }
 

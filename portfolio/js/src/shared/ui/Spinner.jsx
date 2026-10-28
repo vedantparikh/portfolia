@@ -30,7 +30,7 @@ const defaultTexts = {
     transaction: 'Processing transaction...',
 };
 
-const LoadingSpinner = ({
+const Spinner = ({
     type = 'default',
     text,
     size,
@@ -71,4 +71,4 @@ const LoadingSpinner = ({
     return <div className={className}>{spinner}</div>;
 };
 
-export default LoadingSpinner;
+export default Spinner;

@@ -18,7 +18,7 @@ import { transactionAPI } from '../transactions/api';
 import { apiErrorMessage } from '../../shared/api/client';
 import AssetFilters from '../assets/AssetFilters';
 import AssetModal from '../assets/AssetModal';
-import LoadingSpinner from '../../components/shared/LoadingSpinner';
+import LoadingSpinner from '../../shared/ui/Spinner';
 import StatCard from '../../components/shared/StatCard';
 import CreateTransactionModal from '../transactions/CreateTransactionModal';
 import { formatPercentage, getChangeColor } from '../../utils/formatters.jsx';

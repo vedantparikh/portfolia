@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { portfolioCalculationsAPI } from "./api";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
+import LoadingSpinner from "../../shared/ui/Spinner";
 import PerformanceSeriesChart from "./PerformanceSeriesChart";
 
 const RANGES = [

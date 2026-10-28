@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useAssets } from "../assets/queries";
 import { ClientSideAssetSearch } from "../../components/shared";
 import { toInputDecimal } from "../../utils/formatters.jsx";
+import { Modal } from "../../shared/ui";
 
 /**
  * Creates a blank transaction object with a unique temporary ID for React's key prop.
@@ -196,7 +197,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <Modal onClose={onClose}>
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-xl font-semibold text-gray-100">
@@ -502,7 +503,7 @@ const BulkTransactionModal = ({ isOpen, onClose, onSave, portfolios }) => {
           </div>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

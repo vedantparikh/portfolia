@@ -25,12 +25,24 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 |---|---|
 | `StatCard` | KPI tile: label, value, valueClassName, sub, detail, icon, tone (primary/success/danger/warning/gray), className. Green/red only for gains/losses (`getChangeColor`) |
 | `Sparkline` | Plain-SVG line (no dependency) |
-| `LoadingSpinner` | One ring. `type` only picks the default caption; `centered`, `size`, `text={null}` hides the caption |
+| `LoadingSpinner` | Re-export of `shared/ui/Spinner` |
 | `EnhancedChart` | lightweight-charts v5 price + indicator panes (imported directly, not via the barrel) |
 | `Chart` | Older chart used only by `AssetModal`; its `isPortfolioChart` branches are dead code |
 | `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`useAssets`, 5 min) |
 
 Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).
+
+## UI primitives (`src/shared/ui/`, barrel `index.js`)
+| Primitive | Notes |
+|---|---|
+| `Modal` | Every dialog. Portal to `document.body`; the overlay div is the dialog (`role="dialog"`, `aria-modal`), labelled by its first heading unless `labelledBy` is set. Esc closes the topmost one (`closeOnEscape={false}` on the PDF import review, whose ✕ also drops the draft), Tab stays inside, focus moves to the dialog unless a child autofocuses and returns to the opener on close. `closeOnBackdrop` is opt-in (only the risk-level dialog). `overlayClassName` defaults to `fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4`; the panel is the child, so each modal keeps its own size and classes |
+| `Spinner` | One ring. `type` only picks the default caption; `centered`, `size`, `text={null}` hides the caption |
+| `Button` | `btn-primary` / `btn-secondary` / `btn-outline` by `variant`, `type="button"` by default |
+| `Card` | `card` utility plus `className` (default `p-6`) |
+| `EmptyState`, `ErrorState` | Centered icon, title, message; `ErrorState` adds a "Try Again" button for `onRetry`. Used by the analytics tabs |
+| `tooltipDom.js` | Text-only chart tooltips, `chartMoney`, `barChange` |
+
+There is no `Table` primitive: the tables share no structure beyond Tailwind classes. `SymbolSearch` and `ClientSideAssetSearch` search different sources, and `Chart` (asset modal, OHLC) and `EnhancedChart` (indicator panes) render different things, so neither pair was merged.
 
 ## Conventions
 - All HTTP goes through the axios instance in `shared/api/client.ts` (`API_BASE_URL`, `apiErrorMessage`, the auth header and the single-flight `refreshAccessToken` on a 401). Each feature has its endpoint wrappers in `features/<name>/api.ts`; market data and indicators, used by shared components too, are `shared/api/market.ts` and `shared/api/indicators.ts`. Assets have one wrapper (`assetAPI`), whose functions return the response body.
@@ -54,6 +66,6 @@ A static glossary of about 30 concepts in categories: returns (TWR, MWR, XIRR, C
 Plan Phase 4:
 - Vitest/RTL/MSW and Playwright.
 - Gradual TypeScript with generated API types.
-- `shared/ui` primitives (Modal, Table…), collapsing the 24 modals, 4 search components and 2 charts.
-- Chart tooltips and risk reasoning are text, not HTML. Access and refresh tokens go through `shared/auth/tokenStore.ts` (still `localStorage`; an httpOnly cookie is still an open decision).
+- Modal forms on react-hook-form (the auth pages already use it).
+- Chart tooltips and risk reasoning are text, not HTML. The access token lives in memory in `shared/auth/tokenStore.ts`; the refresh token is an httpOnly cookie.
 - Feature folders are in place. The concepts page still lives in `components/FinancialConcepts.jsx`.

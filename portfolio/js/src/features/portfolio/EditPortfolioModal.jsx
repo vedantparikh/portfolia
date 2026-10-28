@@ -1,6 +1,7 @@
 import { DollarSign, Edit, Target, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { Modal } from '../../shared/ui';
 
 const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
     const [formData, setFormData] = useState({
@@ -89,7 +90,7 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
     if (!isOpen || !portfolio) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <Modal onClose={onClose}>
             <div className="bg-dark-900 rounded-xl border border-dark-700 w-full max-w-2xl max-h-[95vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-dark-700 shrink-0">
@@ -269,7 +270,7 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 

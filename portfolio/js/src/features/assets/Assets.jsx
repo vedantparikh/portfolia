@@ -39,6 +39,7 @@ import AssetCard from './AssetCard';
 import AssetFilters from './AssetFilters';
 import AssetModal from './AssetModal';
 import BulkAssetModal from './BulkAssetModal';
+import { Modal } from '../../shared/ui';
 
 const CATEGORY_TYPES = {
     cryptocurrency: 'CRYPTOCURRENCY',
@@ -551,7 +552,7 @@ const Assets = () => {
                     )}
 
                     {showConfigurationManager && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <Modal onClose={() => setShowConfigurationManager(false)}>
                             <div className="bg-dark-800 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
                                 <div className="flex items-center justify-between p-6 border-b border-dark-700">
                                     <h3 className="text-xl font-semibold text-gray-100">Analysis Configurations</h3>
@@ -572,7 +573,7 @@ const Assets = () => {
                                     />
                                 </div>
                             </div>
-                        </div>
+                        </Modal>
                     )}
                 </div>
             </div>

@@ -6,6 +6,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
+import core.services  # noqa: F401  modules import each other; load them the way main does
 from core.database.connection import SessionLocal
 from core.database.models import Portfolio, Transaction
 from modules.portfolios.service import PortfolioService
@@ -27,7 +28,7 @@ async def recalc(db: Session) -> int:
             .all()
         ]
         for asset_id in asset_ids:
-            await service.recalculate_asset_state(db, portfolio.id, asset_id)
+            await service.recalculate_asset_state(portfolio.id, asset_id)
             done += 1
     logger.info("recalculated %s holdings", done)
     return done

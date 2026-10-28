@@ -361,6 +361,7 @@ Answered:
 | 2026-10-28 | `fix/analytics-engine` | — | 0.3: `scripts/setup.sh` |
 | 2026-10-28 | `docs/consolidate` | — | 6.4: README, CONTRIBUTING, RUNBOOK, ADRs, feature references corrected, old guides folded in and deleted |
 | 2026-10-28 | `master` | `7309f68` | Deployed to the live `portfolio` project from local `portfolia-{api,web}:prod` images: dump in `env/backups/`, migration `d4e8a2f61c07`, `ENVIRONMENT=production`, `DEBUG=false`. Rotated: the Postgres password (was `password`), the JWT key (was the 40-character placeholder; everyone signs in again), a new Redis password. HTTPS login, cookie refresh, health and the worker checked. About 3 minutes down |
+| 2026-10-28 | `master` | `812caac` | Realized P&L before the tax withheld at sale; `python -m portfolia recalc` fixed. Trade Republic sync: reads Bachat's pytr export (read-only `/pytr`), knock-outs priced from their fills and redemptions booked as sales. Deployed: migration `e5b2c8d40a17`, 82 holdings recalculated, portfolio 11 renamed "Trade Republic (old import)", new synced "Trade Republic" (id 16, 948 rows) reconciles with pytr: all 20 open positions, realized 14,359.65 EUR before tax incl. -10,112.28 EUR on 16 knock-outs |
 
 ## 6b. Findings and to-do (2026-10-16)
 

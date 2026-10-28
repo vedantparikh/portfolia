@@ -95,7 +95,7 @@ export interface paths {
         put?: never;
         /**
          * Login User
-         * @description Authenticate user and return JWT tokens.
+         * @description Authenticate the user: access token in the body, refresh token as a cookie.
          */
         post: operations["post_api_v1_auth_login"];
         delete?: never;
@@ -115,7 +115,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh Access Token
-         * @description Exchange a refresh token for a new token pair.
+         * @description Exchange the refresh cookie for a new access token and a rotated cookie.
          *
          *     Refresh tokens are single-use: each refresh rotates the token stored on the
          *     session, so a replayed (stolen) token is rejected and revokes the session.
@@ -5920,14 +5920,6 @@ export interface components {
             created_at: string;
         };
         /**
-         * RefreshTokenRequest
-         * @description Schema for exchanging a refresh token for a new token pair.
-         */
-        RefreshTokenRequest: {
-            /** Refresh Token */
-            refresh_token: string;
-        };
-        /**
          * ResolveInstrumentsRequest
          * @description Securities to match to Yahoo listings.
          */
@@ -6472,13 +6464,11 @@ export interface components {
         };
         /**
          * Token
-         * @description Schema for authentication tokens.
+         * @description Access token. The refresh token is only sent as an httpOnly cookie.
          */
         Token: {
             /** Access Token */
             access_token: string;
-            /** Refresh Token */
-            refresh_token: string;
             /**
              * Token Type
              * @default bearer
@@ -7600,11 +7590,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshTokenRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -7613,15 +7599,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Token"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

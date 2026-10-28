@@ -76,6 +76,10 @@ class Settings(BaseSettings):
         validation_alias="REFRESH_TOKEN_EXPIRE_MINUTES",
     )
 
+    REFRESH_COOKIE_NAME: str = "portfolia_refresh"
+    REFRESH_COOKIE_PATH: str = "/api/v1/auth"
+    REFRESH_COOKIE_SECURE: bool = True
+
     LOG_LEVEL: str = "info"
 
     YAHOO_FINANCE_API_KEY: str = ""

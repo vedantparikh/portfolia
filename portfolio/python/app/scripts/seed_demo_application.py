@@ -356,9 +356,9 @@ class _TokenAuth:
     def needs_refresh(self) -> bool:
         return time.time() >= self._expires_at
 
-    def apply_refresh(self, data: Dict[str, Any]) -> None:
+    def apply_refresh(self, data: Dict[str, Any], refresh_token: str) -> None:
         self._access = data["access_token"]
-        self._refresh = data["refresh_token"]
+        self._refresh = refresh_token
         self._expires_at = time.time() + float(data["expires_in"]) - 45.0
 
 
@@ -367,12 +367,13 @@ async def _refresh_if_needed(
 ) -> None:
     if not auth.needs_refresh():
         return
+    # The cookie is Secure, so the http client would not send it back by itself
     r = await client.post(
         f"{base}/api/v1/auth/refresh",
-        headers={"Authorization": f"Bearer {auth._refresh}"},
+        headers={"Cookie": f"{settings.REFRESH_COOKIE_NAME}={auth._refresh}"},
     )
     r.raise_for_status()
-    auth.apply_refresh(r.json())
+    auth.apply_refresh(r.json(), r.cookies[settings.REFRESH_COOKIE_NAME])
     logger.info("Refreshed access token (expires_in=%s)", r.json().get("expires_in"))
 
 
@@ -545,7 +546,9 @@ async def run(args: argparse.Namespace) -> int:
             tok.get("expires_in"),
         )
         auth = _TokenAuth(
-            tok["access_token"], tok["refresh_token"], int(tok["expires_in"])
+            tok["access_token"],
+            login_r.cookies[settings.REFRESH_COOKIE_NAME],
+            int(tok["expires_in"]),
         )
 
         me = await _request(client, base, auth, "GET", "/api/v1/auth/me")

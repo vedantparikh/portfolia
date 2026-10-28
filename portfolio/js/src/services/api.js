@@ -47,6 +47,7 @@ export const API_BASE_URL = (
 const api = axios.create({
   baseURL: API_BASE_URL, // Overridable via VITE_API_BASE_URL
   timeout: 100000, // Request timeout (100 seconds)
+  withCredentials: true, // the refresh token is an httpOnly cookie
   headers: {
     "Content-Type": "application/json", // Tell server we're sending JSON data
   },
@@ -97,16 +98,12 @@ const forceLogout = () => {
 */
 let refreshPromise = null;
 
-const refreshAccessToken = () => {
+export const refreshAccessToken = () => {
   if (!refreshPromise) {
-    const refreshToken = tokenStore.getRefresh();
-    if (!refreshToken) {
-      return Promise.reject(new Error("No refresh token"));
-    }
     refreshPromise = authAPI
-      .refreshToken(refreshToken)
-      .then(({ access_token, refresh_token }) => {
-        tokenStore.set(access_token, refresh_token);
+      .refreshToken()
+      .then(({ access_token }) => {
+        tokenStore.setAccess(access_token);
         return access_token;
       })
       .finally(() => {
@@ -204,14 +201,12 @@ export const authAPI = {
   },
 
   /* 
-      REFRESH TOKEN - Get new access token using refresh token
-      Parameters: refreshToken (string)
-      Returns: Server response with new access and refresh tokens
+      REFRESH TOKEN - Get a new access token; the browser sends the refresh cookie
       Note: This uses direct axios call to avoid interceptor loops
     */
-  refreshToken: async (refreshToken) => {
-    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-      refresh_token: refreshToken,
+  refreshToken: async () => {
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, null, {
+      withCredentials: true,
     });
     return response.data;
   },
@@ -1727,14 +1722,6 @@ export const authUtils = {
     */
   getAccessToken: () => {
     return tokenStore.getAccess();
-  },
-
-  /* 
-      GET REFRESH TOKEN - Get the current refresh token
-      Returns: string (refresh token) or null
-    */
-  getRefreshToken: () => {
-    return tokenStore.getRefresh();
   },
 
   /* 

@@ -23,7 +23,7 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
 
 // Import our API service for authentication calls
-import { apiErrorMessage, authAPI } from '../services/api';
+import { apiErrorMessage, authAPI, refreshAccessToken } from '../services/api';
 import { tokenStore } from '../shared/auth/tokenStore';
 
 /* 
@@ -214,22 +214,18 @@ export const AuthProvider = ({ children }) => {
         */
         const initializeAuth = async () => {
             try {
-                // Check if there's a saved access token in browser storage
-                const token = tokenStore.getAccess();
-                if (token) {
-                    // If token exists, try to get user data from the server
-                    const user = await authAPI.getCurrentUser();
-                    const profile = await authAPI.getUserProfile();
-                    
-                    // Update state with user data
-                    dispatch({ type: AUTH_ACTIONS.SET_USER, payload: user });
-                    dispatch({ type: AUTH_ACTIONS.SET_PROFILE, payload: profile });
-                } else {
-                    // No token found, user is not logged in
-                    dispatch({ type: AUTH_ACTIONS.SET_USER, payload: null });
-                }
+                // The access token is not kept across reloads; the refresh cookie restores it
+                await refreshAccessToken();
+            } catch {
+                dispatch({ type: AUTH_ACTIONS.SET_USER, payload: null });
+                return;
+            }
+            try {
+                const user = await authAPI.getCurrentUser();
+                const profile = await authAPI.getUserProfile();
+                dispatch({ type: AUTH_ACTIONS.SET_USER, payload: user });
+                dispatch({ type: AUTH_ACTIONS.SET_PROFILE, payload: profile });
             } catch (error) {
-                // If getting user data fails, clear everything and log out
                 console.error('Failed to initialize auth:', error);
                 tokenStore.clear();
                 dispatch({ type: AUTH_ACTIONS.SET_USER, payload: null });
@@ -259,8 +255,8 @@ export const AuthProvider = ({ children }) => {
             // Send login request to the server
             const response = await authAPI.login(credentials);
 
-            // Save the tokens in browser storage so user stays logged in
-            tokenStore.set(response.access_token, response.refresh_token);
+            // The refresh token arrives as an httpOnly cookie; only the access token is kept
+            tokenStore.setAccess(response.access_token);
 
             // Get user data from the server
             const user = await authAPI.getCurrentUser();

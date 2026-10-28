@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 import api.v1.auth.router as auth_router
 import core.database.redis_client as redis_client_module
+from config import settings
 from core.auth.utils import DUMMY_PASSWORD_HASH, hash_refresh_token
 from core.database.connection import get_db
 from core.database.models import (
@@ -80,7 +81,8 @@ def stub_prices(monkeypatch):
 def api(test_db, fake_redis, sent_emails):
     app.dependency_overrides[get_db] = lambda: test_db
     # No context manager: skips the lifespan (it would initialise the real database)
-    yield TestClient(app)
+    # https, so the client sends the Secure refresh cookie back
+    yield TestClient(app, base_url="https://testserver")
     app.dependency_overrides.clear()
 
 
@@ -113,6 +115,21 @@ def login(api, username, password=STRONG_PASSWORD):
 
 def auth(tokens):
     return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+def refresh_cookie(api):
+    return api.cookies.get(settings.REFRESH_COOKIE_NAME)
+
+
+def refresh_with(api, token):
+    api.cookies.clear()
+    api.cookies.set(
+        settings.REFRESH_COOKIE_NAME,
+        token,
+        domain="testserver.local",
+        path=settings.REFRESH_COOKIE_PATH,
+    )
+    return api.post("/api/v1/auth/refresh")
 
 
 def create_portfolio_with_asset(db, user, symbol):
@@ -202,49 +219,73 @@ class TestSessions:
         assert response.status_code == 401
         assert seen == [DUMMY_PASSWORD_HASH]
 
+    def test_refresh_token_is_only_an_httponly_cookie(self, api, test_db):
+        response = api.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "carol@example.com",
+                "username": "carol",
+                "password": STRONG_PASSWORD,
+                "confirm_password": STRONG_PASSWORD,
+                "first_name": "carol",
+                "last_name": "Test",
+            },
+        )
+        assert response.status_code == 201, response.text
+        response = api.post(
+            "/api/v1/auth/login",
+            json={"username": "carol", "password": STRONG_PASSWORD},
+        )
+        assert response.status_code == 200
+        assert "refresh_token" not in response.json()
+        cookie = response.headers["set-cookie"]
+        assert cookie.startswith(f"{settings.REFRESH_COOKIE_NAME}=")
+        for attribute in ("HttpOnly", "Secure", "SameSite=strict", "Path=/api/v1/auth"):
+            assert attribute in cookie
+
     def test_refresh_token_is_stored_as_a_hash(self, api, test_db):
-        user, tokens = register_and_login(api, test_db, "alice")
+        user, _ = register_and_login(api, test_db, "alice")
+        token = refresh_cookie(api)
         stored = (
             test_db.query(UserSession)
             .filter(UserSession.user_id == user.id)
             .one()
             .refresh_token
         )
-        assert stored == hash_refresh_token(tokens["refresh_token"])
-        assert stored != tokens["refresh_token"]
+        assert stored == hash_refresh_token(token)
+        assert stored != token
 
     def test_refresh_rotates_and_detects_reuse(self, api, test_db):
-        _, tokens = register_and_login(api, test_db, "alice")
+        register_and_login(api, test_db, "alice")
+        old = refresh_cookie(api)
 
-        first = api.post(
-            "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-        )
+        first = api.post("/api/v1/auth/refresh")
         assert first.status_code == 200
         rotated = first.json()
-        assert rotated["refresh_token"] != tokens["refresh_token"]
+        assert "refresh_token" not in rotated
+        assert refresh_cookie(api) != old
 
         # Replaying the old refresh token is rejected and kills the session
-        replay = api.post(
-            "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-        )
-        assert replay.status_code == 401
+        assert refresh_with(api, old).status_code == 401
         assert api.get("/api/v1/auth/me", headers=auth(rotated)).status_code == 401
+
+    def test_refresh_without_cookie_is_rejected(self, api, test_db):
+        register_and_login(api, test_db, "alice")
+        api.cookies.clear()
+        assert api.post("/api/v1/auth/refresh").status_code == 401
 
     def test_access_token_cannot_be_used_to_refresh(self, api, test_db):
         _, tokens = register_and_login(api, test_db, "alice")
-        response = api.post(
-            "/api/v1/auth/refresh", json={"refresh_token": tokens["access_token"]}
-        )
-        assert response.status_code == 401
+        assert refresh_with(api, tokens["access_token"]).status_code == 401
 
     def test_logout_revokes_the_session(self, api, test_db):
         _, tokens = register_and_login(api, test_db, "alice")
-        assert api.post("/api/v1/auth/logout", headers=auth(tokens)).status_code == 200
+        token = refresh_cookie(api)
+        response = api.post("/api/v1/auth/logout", headers=auth(tokens))
+        assert response.status_code == 200
+        assert "Max-Age=0" in response.headers["set-cookie"]
         assert api.get("/api/v1/auth/me", headers=auth(tokens)).status_code == 401
-        refresh = api.post(
-            "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
-        )
-        assert refresh.status_code == 401
+        assert refresh_with(api, token).status_code == 401
 
     def test_change_password_keeps_current_session_only(self, api, test_db):
         _, current = register_and_login(api, test_db, "alice")

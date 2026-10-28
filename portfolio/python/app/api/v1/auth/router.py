@@ -4,7 +4,7 @@ Authentication router with user registration, login, and management endpoints.
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -48,7 +48,6 @@ from core.schemas.auth import (
     PasswordChange,
     PasswordReset,
     PasswordResetConfirm,
-    RefreshTokenRequest,
     Token,
     TokenValidationResponse,
     UserCreate,
@@ -68,6 +67,32 @@ LOGIN_MAX_ATTEMPTS = 10
 REGISTER_MAX_ATTEMPTS = 5
 PASSWORD_RESET_MAX_ATTEMPTS = 5
 RATE_LIMIT_WINDOW_SECONDS = 15 * 60
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        settings.REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_MINUTES * 60,
+        path=settings.REFRESH_COOKIE_PATH,
+        secure=settings.REFRESH_COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        settings.REFRESH_COOKIE_NAME,
+        path=settings.REFRESH_COOKIE_PATH,
+        secure=settings.REFRESH_COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+
+
+def _access_token(tokens: dict) -> dict:
+    return {key: value for key, value in tokens.items() if key != "refresh_token"}
 
 
 @router.post(
@@ -238,9 +263,12 @@ def register_user(
 
 @router.post("/login", response_model=Token)
 def login_user(
-    user_credentials: UserLogin, request: Request, db: Session = Depends(get_db)
+    user_credentials: UserLogin,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
 ):
-    """Authenticate user and return JWT tokens."""
+    """Authenticate the user: access token in the body, refresh token as a cookie."""
     client_ip = get_client_ip(request)
     username = user_credentials.username.lower()
 
@@ -301,16 +329,18 @@ def login_user(
         client_ip,
         f"User logged in from IP: {client_ip}",
     )
-    return tokens
+    _set_refresh_cookie(response, tokens["refresh_token"])
+    return _access_token(tokens)
 
 
 @router.post("/refresh", response_model=Token)
 def refresh_access_token(
-    refresh_request: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     """
-    Exchange a refresh token for a new token pair.
+    Exchange the refresh cookie for a new access token and a rotated cookie.
 
     Refresh tokens are single-use: each refresh rotates the token stored on the
     session, so a replayed (stolen) token is rejected and revokes the session.
@@ -318,7 +348,10 @@ def refresh_access_token(
     invalid = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
     )
-    payload = validate_refresh_token(refresh_request.refresh_token)
+    presented = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    if not presented:
+        raise invalid
+    payload = validate_refresh_token(presented)
     session_id = payload.get("sid")
     if not session_id:
         raise invalid
@@ -329,9 +362,7 @@ def refresh_access_token(
     if not user_session:
         raise invalid
 
-    if not refresh_token_matches(
-        user_session.refresh_token, refresh_request.refresh_token
-    ):
+    if not refresh_token_matches(user_session.refresh_token, presented):
         # Token reuse: an old refresh token was presented. Assume theft and revoke.
         accounts.revoke_stolen_session(user_session)
         log_security_event(
@@ -351,12 +382,14 @@ def refresh_access_token(
     user_session.refresh_token = hash_refresh_token(tokens["refresh_token"])
     user_session.expires_at = now + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
-    return tokens
+    _set_refresh_cookie(response, tokens["refresh_token"])
+    return _access_token(tokens)
 
 
 @router.post("/logout")
 def logout_user(
     request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -376,7 +409,7 @@ def logout_user(
         client_ip,
         f"User logged out from IP: {client_ip}",
     )
-
+    _clear_refresh_cookie(response)
     return {"message": "Successfully logged out"}
 
 

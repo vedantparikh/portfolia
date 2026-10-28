@@ -90,18 +90,11 @@ class PasswordResetConfirm(BaseModel):
 
 
 class Token(BaseModel):
-    """Schema for authentication tokens."""
+    """Access token. The refresh token is only sent as an httpOnly cookie."""
 
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
-
-
-class RefreshTokenRequest(BaseModel):
-    """Schema for exchanging a refresh token for a new token pair."""
-
-    refresh_token: str
 
 
 class TokenData(BaseModel):

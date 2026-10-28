@@ -53,7 +53,7 @@ class AssetRepository:
             query = query.filter(Asset.symbol.ilike(f"%{symbol.upper()}%"))
         if asset_type:
             query = query.filter(Asset.asset_type == asset_type)
-        return query.offset(skip).limit(limit).all()
+        return query.order_by(Asset.symbol, Asset.id).offset(skip).limit(limit).all()
 
     def get_active(self, user_id: int, asset_id: int) -> Asset | None:
         return (

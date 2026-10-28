@@ -99,8 +99,8 @@ const Transactions = () => {
   useEffect(() => {
     const navState = location.state;
     // If the action from Portfolio.js is present, open the modal
-    if (navState?.action === "createTransaction" && navState?.portfolioId) {
-      setInitialPortfolioId(navState.portfolioId);
+    if (navState?.action === "createTransaction") {
+      setInitialPortfolioId(navState.portfolioId ?? null);
       setShowCreateModal(true);
 
       // Clean up the state to prevent the modal from re-opening on refresh
@@ -218,7 +218,7 @@ const Transactions = () => {
       await transactionAPI.createTransaction(transactionData);
       setShowCreateModal(false);
       toast.success("Transaction created successfully");
-      handleRefresh();
+      refreshLists();
     } catch (error) {
       console.error("Failed to create transaction:", error);
       toast.error(
@@ -259,10 +259,12 @@ const Transactions = () => {
 
   const handleQuickAction = (action) => {
     if (action === "create-transaction") setShowCreateModal(true);
-    if (action === "refresh") handleRefresh();
-    if (action === "upload-pdf") setShowPDFUpload(true);
-    if (action === "bulk-transaction") setShowBulkModal(true);
-    if (action === "export-pdf") setShowExportModal(true);
+    else if (action === "refresh") handleRefresh();
+    else if (action === "upload-pdf") setShowPDFUpload(true);
+    else if (action === "bulk-transaction") setShowBulkModal(true);
+    else if (action === "export-pdf") setShowExportModal(true);
+    else return false;
+    return true;
   };
 
   usePageChrome({
@@ -311,7 +313,7 @@ const Transactions = () => {
           toast.error(message, { duration: 5000 })
         );
       }
-      if (created > 0) handleRefresh();
+      if (created > 0) refreshLists();
       return response;
     } catch (error) {
       const verb = context === "import" ? "import" : "create";

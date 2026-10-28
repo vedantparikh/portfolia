@@ -33,13 +33,14 @@ export function usePageChrome({
       onPortfolioChange: (portfolio) =>
         handlers.current.onPortfolioChange?.(portfolio),
       onSearchChange: (value) => handlers.current.onSearchChange?.(value),
-      onQuickAction: (action) => handlers.current.onQuickAction?.(action),
+      onQuickAction: (action) =>
+        handlers.current.onQuickAction?.(action) === true,
     };
     return () => {
       callbacks.current = {
         onPortfolioChange: () => {},
         onSearchChange: () => {},
-        onQuickAction: () => {},
+        onQuickAction: () => false,
       };
     };
   }, [callbacks]);

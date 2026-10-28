@@ -94,6 +94,7 @@ const TransactionFilters = ({ filters, portfolios, onFilterChange }) => {
                         onChange={(e) => handleFilterChange('type', e.target.value)}
                         className="input-field w-full"
                     >
+                        <option value="all">All Types</option>
                         {transactionTypes.map((type) => (
                             <option key={type.value} value={type.value}>
                                 {type.label}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Lock, User, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,7 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const { login, isLoading, error, clearError } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const {
         register,
@@ -22,7 +23,8 @@ const Login = () => {
 
         if (result.success) {
             toast.success('Login successful!');
-            navigate('/dashboard');
+            const from = location.state?.from;
+            navigate(from ? `${from.pathname}${from.search ?? ''}` : '/dashboard', { replace: true });
         } else {
             toast.error(result.error || 'Login failed');
         }

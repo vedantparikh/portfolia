@@ -237,12 +237,13 @@ class WatchlistService:
             )
 
             self.db.add(item)
+            self.db.flush()
+            if current_price:
+                self._record_daily_price(
+                    item.id, current_price, datetime.now(timezone.utc)
+                )
             self.db.commit()
             self.db.refresh(item)
-
-            # Create initial performance record
-            if current_price:
-                self._create_performance_record(item.id, current_price)
 
             logger.info(
                 f"Added {item.symbol} to watchlist '{watchlist.name}' for user {user_id}"
@@ -271,10 +272,20 @@ class WatchlistService:
                 return None
 
             # Update fields
-            for field, value in update_data.dict(exclude_unset=True).items():
+            fields = update_data.dict(exclude_unset=True)
+            for field, value in fields.items():
                 setattr(item, field, value)
 
             item.updated_at = datetime.now(timezone.utc)
+            # The worker checks every few minutes. Saving a threshold the price
+            # already meets should show up immediately; a cleared one closes.
+            if item.current_price is not None and {
+                "alert_price_high",
+                "alert_price_low",
+                "alert_price_change_percent",
+                "alerts_enabled",
+            }.intersection(fields):
+                self._apply_alerts(item, item.current_price, item.updated_at)
             self.db.commit()
             self.db.refresh(item)
 

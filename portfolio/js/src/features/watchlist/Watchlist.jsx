@@ -115,19 +115,9 @@ const Watchlist = () => {
   };
 
   const handleQuickAction = (action) => {
-    switch (action) {
-      case "create-portfolio":
-        navigate("/portfolio");
-        break;
-      case "create-transaction":
-        navigate("/transactions");
-        break;
-      case "refresh":
-        handleManualRefresh();
-        break;
-      default:
-        break;
-    }
+    if (action !== "refresh") return false;
+    handleManualRefresh();
+    return true;
   };
 
   usePageChrome({ onQuickAction: handleQuickAction });
@@ -238,21 +228,21 @@ const Watchlist = () => {
     }
 
     try {
-      await assetAPI.createAsset({
-        symbol: symbolData.symbol,
-        name:
-          symbolData.long_name || symbolData.short_name || "Unknown Company",
-        asset_type: symbolData.asset_type || "EQUITY",
-        exchange: symbolData.exchange,
-        sector: symbolData.sector,
-        industry: symbolData.industry,
-      });
+      await assetAPI
+        .createAsset({
+          symbol: symbolData.symbol,
+          name:
+            symbolData.long_name || symbolData.short_name || "Unknown Company",
+          asset_type: symbolData.asset_type || "EQUITY",
+          exchange: symbolData.exchange,
+          sector: symbolData.sector,
+          industry: symbolData.industry,
+        })
+        .catch((error) => {
+          // 400 = the asset already exists for this user.
+          if (error.response?.status !== 400) throw error;
+        });
       setAddingSymbol(true);
-      // Extract symbol string for display purposes
-      const symbolString =
-        typeof symbolData === "string"
-          ? symbolData
-          : symbolData.symbol || symbolData.name;
       symbolData.company_name =
         symbolData.long_name ||
         symbolData.short_name ||
@@ -265,7 +255,6 @@ const Watchlist = () => {
       await Promise.all([refreshWatchlists(), refreshSelected()]);
 
       setShowAddSymbolModal(false);
-      toast.success(`${symbolString} added to watchlist`);
     } catch (error) {
       console.error("Failed to add symbol:", error);
 
@@ -287,8 +276,7 @@ const Watchlist = () => {
         errorMessage = error.message;
       }
 
-      toast.error(errorMessage);
-      throw error; // Re-throw to let the modal handle it
+      throw new Error(errorMessage);
     } finally {
       setAddingSymbol(false);
     }
@@ -338,6 +326,7 @@ const Watchlist = () => {
   };
 
   const handleUpdateWatchlistItem = (updatedItem) => {
+    queryClient.invalidateQueries({ queryKey: watchlistKeys.alerts });
     if (selectedId == null) return;
     queryClient.setQueryData(
       watchlistKeys.detail(selectedId, true),

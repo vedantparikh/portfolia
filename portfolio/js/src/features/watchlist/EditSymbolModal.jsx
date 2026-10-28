@@ -1,6 +1,12 @@
 import { AlertTriangle, Bell, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+const asAlertInput = (value) => {
+    if (value == null || value === '') return '';
+    const n = Number(value);
+    return Number.isFinite(n) ? String(n) : '';
+};
+
 const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
     const [formData, setFormData] = useState({
         notes: '',
@@ -15,9 +21,9 @@ const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
         if (symbol) {
             setFormData({
                 notes: symbol.notes || '',
-                alert_price_high: symbol.alert_price_high ?? '',
-                alert_price_low: symbol.alert_price_low ?? '',
-                alert_price_change_percent: symbol.alert_price_change_percent ?? '',
+                alert_price_high: asAlertInput(symbol.alert_price_high),
+                alert_price_low: asAlertInput(symbol.alert_price_low),
+                alert_price_change_percent: asAlertInput(symbol.alert_price_change_percent),
                 alerts_enabled: symbol.alerts_enabled ?? true,
             });
         }
@@ -31,9 +37,10 @@ const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
             const updateData = {};
             if (formData.notes !== (symbol?.notes || '')) updateData.notes = formData.notes;
             for (const field of ['alert_price_high', 'alert_price_low', 'alert_price_change_percent']) {
-                const value = formData[field] === '' ? null : String(formData[field]);
-                const before = symbol?.[field] == null ? null : String(symbol[field]);
-                if (value !== before) updateData[field] = value;
+                const value = asAlertInput(formData[field]);
+                if (value !== asAlertInput(symbol?.[field])) {
+                    updateData[field] = value === '' ? null : value;
+                }
             }
             if (formData.alerts_enabled !== (symbol?.alerts_enabled ?? true)) {
                 updateData.alerts_enabled = formData.alerts_enabled;

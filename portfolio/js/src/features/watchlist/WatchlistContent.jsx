@@ -18,7 +18,10 @@ import toast from "react-hot-toast";
 import { apiErrorMessage, watchlistAPI, assetAPI } from "../../services/api";
 import {
   formatDate,
+  formatCurrency,
   formatDateTime,
+  formatPercentage,
+  formatPrice,
   getChangeColor,
 } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
@@ -55,7 +58,7 @@ const WatchlistContent = ({
   const [searchTerm, setSearchTerm] = useState(""); // Current search input value
 
   // Sorting functionality state
-  const [sortBy, setSortBy] = useState("symbol"); // Which column to sort by
+  const [sortBy, setSortBy] = useState("custom"); // Which column to sort by
   const [sortOrder, setSortOrder] = useState("asc"); // Sort direction: ascending or descending
 
   useEffect(() => {
@@ -123,20 +126,22 @@ const WatchlistContent = ({
       const itemToUpdate = watchlist.items.find((item) => item.id === itemId);
 
       if (itemToUpdate) {
-        // As requested, create an asset when the item is edited.
-        // Your backend should be designed to handle this call without creating
-        // duplicates if the asset already exists.
-        await assetAPI.createAsset({
-          symbol: itemToUpdate.symbol,
-          name:
-            itemToUpdate.long_name ||
-            itemToUpdate.short_name ||
-            "Unknown Company",
-          asset_type: itemToUpdate.asset_type || "EQUITY",
-          exchange: itemToUpdate.exchange,
-          sector: itemToUpdate.sector,
-          industry: itemToUpdate.industry,
-        });
+        await assetAPI
+          .createAsset({
+            symbol: itemToUpdate.symbol,
+            name:
+              itemToUpdate.long_name ||
+              itemToUpdate.short_name ||
+              "Unknown Company",
+            asset_type: itemToUpdate.asset_type || "EQUITY",
+            exchange: itemToUpdate.exchange,
+            sector: itemToUpdate.sector,
+            industry: itemToUpdate.industry,
+          })
+          .catch((error) => {
+            // 400 = the asset already exists for this user.
+            if (error.response?.status !== 400) throw error;
+          });
       }
 
       // Make API call to update the watchlist item
@@ -177,7 +182,7 @@ const WatchlistContent = ({
   // This is called when user finishes dragging a symbol to a new position
   const handleDragEnd = (result) => {
     // Check if drag operation was valid (has destination and watchlist has items)
-    if (!result.destination || !watchlist?.items) return;
+    if (!result.destination || !watchlist?.items || !canReorder) return;
 
     // Create a copy of the items array (don't mutate original)
     const items = Array.from(watchlist.items);
@@ -214,6 +219,8 @@ const WatchlistContent = ({
           item.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
+    if (sortBy === "custom") return items;
 
     // Sort the filtered items
     items.sort((a, b) => {
@@ -297,6 +304,7 @@ const WatchlistContent = ({
 
   // Get the filtered and sorted items for display
   const sortedItems = getSortedItems();
+  const canReorder = sortBy === "custom" && !searchTerm;
 
   // This is what gets displayed on the screen
   return (
@@ -331,6 +339,7 @@ const WatchlistContent = ({
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-3 py-2 bg-dark-800 border border-dark-600 rounded-lg text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
+                <option value="custom">Custom order</option>
                 <option value="symbol">Symbol</option>
                 <option value="price">Current Price</option>
                 <option value="change">Change %</option>
@@ -509,6 +518,7 @@ const WatchlistContent = ({
                         key={item.id}
                         draggableId={item.id.toString()}
                         index={index}
+                        isDragDisabled={!canReorder}
                       >
                         {/* Render prop pattern - provided contains drag props, snapshot contains drag state */}
                         {(provided, snapshot) => (
@@ -557,7 +567,7 @@ const WatchlistContent = ({
                                 {/* Added Price & Date Column */}
                                 <div className="text-right w-28 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    ${item.added_price || "N/A"}
+                                    {formatPrice(item.added_price)}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Added {formatDate(item.added_date)}
@@ -570,7 +580,7 @@ const WatchlistContent = ({
                                 {/* Current Price & Last Updated Column */}
                                 <div className="text-right w-28 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    ${item.current_price || "0.00"}
+                                    {formatPrice(item.current_price)}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Updated {formatDateTime(item.updated_at)}
@@ -584,10 +594,9 @@ const WatchlistContent = ({
                                       item.price_change_percent_since_added
                                     )}`}
                                   >
-                                    {isPositive ? "+" : ""}
-                                    {item.price_change_percent_since_added ||
-                                      "0.00"}
-                                    %
+                                    {formatPercentage(
+                                      item.price_change_percent_since_added ?? 0
+                                    )}
                                   </div>
                                   <div
                                     className={`text-xs ${getChangeColor(
@@ -595,14 +604,20 @@ const WatchlistContent = ({
                                     )}`}
                                   >
                                     {isPositive ? "+" : ""}
-                                    {item.price_change_since_added || "0.00"}
+                                    {formatCurrency(
+                                      parseFloat(item.price_change_since_added ?? 0)
+                                    )}
                                   </div>
                                 </div>
 
                                 {/* Alerts Column */}
                                 <div className="text-right w-20 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    {item.alerts?.length || 0}
+                                    {[
+                                      item.alert_price_high,
+                                      item.alert_price_low,
+                                      item.alert_price_change_percent,
+                                    ].filter((value) => value != null && value !== "").length}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Alerts

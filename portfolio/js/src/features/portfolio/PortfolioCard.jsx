@@ -3,7 +3,6 @@ import {
   BarChart3,
   Calendar,
   Edit,
-  Settings,
   Trash2,
 } from "lucide-react";
 import { LoadingSpinner } from "../../components/shared";
@@ -69,9 +68,6 @@ const PortfolioCard = ({
             title="Edit portfolio"
           >
             <Edit size={16} className="text-gray-400" />
-          </button>
-          <button className="p-2 rounded-lg hover:bg-dark-800 transition-colors">
-            <Settings size={16} className="text-gray-400" />
           </button>
           <button
             onClick={handleDelete}

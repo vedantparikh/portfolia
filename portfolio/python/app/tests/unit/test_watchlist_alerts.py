@@ -13,6 +13,7 @@ from core.database.models.watchlist import (
     WatchlistPerformance,
 )
 from core.domain.alerts import PRICE_HIGH, PRICE_LOW, check_alerts
+from core.schemas.watchlist import WatchlistItemCreate
 from core.services.watchlist_service import WatchlistService
 from main import app
 
@@ -218,6 +219,29 @@ async def test_worker_pass_uses_its_own_session(
     assert (result["updated"], result["triggered"]) == (1, 1)
 
 
+def test_saving_a_crossed_threshold_records_an_alert_immediately(
+    client, test_db, watch
+):
+    user, item, _ = watch
+    item.current_price = D("150")
+    item.alert_price_high = None
+    test_db.commit()
+    app.dependency_overrides[get_current_user] = lambda: user
+    url = f"/api/v1/watchlists/{item.watchlist_id}/items/{item.id}"
+
+    assert client.put(url, json={"alert_price_high": "140"}).status_code == 200
+    assert [
+        (e.threshold_value, e.is_active, e.triggered_value)
+        for e in _events(test_db, item)
+    ] == [(D("140"), True, D("150"))]
+
+    assert client.put(url, json={"alert_price_high": "140"}).status_code == 200
+    assert len(_events(test_db, item)) == 1
+
+    assert client.put(url, json={"alert_price_high": None}).status_code == 200
+    assert [e.is_active for e in _events(test_db, item)] == [False]
+
+
 def test_item_update_saves_and_clears_alert_thresholds(client, test_db, watch):
     user, item, _ = watch
     app.dependency_overrides[get_current_user] = lambda: user
@@ -245,3 +269,28 @@ def test_item_update_saves_and_clears_alert_thresholds(client, test_db, watch):
     test_db.refresh(item)
     assert (item.alert_price_high, item.alert_price_low) == (None, D("70"))
     assert client.put(url, json={"alert_price_low": "-1"}).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_adding_an_item_records_its_first_price(test_db, watch):
+    user, item, service = watch
+
+    async def price(symbol):
+        return D("42")
+
+    service.market_data_service.get_current_price = price
+    added = await service.add_item_to_watchlist(
+        item.watchlist_id, user.id, WatchlistItemCreate(symbol="beta")
+    )
+
+    assert (added.symbol, added.added_price, added.sort_order) == (
+        "BETA",
+        D("42"),
+        item.sort_order + 1,
+    )
+    history = (
+        test_db.query(WatchlistPerformance)
+        .filter(WatchlistPerformance.watchlist_item_id == added.id)
+        .all()
+    )
+    assert [p.price for p in history] == [D("42")]

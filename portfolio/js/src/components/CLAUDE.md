@@ -15,7 +15,7 @@
 - nav links;
 - a portfolio selector, shown only on the portfolio and transactions views;
 - a search box (the page's `onSearchChange`);
-- quick actions (new portfolio, new transaction, refresh), via `onQuickAction`;
+- quick actions (new portfolio, new transaction, refresh), via `onQuickAction`. A page returns `true` when it handled the action; otherwise `ProtectedLayout` opens the create modal on `/portfolio` or `/transactions` (router state `action`), or invalidates every query on refresh;
 - logout.
 
 Each page renders its own header: `text-3xl` title, subtitle, actions on the right. The mobile menu button calls `openSidebar` or `toggleSidebar` from `useShell`.

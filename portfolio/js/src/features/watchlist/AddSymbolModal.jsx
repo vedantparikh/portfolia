@@ -17,10 +17,14 @@ const AddSymbolModal = ({ isOpen, onClose, onAdd }) => {
         'SPY', 'QQQ', 'IWM', 'VTI', 'VOO', 'ARKK', 'BTC', 'ETH'
     ];
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
+        addSymbol(symbol);
+    };
 
-        if (!symbol.trim()) {
+    const addSymbol = async (value) => {
+        const ticker = value.trim().toUpperCase();
+        if (!ticker) {
             setError('Please enter a symbol');
             return;
         }
@@ -29,12 +33,11 @@ const AddSymbolModal = ({ isOpen, onClose, onAdd }) => {
         setError('');
 
         try {
-            // Create basic symbol data for watchlist
-            const symbolData = await fetchSymbolData(symbol.trim().toUpperCase());
+            const symbolData = await fetchSymbolData(ticker);
 
             await onAdd(symbolData);
             handleClose();
-            toast.success(`Added ${symbol.trim().toUpperCase()} to watchlist`);
+            toast.success(`Added ${ticker} to watchlist`);
         } catch (error) {
             console.error('Failed to add symbol:', error);
             const errorMessage = error.response?.data?.message || error.message || 'Failed to add symbol';
@@ -175,7 +178,7 @@ const AddSymbolModal = ({ isOpen, onClose, onAdd }) => {
                                     type="button"
                                     onClick={() => {
                                         setSymbol(popSymbol);
-                                        handleSubmit({ preventDefault: () => { } });
+                                        addSymbol(popSymbol);
                                     }}
                                     className="px-3 py-2 text-sm bg-dark-800 border border-dark-600 rounded-lg text-gray-300 hover:bg-dark-700 hover:border-primary-500 transition-colors font-mono"
                                 >

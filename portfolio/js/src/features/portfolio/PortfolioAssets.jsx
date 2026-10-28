@@ -12,7 +12,10 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { apiErrorMessage, portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
+import { assetAPI } from '../assets/api';
+import { portfolioAPI } from './api';
+import { transactionAPI } from '../transactions/api';
+import { apiErrorMessage } from '../../shared/api/client';
 import AssetFilters from '../assets/AssetFilters';
 import AssetModal from '../assets/AssetModal';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
@@ -71,12 +74,12 @@ const PortfolioAssets = ({ portfolio }) => {
             // Holdings carry the position numbers; asset details add type, market cap and 24h move
             const [holdingsResult, detailsResult] = await Promise.allSettled([
                 portfolioAPI.getPortfolioHoldings(portfolio.id),
-                userAssetsAPI.getUserAssets({ limit: 1000, include_detail: true }),
+                assetAPI.getAssets({ limit: 1000, include_detail: true }),
             ]);
             if (holdingsResult.status === 'rejected') throw holdingsResult.reason;
             const holdingsResponse = holdingsResult.value;
             const assetsById = new Map(
-                (detailsResult.status === 'fulfilled' ? detailsResult.value.assets : []).map((a) => [a.id, a])
+                (detailsResult.status === 'fulfilled' ? detailsResult.value : []).map((a) => [a.id, a])
             );
 
             // Process holdings data to create asset objects

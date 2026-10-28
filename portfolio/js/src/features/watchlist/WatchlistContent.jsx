@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { apiErrorMessage, watchlistAPI, assetAPI } from "../../services/api";
+import { assetAPI } from "../assets/api";
+import { watchlistAPI } from "./api";
+import { apiErrorMessage } from "../../shared/api/client";
 import {
   formatDate,
   formatCurrency,

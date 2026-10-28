@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { statisticalIndicatorsAPI } from '../../services/api';
+import { statisticalIndicatorsAPI } from '../../shared/api/indicators';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const IndicatorConfigurationManager = ({

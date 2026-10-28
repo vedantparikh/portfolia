@@ -1,6 +1,6 @@
 import { useMoney } from "../../hooks/useMoney";
 import { useEffect, useState } from "react";
-import { analyticsAPI } from "../../services/api";
+import { analyticsAPI } from "../analytics/api";
 import { formatPercentage } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
 

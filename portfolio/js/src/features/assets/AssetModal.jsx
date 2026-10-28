@@ -1,7 +1,7 @@
 import { BarChart3, Edit, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { marketAPI } from "../../services/api";
+import { assetAPI } from "./api";
 import {
   formatMarketCap,
   formatPercentage,
@@ -91,7 +91,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
         interval = "1d";
       }
 
-      const response = await marketAPI.getAssetPrices(asset.id, {
+      const response = await assetAPI.getAssetPrices(asset.id, {
         period: chartPeriod,
         interval: interval,
       });

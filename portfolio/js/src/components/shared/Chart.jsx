@@ -12,7 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { statisticalIndicatorsAPI } from "../../services/api";
+import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
 import { chartMoney, renderTooltip } from "../../shared/ui/tooltipDom";
 
 const Chart = ({

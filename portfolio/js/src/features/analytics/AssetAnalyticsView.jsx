@@ -7,7 +7,7 @@ import {
   Target,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { statisticalIndicatorsAPI } from "../../services/api";
+import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
 import EnhancedChart from "../../components/shared/EnhancedChart";
 import { seriesLabel } from "../../utils/indicatorLabels";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";

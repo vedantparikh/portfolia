@@ -2,7 +2,8 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { authUtils, marketAPI } from '../../services/api';
+import { marketAPI } from '../../shared/api/market';
+import { tokenStore } from '../../shared/auth/tokenStore';
 import { LoadingSpinner, SymbolSearch } from '../../components/shared';
 
 const AddSymbolModal = ({ isOpen, onClose, onAdd }) => {
@@ -81,7 +82,7 @@ const AddSymbolModal = ({ isOpen, onClose, onAdd }) => {
     const fetchSymbolData = async (symbolString) => {
         try {
             // Check authentication before making API call
-            if (!authUtils.isAuthenticated()) {
+            if (!tokenStore.getAccess()) {
                 console.warn('[AddSymbolModal] User not authenticated for symbol search');
                 throw new Error('Please log in to search for symbols');
             }

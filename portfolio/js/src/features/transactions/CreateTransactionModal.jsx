@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { assetAPI, marketAPI } from "../../services/api";
+import { assetAPI } from "../assets/api";
+import { marketAPI } from "../../shared/api/market";
 import {
   assetKeys,
   findAssetBySymbol,

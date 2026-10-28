@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiErrorMessage } from '../../services/api';
+import { apiErrorMessage } from '../../shared/api/client';
 
 const EmailVerification = () => {
     const [searchParams] = useSearchParams();

@@ -1,7 +1,7 @@
 import { Download, Eye, X } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { transactionPDFExportAPI } from "../../services/api";
+import { transactionPDFExportAPI } from "./api";
 import transactionTypesList from "../../utils/transactionTypes";
 
 const TransactionExportModal = ({ isOpen, onClose, portfolios = [] }) => {

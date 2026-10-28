@@ -15,11 +15,8 @@ import toast from "react-hot-toast";
 import { InView } from "react-intersection-observer";
 import { useLocation } from "react-router";
 
-import {
-  accountStatementsAPI,
-  apiErrorMessage,
-  transactionAPI,
-} from "../../services/api";
+import { accountStatementsAPI, transactionAPI } from "./api";
+import { apiErrorMessage } from "../../shared/api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   assetKeys,

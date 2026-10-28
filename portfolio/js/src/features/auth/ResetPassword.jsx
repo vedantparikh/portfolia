@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Lock, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
-import { apiErrorMessage, authAPI } from '../../services/api';
+import { authAPI } from './api';
+import { apiErrorMessage } from '../../shared/api/client';
 import toast from 'react-hot-toast';
 
 const ResetPassword = () => {

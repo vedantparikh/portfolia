@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { statisticalIndicatorsAPI } from "../../services/api";
+import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
 import { chartMoney, renderTooltip } from "../../shared/ui/tooltipDom";
 import { isFlagSeries, seriesLabel } from "../../utils/indicatorLabels";
 import {

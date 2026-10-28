@@ -13,7 +13,9 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
-import { apiErrorMessage, assetAPI, watchlistAPI } from "../../services/api";
+import { assetAPI } from "../assets/api";
+import { watchlistAPI } from "./api";
+import { apiErrorMessage } from "../../shared/api/client";
 import {
   watchlistKeys,
   useWatchlist,

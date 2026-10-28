@@ -14,7 +14,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
-import { API_BASE_URL, apiErrorMessage, portfolioAPI } from "../../services/api";
+import { portfolioAPI } from "./api";
+import { API_BASE_URL, apiErrorMessage } from "../../shared/api/client";
 import {
   portfolioKeys,
   usePortfolioAccountSummary,

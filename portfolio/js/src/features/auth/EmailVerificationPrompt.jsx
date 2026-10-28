@@ -2,7 +2,7 @@ import { AlertCircle, Loader2, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiErrorMessage } from '../../services/api';
+import { apiErrorMessage } from '../../shared/api/client';
 
 const EmailVerificationPrompt = ({ user }) => {
     const { resendVerification } = useAuth();

@@ -12,6 +12,6 @@ Components in this folder:
 | `AddSymbolModal`, `EditSymbolModal` | Search and add; notes and high/low/percent alerts |
 | `CreateWatchlistModal`, `EditWatchlistModal` | The list itself |
 
-HTTP goes through `watchlistAPI` in `services/api.js`. Alerts are evaluated by the `worker` service, not by this page. Refresh updates prices on screen.
+HTTP goes through `watchlistAPI` in `api.ts`. Alerts are evaluated by the `worker` service, not by this page. Refresh updates prices on screen.
 
 Not on the screen yet: personal rating, investment thesis, tags, a chart of `WatchlistPerformance`, and browsing public lists.

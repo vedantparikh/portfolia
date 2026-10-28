@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { portfolioCalculationsAPI } from "../../services/api";
+import { portfolioCalculationsAPI } from "./api";
 import { formatMetricValue, getMetricColor } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
 import StatCard from "../../components/shared/StatCard";

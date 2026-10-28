@@ -8,7 +8,8 @@ import {
     X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { analyticsAPI, portfolioCalculationsAPI } from '../../services/api';
+import { analyticsAPI } from './api';
+import { portfolioCalculationsAPI } from '../portfolio/api';
 import { formatPercentage, formatRatio } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 

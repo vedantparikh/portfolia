@@ -9,7 +9,7 @@ import {
     Trash2
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { analyticsAPI } from '../../services/api';
+import { analyticsAPI } from './api';
 import { formatPercentage } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 

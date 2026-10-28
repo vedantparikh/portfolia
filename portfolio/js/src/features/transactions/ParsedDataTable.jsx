@@ -12,7 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { accountStatementsAPI } from "../../services/api";
+import { accountStatementsAPI } from "./api";
 import { assetKeys, useAssets } from "../../shared/api/queries";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import transactionTypes from "../../utils/transactionTypes";

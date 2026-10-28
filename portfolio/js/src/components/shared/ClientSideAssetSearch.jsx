@@ -1,6 +1,6 @@
 import { Database, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { marketAPI } from '../../services/api';
+import { marketAPI } from '../../shared/api/market';
 import { filterAssets, useAssets } from '../../shared/api/queries';
 import LoadingSpinner from './LoadingSpinner';
 

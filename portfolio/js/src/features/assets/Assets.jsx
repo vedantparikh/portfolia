@@ -22,7 +22,10 @@ import { useCallback, useEffect, useState } from 'react';
 import useIsMobile from '../../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { InView } from 'react-intersection-observer';
-import { apiErrorMessage, portfolioAPI, transactionAPI, userAssetsAPI } from '../../services/api';
+import { assetAPI } from './api';
+import { portfolioAPI } from '../portfolio/api';
+import { transactionAPI } from '../transactions/api';
+import { apiErrorMessage } from '../../shared/api/client';
 import { useAssets } from '../../shared/api/queries';
 import { formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
@@ -35,7 +38,20 @@ import AssetFilters from './AssetFilters';
 import AssetModal from './AssetModal';
 import BulkAssetModal from './BulkAssetModal';
 
-const PAGE_SIZE = 8; // How many items to fetch per page
+const PAGE_SIZE = 8;
+
+const assetPayload = (asset, overrides = {}) => ({
+    symbol: asset.symbol,
+    name: asset.name,
+    asset_type: asset.asset_type,
+    exchange: asset.exchange,
+    sector: asset.sector,
+    industry: asset.industry,
+    country: asset.country,
+    description: asset.description,
+    is_active: asset.is_active,
+    ...overrides,
+});
 
 const Assets = () => {
     const [assets, setAssets] = useState([]);
@@ -117,7 +133,12 @@ const Assets = () => {
             if (filters.changeRange !== 'all') apiParams.change_range = filters.changeRange;
             if (filters.marketCapRange !== 'all') apiParams.market_cap_range = filters.marketCapRange;
 
-            const response = await userAssetsAPI.getUserAssets(apiParams);
+            const response = {
+                assets: await assetAPI.getAssets(apiParams).catch((error) => {
+                    console.error('Failed to get assets:', error);
+                    return [];
+                }),
+            };
 
             if (response?.assets) {
                 setHasMore(response.assets.length === PAGE_SIZE);
@@ -227,7 +248,7 @@ const Assets = () => {
 
     const handleDeleteAsset = async (assetId) => {
         try {
-            await userAssetsAPI.deleteUserAsset(assetId);
+            await assetAPI.deleteAsset(assetId);
             toast.success('Asset deleted successfully');
             handleRefresh();
         } catch (error) {
@@ -239,10 +260,10 @@ const Assets = () => {
     const handleAssetSave = async (assetData) => {
         try {
             if (modalMode === 'create') {
-                await userAssetsAPI.createUserAsset(assetData);
+                await assetAPI.createAsset(assetPayload(assetData, { asset_type: assetData.asset_type || 'EQUITY', is_active: true }));
                 toast.success('Asset added successfully');
             } else if (modalMode === 'edit') {
-                await userAssetsAPI.updateUserAsset(selectedAsset.id, assetData);
+                await assetAPI.updateAsset(selectedAsset.id, assetPayload(assetData));
                 toast.success('Asset updated successfully');
             }
             handleRefresh();

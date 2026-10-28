@@ -1,7 +1,7 @@
 import { useMoney } from "../../hooks/useMoney";
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { portfolioCalculationsAPI } from "../../services/api";
+import { portfolioCalculationsAPI } from "./api";
 import {
   formatDate,
   formatPercentage,

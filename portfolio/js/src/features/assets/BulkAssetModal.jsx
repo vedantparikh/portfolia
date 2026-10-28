@@ -1,7 +1,8 @@
 import { Loader2, Plus, Tags, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { apiErrorMessage, assetAPI } from '../../services/api';
+import { assetAPI } from './api';
+import { apiErrorMessage } from '../../shared/api/client';
 import { SymbolSearch } from '../../components/shared'; // Make sure this path is correct
 
 const BulkAssetModal = ({ onClose, onSuccess }) => {

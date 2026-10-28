@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { portfolioCalculationsAPI } from "../../services/api";
+import { portfolioCalculationsAPI } from "./api";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
 import PerformanceSeriesChart from "./PerformanceSeriesChart";
 

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { Mail, CheckCircle, ArrowLeft } from 'lucide-react';
-import { apiErrorMessage, authAPI } from '../../services/api';
+import { authAPI } from './api';
+import { apiErrorMessage } from '../../shared/api/client';
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {

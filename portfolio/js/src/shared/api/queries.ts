@@ -1,21 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 
-import type { AssetRecord } from "../../services/api";
-import {
-  analyticsAPI,
-  assetAPI,
-  portfolioAPI,
-  transactionAPI,
-  userAssetsAPI,
-  watchlistAPI,
-} from "../../services/api";
+import { assetAPI, type AssetRecord } from "../../features/assets/api";
+import { portfolioAPI } from "../../features/portfolio/api";
+import { transactionAPI } from "../../features/transactions/api";
+import { watchlistAPI } from "../../features/watchlist/api";
 import { queryClient } from "./queryClient";
 
 export const assetKeys = { all: ["assets"] as const };
 
 export async function fetchAssets(): Promise<AssetRecord[]> {
-  const response = await assetAPI.getAssets({ limit: 1000 });
-  return response.data || [];
+  return assetAPI.getAssets({ limit: 1000 });
 }
 
 export function useAssets(options: { enabled?: boolean } = {}) {
@@ -186,20 +180,5 @@ export function useWatchlistAlerts() {
     queryKey: watchlistKeys.alerts,
     queryFn: () => watchlistAPI.getAlerts(false, 50),
     refetchInterval: 60_000,
-  });
-}
-
-export function useUserAssets(params: Record<string, unknown> = {}) {
-  return useQuery({
-    queryKey: ["user-assets", params],
-    queryFn: () => userAssetsAPI.getUserAssets(params),
-  });
-}
-
-export function usePortfolioSummary(portfolioId: number | string | null) {
-  return useQuery({
-    queryKey: ["analytics", "summary", portfolioId],
-    queryFn: () => analyticsAPI.getPortfolioAnalyticsSummary(portfolioId!),
-    enabled: portfolioId !== null && portfolioId !== "",
   });
 }

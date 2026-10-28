@@ -10,7 +10,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { portfolioAPI } from "../../services/api";
+import { portfolioAPI } from "./api";
 import { formatPercentage, getChangeColor } from "../../utils/formatters.jsx";
 import {
   BenchmarkComparison,

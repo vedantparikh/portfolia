@@ -1,7 +1,8 @@
 import { AlertCircle, CheckCircle, FileText, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { accountStatementsAPI, apiErrorMessage } from '../../services/api';
+import { accountStatementsAPI } from './api';
+import { apiErrorMessage } from '../../shared/api/client';
 
 const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
     const [providers, setProviders] = useState([]);

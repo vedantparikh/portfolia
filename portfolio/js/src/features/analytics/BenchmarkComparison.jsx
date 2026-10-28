@@ -4,7 +4,7 @@ import {
     Target
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { analyticsAPI } from '../../services/api';
+import { analyticsAPI } from './api';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const BenchmarkComparison = ({ portfolioId }) => {

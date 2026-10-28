@@ -23,7 +23,8 @@
 import { createContext, useContext, useEffect, useReducer } from 'react';
 
 // Import our API service for authentication calls
-import { apiErrorMessage, authAPI, refreshAccessToken } from '../services/api';
+import { authAPI } from '../features/auth/api';
+import { apiErrorMessage, refreshAccessToken } from '../shared/api/client';
 import { tokenStore } from '../shared/auth/tokenStore';
 
 /* 

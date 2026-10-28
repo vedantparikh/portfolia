@@ -1,6 +1,6 @@
 import { AlertTriangle, CheckCircle, HelpCircle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { accountStatementsAPI } from "../../services/api";
+import { accountStatementsAPI } from "./api";
 
 const BATCH = 10;
 

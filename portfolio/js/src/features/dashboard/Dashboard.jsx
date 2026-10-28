@@ -16,13 +16,11 @@ import {
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
-import {
-  marketAPI,
-  portfolioAPI,
-  portfolioCalculationsAPI,
-  transactionAPI,
-  watchlistAPI,
-} from "../../services/api";
+import { assetAPI } from "../assets/api";
+import { portfolioAPI, portfolioCalculationsAPI } from "../portfolio/api";
+import { transactionAPI } from "../transactions/api";
+import { watchlistAPI } from "../watchlist/api";
+import { marketAPI } from "../../shared/api/market";
 import {
   formatCurrency,
   formatDateTime,
@@ -144,7 +142,7 @@ const Dashboard = () => {
 
   const loadTopAssets = async () => {
     try {
-      const assetsResponse = await marketAPI.getAssets({
+      const assetsResponse = await assetAPI.getAssets({
         limit: 10,
         sort: "market_cap",
         include_detail: true,

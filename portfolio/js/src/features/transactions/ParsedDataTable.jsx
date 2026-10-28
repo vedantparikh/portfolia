@@ -12,8 +12,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { accountStatementsAPI } from "./api";
 import { assetKeys, useAssets } from "../assets/queries";
+import { useImportedRows } from "./queries";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import transactionTypes from "../../utils/transactionTypes";
 import { ClientSideAssetSearch } from "../../components/shared";
@@ -59,7 +59,6 @@ const ParsedDataTable = ({
   const queryClient = useQueryClient();
   const { data: queriedAssets } = useAssets();
   const [isSaving, setIsSaving] = useState(false);
-  const [importedKeys, setImportedKeys] = useState(() => new Set());
   const [mapping, setMapping] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(LOCAL_STORAGE_MAPPING_KEY)) || {};
@@ -75,32 +74,32 @@ const ParsedDataTable = ({
     [instruments]
   );
 
+  const importRows = useMemo(
+    () =>
+      (parsedData?.transactions ?? [])
+        .filter((t) => t.source_key)
+        .map((t) => ({
+          source_key: t.source_key,
+          transaction_date: t.transaction_date,
+          transaction_type: t.transaction_type,
+          isin: instrumentIsins.has(t.symbol?.trim()) ? t.symbol.trim() : null,
+          quantity: t.quantity,
+          total_amount: t.total_amount,
+        })),
+    [parsedData, instrumentIsins]
+  );
+  const importedQuery = useImportedRows(
+    selectedPortfolio ? parseInt(selectedPortfolio, 10) : null,
+    importRows
+  );
+  const importedKeys = useMemo(
+    () => new Set(selectedPortfolio ? importedQuery.data ?? [] : []),
+    [importedQuery.data, selectedPortfolio]
+  );
+
   useEffect(() => {
-    setImportedKeys(new Set());
-    const rows = (parsedData?.transactions ?? [])
-      .filter((t) => t.source_key)
-      .map((t) => ({
-        source_key: t.source_key,
-        transaction_date: t.transaction_date,
-        transaction_type: t.transaction_type,
-        isin: instrumentIsins.has(t.symbol?.trim()) ? t.symbol.trim() : null,
-        quantity: t.quantity,
-        total_amount: t.total_amount,
-      }));
-    if (!selectedPortfolio || rows.length === 0) return;
-    let cancelled = false;
-    accountStatementsAPI
-      .importedTransactions(parseInt(selectedPortfolio, 10), rows)
-      .then(({ imported_keys }) => {
-        if (!cancelled) setImportedKeys(new Set(imported_keys));
-      })
-      .catch(() => {
-        if (!cancelled) toast.error("Could not check which rows are already imported.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPortfolio, parsedData, instrumentIsins]);
+    if (importedQuery.isError) toast.error("Could not check which rows are already imported.");
+  }, [importedQuery.isError, importedQuery.errorUpdatedAt]);
 
   const isImported = (txn) => Boolean(txn.source_key && importedKeys.has(txn.source_key));
   const importedCount = transactions.filter(isImported).length;

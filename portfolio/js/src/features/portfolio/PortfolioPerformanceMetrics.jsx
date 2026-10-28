@@ -9,122 +9,65 @@ import {
   TrendingUp,
   X
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { portfolioCalculationsAPI } from "./api";
+import {
+  useCalculationPeriods,
+  useMultiPeriodPerformance,
+  usePortfolioPerformance,
+} from "./queries";
 import { formatMetricValue, getMetricColor } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import StatCard from "../../components/shared/StatCard";
 
+const calculationState = (query) =>
+  query.isFetching
+    ? "calculating"
+    : query.isError
+      ? "error"
+      : query.data
+        ? "completed"
+        : null;
+
 const PortfolioPerformanceMetrics = ({ portfolio }) => {
   const money = useMoney();
-  const [loading, setLoading] = useState(false);
-  const [performanceData, setPerformanceData] = useState(null);
-  const [multiPeriodData, setMultiPeriodData] = useState(null);
-  const [availablePeriods, setAvailablePeriods] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState("inception");
   const [expandedMetrics, setExpandedMetrics] = useState(false);
-  const [calculationStatus, setCalculationStatus] = useState(null); // null, 'calculating', 'completed', 'error'
-  const [calculationMessage, setCalculationMessage] = useState("");
   const [showMultiPeriod, setShowMultiPeriod] = useState(false);
-  const [multiPeriodLoading, setMultiPeriodLoading] = useState(false);
-  const [multiPeriodCalculationStatus, setMultiPeriodCalculationStatus] =
-    useState(null);
-  const [multiPeriodCalculationMessage, setMultiPeriodCalculationMessage] =
-    useState("");
 
-  const loadAvailablePeriods = async () => {
-    try {
-      const response = await portfolioCalculationsAPI.getAvailablePeriods();
-      setAvailablePeriods(response.periods || []);
-    } catch (error) {
-      console.error("Failed to load available periods:", error);
-    }
-  };
+  const { data: availablePeriods = [] } = useCalculationPeriods();
+  const performance = usePortfolioPerformance(portfolio?.id, selectedPeriod);
+  const multiPeriod = useMultiPeriodPerformance(portfolio?.id, {
+    enabled: showMultiPeriod,
+  });
 
-  const loadPerformanceData = useCallback(async () => {
-    if (!portfolio?.id) return;
+  const performanceData = performance.data ?? null;
+  const loading = performance.isFetching;
+  const calculationStatus = calculationState(performance);
+  const calculationMessage = {
+    calculating:
+      "Calculating portfolio performance metrics... This may take a moment for complex calculations.",
+    completed: "Performance metrics calculated successfully!",
+    error: "Failed to calculate performance metrics. Please try again.",
+  }[calculationStatus] ?? "";
+  const loadPerformanceData = () => performance.refetch();
 
-    try {
-      setLoading(true);
-      setCalculationStatus("calculating");
-      setCalculationMessage(
-        "Calculating portfolio performance metrics... This may take a moment for complex calculations."
-      );
+  const multiPeriodData = multiPeriod.data ?? null;
+  const multiPeriodLoading = multiPeriod.isFetching;
+  const multiPeriodCalculationStatus = calculationState(multiPeriod);
+  const multiPeriodCalculationMessage = {
+    calculating:
+      "Calculating multi-period performance metrics... This may take a moment for complex calculations.",
+    completed: "Multi-period performance metrics calculated successfully!",
+    error: "Failed to calculate multi-period performance metrics. Please try again.",
+  }[multiPeriodCalculationStatus] ?? "";
+  const loadMultiPeriodData = () => multiPeriod.refetch();
 
-      const response = await portfolioCalculationsAPI.getPortfolioPerformance(
-        portfolio.id,
-        selectedPeriod
-      );
-      setPerformanceData(response);
-      setCalculationStatus("completed");
-      setCalculationMessage("Performance metrics calculated successfully!");
-    } catch (error) {
-      console.error("Failed to load performance data:", error);
-      setCalculationStatus("error");
-      setCalculationMessage(
-        "Failed to calculate performance metrics. Please try again."
-      );
-      toast.error("Failed to load performance metrics");
-    } finally {
-      setLoading(false);
-    }
-  }, [portfolio?.id, selectedPeriod]);
-
-  const loadMultiPeriodData = useCallback(async () => {
-    if (!portfolio?.id) return;
-
-    try {
-      setMultiPeriodLoading(true);
-      setMultiPeriodCalculationStatus("calculating");
-      setMultiPeriodCalculationMessage(
-        "Calculating multi-period performance metrics... This may take a moment for complex calculations."
-      );
-
-      const response = await portfolioCalculationsAPI.getMultiPeriodPerformance(
-        portfolio.id
-      );
-      setMultiPeriodData(response);
-      setMultiPeriodCalculationStatus("completed");
-      setMultiPeriodCalculationMessage(
-        "Multi-period performance metrics calculated successfully!"
-      );
-    } catch (error) {
-      console.error("Failed to load multi-period data:", error);
-      setMultiPeriodCalculationStatus("error");
-      setMultiPeriodCalculationMessage(
-        "Failed to calculate multi-period performance metrics. Please try again."
-      );
-    } finally {
-      setMultiPeriodLoading(false);
-    }
-  }, [portfolio?.id]);
-
-  // Load initial data
   useEffect(() => {
-    if (portfolio?.id) {
-      loadAvailablePeriods();
-      loadPerformanceData();
-    }
-  }, [portfolio, loadPerformanceData]);
-
-  // Load performance data when period changes
-  useEffect(() => {
-    if (portfolio?.id && selectedPeriod) {
-      // Clear previous calculation status
-      setCalculationStatus(null);
-      setCalculationMessage("");
-      loadPerformanceData();
-    }
-  }, [selectedPeriod, portfolio, loadPerformanceData]);
+    if (performance.isError) toast.error("Failed to load performance metrics");
+  }, [performance.isError, performance.errorUpdatedAt]);
 
   const handleMultiPeriodToggle = () => {
-    if (!showMultiPeriod) {
-      // Expanding - load data if not already loaded
-      if (!multiPeriodData) {
-        loadMultiPeriodData();
-      }
-    }
     setShowMultiPeriod(!showMultiPeriod);
   };
 

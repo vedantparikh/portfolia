@@ -1,7 +1,11 @@
 import { useMoney } from "../../hooks/useMoney";
 import { RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { portfolioCalculationsAPI } from "./api";
+import { useMemo, useState } from "react";
+import {
+  useBenchmarkComparison,
+  useBenchmarkOptions,
+  usePerformanceSeries,
+} from "./queries";
 import {
   formatDate,
   formatPercentage,
@@ -119,57 +123,32 @@ const PortfolioChart = ({ portfolio }) => {
   const money = useMoney();
   const signed = (v) => money(v, { signDisplay: "exceptZero" });
   const [period, setPeriod] = useState("1y");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [showCostBasis, setShowCostBasis] = useState(false);
-  const [benchmarkOptions, setBenchmarkOptions] = useState([]);
   const [benchmarkSymbol, setBenchmarkSymbol] = useState("");
   const [customSymbol, setCustomSymbol] = useState("");
-  const [comparison, setComparison] = useState(null);
-
-  useEffect(() => {
-    if (!portfolio?.currency) return;
-    portfolioCalculationsAPI
-      .getBenchmarkOptions(portfolio.currency)
-      .then((r) => setBenchmarkOptions(r.options || []))
-      .catch(() => setBenchmarkOptions([]));
-  }, [portfolio?.currency]);
-
-  useEffect(() => {
-    setComparison(null);
-    if (!portfolio?.id || !benchmarkSymbol) return;
-    let cancelled = false;
-    portfolioCalculationsAPI
-      .getBenchmarkComparison(portfolio.id, period, benchmarkSymbol)
-      .then((r) => !cancelled && setComparison(r))
-      .catch(() => !cancelled && setComparison({ error: "Benchmark could not be loaded." }));
-    return () => {
-      cancelled = true;
-    };
-  }, [portfolio?.id, period, benchmarkSymbol]);
+  const { data: benchmarkOptions = [] } = useBenchmarkOptions(portfolio?.currency);
+  const benchmark = useBenchmarkComparison(portfolio?.id, period, benchmarkSymbol);
+  const comparison = useMemo(() => {
+    if (!benchmarkSymbol) return null;
+    if (benchmark.isError) return { error: "Benchmark could not be loaded." };
+    return benchmark.data ?? null;
+  }, [benchmarkSymbol, benchmark.isError, benchmark.data]);
+  const series = usePerformanceSeries(portfolio?.id, period);
+  const data = useMemo(
+    () =>
+      series.isError
+        ? { points: [], error: "Performance could not be loaded." }
+        : series.data ?? null,
+    [series.isError, series.data]
+  );
+  const loading = series.isFetching;
+  const load = () => series.refetch();
 
   const points = useMemo(() => {
     if (!data?.points || !comparison?.points?.length) return data?.points;
     const byDate = new Map(comparison.points.map((p) => [p.date, p.benchmark_value]));
     return data.points.map((p) => ({ ...p, benchmark_value: byDate.get(p.date) }));
   }, [data, comparison]);
-
-  const load = useCallback(async () => {
-    if (!portfolio?.id) return;
-    setLoading(true);
-    try {
-      setData(await portfolioCalculationsAPI.getPerformanceSeries(portfolio.id, period));
-    } catch {
-      setData({ points: [], error: "Performance could not be loaded." });
-    } finally {
-      setLoading(false);
-    }
-  }, [portfolio?.id, period]);
-
-  useEffect(() => {
-    setData(null);
-    load();
-  }, [load]);
 
   const s = data?.summary;
 

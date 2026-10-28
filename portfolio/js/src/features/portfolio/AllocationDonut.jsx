@@ -1,6 +1,5 @@
 import { useMoney } from "../../hooks/useMoney";
-import { useEffect, useState } from "react";
-import { analyticsAPI } from "../analytics/api";
+import { useAllocationAnalysis } from "./queries";
 import { formatPercentage } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../shared/ui/Spinner";
 
@@ -36,20 +35,10 @@ const Ring = ({ items, radius, width, valueKey }) => {
 
 const AllocationDonut = ({ portfolioId }) => {
   const money = useMoney();
-  const [analysis, setAnalysis] = useState(null);
-  const [failed, setFailed] = useState(false);
+  const query = useAllocationAnalysis(portfolioId);
+  const analysis = query.data ?? null;
 
-  useEffect(() => {
-    if (!portfolioId) return;
-    setAnalysis(null);
-    setFailed(false);
-    analyticsAPI
-      .analyzePortfolioAllocation(portfolioId)
-      .then(setAnalysis)
-      .catch(() => setFailed(true));
-  }, [portfolioId]);
-
-  if (failed) {
+  if (query.isError) {
     return <p className="text-center text-gray-400 py-8">Allocation could not be loaded.</p>;
   }
   if (!analysis) {

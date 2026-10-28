@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 import type { Id } from "../../shared/api/client";
+import { analyticsAPI } from "../analytics/api";
 import { transactionAPI } from "../transactions/api";
 import { portfolioAPI, portfolioCalculationsAPI } from "./api";
 
@@ -10,7 +11,110 @@ export const portfolioKeys = {
   recentTransactions: (id: Id) =>
     ["portfolios", id, "recent-transactions"] as const,
   periods: ["portfolios", "calculation-periods"] as const,
+  holdings: (id: Id) => ["portfolios", id, "holdings"] as const,
+  series: (id: Id, period: string) =>
+    ["portfolios", id, "series", period] as const,
+  performance: (id: Id, period: string) =>
+    ["portfolios", id, "performance", period] as const,
+  multiPeriod: (id: Id) => ["portfolios", id, "multi-period"] as const,
+  benchmarkOptions: (currency: string) =>
+    ["portfolios", "benchmark-options", currency] as const,
+  benchmark: (id: Id, period: string, symbol: string) =>
+    ["portfolios", id, "benchmark", period, symbol] as const,
+  allocationAnalysis: (id: Id) =>
+    ["portfolios", id, "analytics", "allocation-analysis"] as const,
 };
+
+const isId = (id: Id | null | undefined): id is Id =>
+  id !== null && id !== undefined && id !== "";
+
+export function usePortfolioHoldings(portfolioId: Id | null | undefined) {
+  return useQuery({
+    queryKey: portfolioKeys.holdings(portfolioId ?? "none"),
+    queryFn: () => portfolioAPI.getPortfolioHoldings(portfolioId!),
+    enabled: isId(portfolioId),
+  });
+}
+
+export function usePerformanceSeries(
+  portfolioId: Id | null | undefined,
+  period: string,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.series(portfolioId ?? "none", period),
+    queryFn: () =>
+      portfolioCalculationsAPI.getPerformanceSeries(portfolioId!, period),
+    enabled: isId(portfolioId),
+  });
+}
+
+export function usePortfolioPerformance(
+  portfolioId: Id | null | undefined,
+  period: string,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.performance(portfolioId ?? "none", period),
+    queryFn: () =>
+      portfolioCalculationsAPI.getPortfolioPerformance(portfolioId!, period),
+    enabled: isId(portfolioId),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useMultiPeriodPerformance(
+  portfolioId: Id | null | undefined,
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: portfolioKeys.multiPeriod(portfolioId ?? "none"),
+    queryFn: () =>
+      portfolioCalculationsAPI.getMultiPeriodPerformance(portfolioId!),
+    enabled: isId(portfolioId) && (options.enabled ?? true),
+  });
+}
+
+export function useBenchmarkOptions(currency: string | null | undefined) {
+  return useQuery({
+    queryKey: portfolioKeys.benchmarkOptions(currency ?? "none"),
+    queryFn: async () => {
+      try {
+        return (
+          (await portfolioCalculationsAPI.getBenchmarkOptions(currency!))
+            .options || []
+        );
+      } catch {
+        return [];
+      }
+    },
+    enabled: Boolean(currency),
+    staleTime: Infinity,
+  });
+}
+
+export function useBenchmarkComparison(
+  portfolioId: Id | null | undefined,
+  period: string,
+  symbol: string,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.benchmark(portfolioId ?? "none", period, symbol),
+    queryFn: () =>
+      portfolioCalculationsAPI.getBenchmarkComparison(
+        portfolioId!,
+        period,
+        symbol,
+      ),
+    enabled: isId(portfolioId) && Boolean(symbol),
+  });
+}
+
+export function useAllocationAnalysis(portfolioId: Id | null | undefined) {
+  return useQuery({
+    queryKey: portfolioKeys.allocationAnalysis(portfolioId ?? "none"),
+    queryFn: () => analyticsAPI.analyzePortfolioAllocation(portfolioId!),
+    enabled: isId(portfolioId),
+  });
+}
 
 const emptySummary = {
   total_value: 0,

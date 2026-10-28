@@ -11,6 +11,7 @@ export const assetKeys = {
   list: ["assets", "list"] as const,
   pages: (params: Params) => ["assets", "pages", params] as const,
   top: ["assets", "top"] as const,
+  details: ["assets", "details"] as const,
 };
 
 export function fetchAssets(): Promise<AssetRecord[]> {
@@ -56,6 +57,13 @@ export function useAssetPages(
     getNextPageParam: (lastPage, pages) =>
       lastPage.length === ASSET_PAGE_SIZE ? pages.length : undefined,
     refetchInterval: options.refetchInterval,
+  });
+}
+
+export function useAssetDetails() {
+  return useQuery({
+    queryKey: assetKeys.details,
+    queryFn: () => assetAPI.getAssets({ limit: 1000, include_detail: true }),
   });
 }
 

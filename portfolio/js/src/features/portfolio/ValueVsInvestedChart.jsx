@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { portfolioCalculationsAPI } from "./api";
+import { useState } from "react";
+import { usePerformanceSeries } from "./queries";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import PerformanceSeriesChart from "./PerformanceSeriesChart";
 
@@ -12,20 +12,10 @@ const RANGES = [
 
 const ValueVsInvestedChart = ({ portfolioId }) => {
   const [period, setPeriod] = useState("1y");
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    if (!portfolioId) return;
-    let cancelled = false;
-    setData(null);
-    portfolioCalculationsAPI
-      .getPerformanceSeries(portfolioId, period)
-      .then((res) => !cancelled && setData(res))
-      .catch(() => !cancelled && setData({ points: [], error: "History could not be loaded." }));
-    return () => {
-      cancelled = true;
-    };
-  }, [portfolioId, period]);
+  const series = usePerformanceSeries(portfolioId, period);
+  const data = series.isError
+    ? { points: [], error: "History could not be loaded." }
+    : series.data ?? null;
 
   return (
     <div>

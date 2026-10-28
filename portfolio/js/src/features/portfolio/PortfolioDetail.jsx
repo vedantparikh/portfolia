@@ -9,8 +9,8 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { portfolioAPI } from "./api";
+import { useMemo, useState } from "react";
+import { usePortfolioAccountSummary, usePortfolioHoldings } from "./queries";
 import { formatPercentage, getChangeColor } from "../../utils/formatters.jsx";
 import {
   BenchmarkComparison,
@@ -25,73 +25,38 @@ import ValueVsInvestedChart from "./ValueVsInvestedChart";
 
 const PortfolioDetail = ({ portfolio }) => {
   const money = useMoney();
-  const [holdings, setHoldings] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loadingHoldings, setLoadingHoldings] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [sortConfig, setSortConfig] = useState({
     key: "value",
     direction: "descending",
   });
 
-  // Load portfolio holdings
-  useEffect(() => {
-    if (portfolio && portfolio.id) {
-      loadHoldings();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when portfolio changes
-  }, [portfolio]);
+  const holdingsQuery = usePortfolioHoldings(portfolio?.id);
+  const { data: summary = null } = usePortfolioAccountSummary(portfolio?.id ?? null);
+  const loadingHoldings = holdingsQuery.isPending || holdingsQuery.isFetching;
+  const loadHoldings = () => holdingsQuery.refetch();
 
-  const loadHoldings = async () => {
-    if (!portfolio || !portfolio.id) return;
-
-    try {
-      setLoadingHoldings(true);
-      console.log(
-        "[PortfolioDetail] Loading holdings for portfolio:",
-        portfolio.id
-      );
-
-      const [holdingsResponse, summaryResult] = await Promise.all([
-        portfolioAPI.getPortfolioHoldings(portfolio.id),
-        portfolioAPI.getPortfolioSummary(portfolio.id).catch(() => null),
-      ]);
-      setSummary(summaryResult);
-      console.log("[PortfolioDetail] Holdings response:", holdingsResponse);
-
-      // Process holdings data from API response
-      let processedHoldings = [];
-      if (
-        holdingsResponse &&
-        Array.isArray(holdingsResponse) &&
-        holdingsResponse.length > 0
-      ) {
-        processedHoldings = holdingsResponse.map((holding) => ({
-          id: holding.asset_id,
-          symbol: holding.symbol,
-          name: holding.name,
-          quantity: holding.quantity,
-          avgPrice: holding.cost_basis,
-          currentPrice: holding.current_price,
-          value: holding.current_value,
-          change: holding.unrealized_pnl_percent,
-          gainLoss: holding.unrealized_pnl,
-          todayGainLoss: holding.today_pnl,
-          todayGainLossPercent: holding.today_pnl_percent,
-          realizedGainLoss: holding.realized_pnl,
-          realizedGainLossPercent: holding.realized_pnl_percent,
-        }));
-      }
-
-      setHoldings(processedHoldings);
-    } catch (error) {
-      console.warn("[PortfolioDetail] Failed to load holdings:", error);
-      // Set empty holdings on error to prevent crashes
-      setHoldings([]);
-    } finally {
-      setLoadingHoldings(false);
-    }
-  };
+  const holdings = useMemo(
+    () =>
+      Array.isArray(holdingsQuery.data)
+        ? holdingsQuery.data.map((holding) => ({
+            id: holding.asset_id,
+            symbol: holding.symbol,
+            name: holding.name,
+            quantity: holding.quantity,
+            avgPrice: holding.cost_basis,
+            currentPrice: holding.current_price,
+            value: holding.current_value,
+            change: holding.unrealized_pnl_percent,
+            gainLoss: holding.unrealized_pnl,
+            todayGainLoss: holding.today_pnl,
+            todayGainLossPercent: holding.today_pnl_percent,
+            realizedGainLoss: holding.realized_pnl,
+            realizedGainLossPercent: holding.realized_pnl_percent,
+          }))
+        : [],
+    [holdingsQuery.data],
+  );
 
   const sortedHoldings = useMemo(() => {
     let sortableHoldings = [...holdings];

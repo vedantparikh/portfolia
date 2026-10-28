@@ -2,36 +2,24 @@ import { AlertCircle, CheckCircle, FileText, Loader2, Upload, X } from 'lucide-r
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { accountStatementsAPI } from './api';
+import { useStatementProviders } from './queries';
 import { apiErrorMessage } from '../../shared/api/client';
 import { formatRatio } from "../../utils/formatters.jsx";
 import { Modal } from '../../shared/ui';
 
 const PDFUploadModal = ({ isOpen, onClose, onParsedData }) => {
-    const [providers, setProviders] = useState([]);
     const [selectedProvider, setSelectedProvider] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
     const [isParsing, setIsParsing] = useState(false);
     const [dragActive, setDragActive] = useState(false);
 
-    useEffect(() => {
-        if (isOpen) {
-            loadProviders();
-        }
-    }, [isOpen]);
+    const providersQuery = useStatementProviders({ enabled: isOpen });
+    const providers = providersQuery.data || [];
+    const isLoading = providersQuery.isFetching;
 
-    const loadProviders = async () => {
-        try {
-            setIsLoading(true);
-            const response = await accountStatementsAPI.getSupportedProviders();
-            setProviders(response.providers || []);
-        } catch (error) {
-            console.error('Failed to load providers:', error);
-            toast.error('Failed to load supported providers');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    useEffect(() => {
+        if (providersQuery.isError) toast.error('Failed to load supported providers');
+    }, [providersQuery.isError, providersQuery.errorUpdatedAt]);
 
     const formats = providers.find((p) => p.id === selectedProvider)?.supported_formats || ['pdf'];
     const extensions = formats.map((f) => `.${f}`);

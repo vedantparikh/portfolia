@@ -10,10 +10,12 @@ import {
     Search,
     TrendingUp
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { assetAPI } from '../assets/api';
-import { portfolioAPI } from './api';
+import { useAssetDetails } from '../assets/queries';
+import { queryClient } from '../../shared/api/queryClient';
+import { portfolioKeys, usePortfolioHoldings } from './queries';
+import { transactionKeys } from '../transactions/queries';
 import { transactionAPI } from '../transactions/api';
 import { apiErrorMessage } from '../../shared/api/client';
 import AssetFilters from '../assets/AssetFilters';
@@ -27,9 +29,7 @@ import PortfolioAssetCard from './PortfolioAssetCard';
 
 const PortfolioAssets = ({ portfolio }) => {
   const money = useMoney();
-    const [assets, setAssets] = useState([]);
     const [filteredAssets, setFilteredAssets] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState('grid'); // grid or list
@@ -50,78 +50,56 @@ const PortfolioAssets = ({ portfolio }) => {
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [transactionAsset, setTransactionAsset] = useState(null);
 
-    // Load portfolio assets when portfolio changes
+    const holdingsQuery = usePortfolioHoldings(portfolio?.id);
+    const detailsQuery = useAssetDetails();
+    const loading = holdingsQuery.isPending || holdingsQuery.isFetching;
+
     useEffect(() => {
-        if (portfolio && portfolio.id) {
-            loadPortfolioAssets();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when portfolio changes
-    }, [portfolio]);
+        if (holdingsQuery.isError) toast.error('Failed to load portfolio assets');
+    }, [holdingsQuery.isError, holdingsQuery.errorUpdatedAt]);
+
+    // Holdings carry the position numbers; asset details add type, market cap and 24h move
+    const assets = useMemo(() => {
+        const holdingsResponse = holdingsQuery.data;
+        if (!Array.isArray(holdingsResponse)) return [];
+        const assetsById = new Map((detailsQuery.data || []).map((a) => [a.id, a]));
+        return holdingsResponse.map(holding => {
+            const asset = assetsById.get(holding.asset_id);
+            return {
+                id: holding.asset_id,
+                symbol: holding.symbol,
+                name: holding.name,
+                asset_type: asset?.asset_type || 'EQUITY',
+                sector: asset?.sector,
+                market_cap: asset?.detail?.market_cap,
+                volume_24h: asset?.detail?.volume_24h,
+                price_change_percentage_24h: asset?.detail?.price_change_percentage_24h,
+                quantity: holding.quantity,
+                purchase_price: holding.cost_basis,
+                current_price: holding.current_price,
+                weight_percent: holding.weight_percent,
+                total_value: holding.current_value,
+                purchase_date: holding.purchase_date,
+                pnl: holding.unrealized_pnl,
+                pnl_percentage: holding.unrealized_pnl_percent,
+                realized_pnl: holding.realized_pnl,
+                realized_pnl_percentage: holding.realized_pnl_percent,
+                today_pnl: holding.today_pnl,
+                today_pnl_percentage: holding.today_pnl_percent
+            };
+        });
+    }, [holdingsQuery.data, detailsQuery.data]);
+
+    const loadPortfolioAssets = () => {
+        holdingsQuery.refetch();
+        detailsQuery.refetch();
+    };
 
     // Filter assets when search query or filters change
     useEffect(() => {
         filterAssets();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- refilter only when inputs change
     }, [assets, searchQuery, filters]);
-
-    const loadPortfolioAssets = async () => {
-        if (!portfolio || !portfolio.id) return;
-
-        try {
-            setLoading(true);
-            console.log('[PortfolioAssets] Loading assets for portfolio:', portfolio.id);
-
-            // Holdings carry the position numbers; asset details add type, market cap and 24h move
-            const [holdingsResult, detailsResult] = await Promise.allSettled([
-                portfolioAPI.getPortfolioHoldings(portfolio.id),
-                assetAPI.getAssets({ limit: 1000, include_detail: true }),
-            ]);
-            if (holdingsResult.status === 'rejected') throw holdingsResult.reason;
-            const holdingsResponse = holdingsResult.value;
-            const assetsById = new Map(
-                (detailsResult.status === 'fulfilled' ? detailsResult.value : []).map((a) => [a.id, a])
-            );
-
-            // Process holdings data to create asset objects
-            let portfolioAssets = [];
-            if (holdingsResponse && Array.isArray(holdingsResponse) && holdingsResponse.length > 0) {
-                portfolioAssets = holdingsResponse.map(holding => {
-                    const asset = assetsById.get(holding.asset_id);
-                    return {
-                    id: holding.asset_id,
-                    symbol: holding.symbol,
-                    name: holding.name,
-                    asset_type: asset?.asset_type || 'EQUITY',
-                    sector: asset?.sector,
-                    market_cap: asset?.detail?.market_cap,
-                    volume_24h: asset?.detail?.volume_24h,
-                    price_change_percentage_24h: asset?.detail?.price_change_percentage_24h,
-                    quantity: holding.quantity,
-                    purchase_price: holding.cost_basis,
-                    current_price: holding.current_price,
-                    weight_percent: holding.weight_percent,
-                    total_value: holding.current_value,
-                    purchase_date: holding.purchase_date,
-                    // Calculate P&L
-                    pnl: holding.unrealized_pnl,
-                    pnl_percentage: holding.unrealized_pnl_percent,
-                    realized_pnl: holding.realized_pnl,
-                    realized_pnl_percentage: holding.realized_pnl_percent,
-                    today_pnl: holding.today_pnl,
-                    today_pnl_percentage: holding.today_pnl_percent
-                    };
-                });
-            }
-
-            setAssets(portfolioAssets);
-        } catch (error) {
-            console.error('Failed to load portfolio assets:', error);
-            toast.error('Failed to load portfolio assets');
-            setAssets([]);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const filterAssets = () => {
         let filtered = [...assets];
@@ -318,10 +296,8 @@ const PortfolioAssets = ({ portfolio }) => {
             setTransactionAsset(null);
             toast.success('Transaction created successfully');
 
-            // Refresh portfolio assets to ensure consistency
-            setTimeout(() => {
-                loadPortfolioAssets();
-            }, 500);
+            queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
+            queryClient.invalidateQueries({ queryKey: transactionKeys.all });
         } catch (error) {
             console.error('Failed to create transaction:', error);
             const errorMessage = apiErrorMessage(error, error.message || 'Failed to create transaction');

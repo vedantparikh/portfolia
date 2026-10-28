@@ -2,19 +2,19 @@
 
 **Purpose:** turn a broker PDF into reviewed transactions and create them in one atomic batch.
 
-**State (2026-10-26):** ✅ pytr CSV: parse, ISIN → listing matching in the review table, assets created on import (checked in the browser with a real 939-row export; not yet saved into a real portfolio). Trade Republic PDF: trades, savings plans and dividends import in EUR; cash rows are listed as skipped. Checked against one real quarterly statement: the day and month are on their own line, a page break continues the next row on the same line, and savings-plan quantities use a dot. Re-importing a file skips rows already in the portfolio. Not exercised by the demo data.
+**State (2026-10-28):** ✅ pytr CSV: parse, ISIN → listing matching in the review table, assets created on import (checked in the browser with a real 939-row export; not yet saved into a real portfolio). Trade Republic PDF: trades, savings plans and dividends import in EUR; cash rows are listed as skipped. Checked against one real quarterly statement: the day and month are on their own line, a page break continues the next row on the same line, and savings-plan quantities use a dot. Re-importing a file skips rows already in the portfolio. Not exercised by the demo data.
 
 ## Backend — `router.py` (prefix `/api/v1/account-statements`), `core/services/account_statement_service.py`, `core/services/parsers/`
 | Endpoint | Behaviour |
 |---|---|
-| `GET /providers` | Supported parsers: Trade Republic (`parsers/trade_republic.py`), Portfolia's own export (`parsers/portfolia.py`) |
+| `GET /providers` | Supported parsers: Trade Republic PDF (`parsers/trade_republic.py`), pytr CSV (`parsers/pytr_csv.py`), Portfolia's own export (`parsers/portfolia.py`) |
 | `POST /parse` (multipart `provider_id`, `file`) | Parsed rows for review (no DB writes), plus `skipped[]` and `instruments[]` (one per ISIN with its buy/sell fills) |
 | `POST /instruments/resolve` | ≤ 10 instruments → suggested Yahoo listing per ISIN (`isin_resolver.py`). Slow uncached (~3 s per ISIN, Yahoo); cached in Redis (search 7 d, ranges 1 d) |
 | `POST /transactions/imported` | `{portfolio_id, transactions: [{source_key, transaction_date, transaction_type, isin, quantity, total_amount}]}` → `imported_keys`: the rows bulk-create would skip as already imported |
 | `POST /transactions/bulk-create` | Atomic: insert all rows, recalculate each affected asset, one commit. A row gives `asset_id`, or `symbol` (+ `isin`): the user's asset with that ticker is used or created from Yahoo info (once per ticker), and the ISIN is stored on the asset so the next import maps it directly. A given `total_amount` within 1 cent of qty × price ± fees/taxes is kept as the exact cash. Rows with a `source_key` already in the portfolio (or repeated in the request) are skipped and counted in `summary.total_skipped`. Also used by the manual Bulk Entry modal (no keys, never skipped) |
 
 ## Frontend
-`PDFUploadModal` (provider + file; accepted extensions come from the provider's `supported_formats`) → `ParsedDataTable` (map symbols to assets, inline edits, draft saved in localStorage, choose portfolio) → bulk-create. `accountStatementsAPI` in `services/api.js`.
+`PDFUploadModal` (provider + file; accepted extensions come from the provider's `supported_formats`) → `ParsedDataTable` (map symbols to assets, inline edits, draft saved in localStorage, choose portfolio) → bulk-create. `accountStatementsAPI` in `js/src/features/transactions/api.ts`.
 - When the parse result has `instruments`, `InstrumentMappingPanel` resolves them 10 at a time and shows one line per ISIN: status (Your asset / Matched / Check / No match) with match %, a listing dropdown (venue, currency, % of fills), a free ticker field and an Import checkbox. Defaults: matched/existing/uncertain are included with the suggestion; unmatched are left out. Once a portfolio is selected, an included listing in another currency is noted and still imported; closes are converted into the portfolio currency. The statement's own cash currency is what gets stored on the transaction.
 - A choice applies to every row of that ISIN (rows keep `isin`), unless a row's asset was picked by hand (`manual`). Left-out rows are dimmed and not sent; new tickers show a "new" badge and are sent as `symbol` + `isin`. The mapping is part of the localStorage draft (`parsedImportInstrumentMapping`).
 - Amounts are shown in each row's currency.
@@ -55,4 +55,4 @@ TR fills in EUR on LS Exchange, which Yahoo doesn't carry; Yahoo's ISIN search u
 - Per-row `ValueError` messages are shown to the user; other errors are logged and reported generically.
 
 ## Planned
-Plan 2.3 FX (Yahoo daily rates) so EUR transactions on USD assets value correctly; ISIN → ticker resolution. Later: an LLM fallback parser for unknown brokers via the shared ollama (§1b), and OCR via paperless/Tesseract.
+Later: an LLM fallback parser for unknown brokers via the shared ollama (§1b), and OCR via paperless/Tesseract.

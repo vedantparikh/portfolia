@@ -2,7 +2,7 @@
 
 **Purpose:** each user's instruments (symbol, type, sector…) enriched with Yahoo data; shown on the Asset Analysis page and used by transactions, portfolios and watchlists.
 
-**State (2026-10-16):** ✅ list/create/bulk-create/detail/delete work. ⚠️ search box and sorting don't filter server-side; `/assets/search/*` has no UI.
+**State (2026-10-28):** ✅ list/create/bulk-create/detail/edit/delete work; the search box filters by symbol server-side and the page loads 8 at a time. ⚠️ sorting and range filters are not server-side; `/assets/search/*` has no UI.
 
 ## Backend
 - `router.py` (prefix `/api/v1/assets`) reads and writes through `modules/assets/repository.py`:
@@ -17,18 +17,17 @@
 ## Frontend — `js/src/features/assets/`
 Route `/assets` → `Assets.jsx` ("Asset Analysis"):
 - 8 `StatCard`s computed from the loaded rows: top gainer and loser, dividend, P/E, volume, beta, growth, momentum.
-- `AssetCard` grid/list and `AssetFilters` (only type filtering works; the rest are hidden via `hidden=`).
-- `AssetModal` (overview and chart tabs; the analytics tab was removed) and `BulkAssetModal`.
-- API: `userAssetsAPI`, `assetAPI` in `services/api.js`; `services/assetCache.js` caches.
+- `AssetCard` grid/list, infinite scroll (`useAssetPages`: `skip`/`limit` 8, optional 30 s auto-refresh), `AssetFilters` (only type filtering works; the rest are hidden via `hidden=`).
+- `AssetModal` (overview and chart tabs; duplicate check against the loaded list) and `BulkAssetModal`. An asset card's analytics button opens `AssetAnalyticsView` in place (see `api/v1/statistical_indicators/CLAUDE.md`).
+- API: `assetAPI` in `js/src/features/assets/api.ts` (returns response bodies). Query hooks in `features/assets/queries.ts`: `useAssets` (`["assets","list"]`, up to 1000, shared by asset search and duplicate checks), `useAssetPages`, `useTopAssets` (dashboard).
 
 ## Workflow
 Add Asset / Bulk Entry → assets appear with live detail → click for overview + price chart (EnhancedChart with indicators) → used when creating transactions or watchlist items.
 
 ## Known gaps
-- `Assets.jsx` sends `query`, `sort_by`, `sort_order`, ranges — backend only accepts `symbol`/`asset_type`; `response.total` never set ("of N" count dead).
-- `createUserAsset` does an extra GET for a client-side duplicate check.
-- Unused client fns: `getAsset`, `updateAsset`, `deleteAsset`, `bulkUpdateUserAssets`.
+- `Assets.jsx` also sends `sort_by`, `sort_order` and range params; the backend accepts only `symbol`/`asset_type`, so they are ignored (the sort and range filters are hidden). There is no `total`.
+- The stat cards are computed from the pages loaded so far, not the whole list.
 - Highest Growth card multiplies revenue growth by 100 (verify unit before trusting).
 
 ## Planned
-Server-side search/sort/pagination with `total` is still open. Plan 4.4 replaces `assetCache` with TanStack Query. Symbol lookup is `GET /stock/symbols`, not these routes.
+Server-side sort and range filters, and a `total`, are still open. Symbol lookup is `GET /stock/symbols`, not these routes.

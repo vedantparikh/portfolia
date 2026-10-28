@@ -15,16 +15,15 @@
 | `POST /change-password`, `POST /forgot-password`, `GET /validate-reset-token/`, `POST /reset-password` | Reset tokens kept in Redis |
 | `POST /verify-email`, `POST /resend-verification` | Many endpoints need `is_verified` (`get_current_verified_user`) |
 
-Tables `users`, `user_profiles`, `user_sessions` (`core/database/models/user.py`). Access token `ACCESS_TOKEN_EXPIRE_MINUTES`, refresh `REFRESH_TOKEN_EXPIRE_DAYS` (7) unless `REFRESH_TOKEN_EXPIRE_MINUTES` is set. `REFRESH_COOKIE_SECURE=false` only for a plain-http origin other than localhost (browsers drop a `Secure` cookie there, so a reload signs the user out). Every other router uses `get_current_active_user` / `get_current_user`; every resource is scoped by `user_id`.
+Tables `users`, `user_profiles`, `user_sessions` (`core/database/models/user.py`). Access token `ACCESS_TOKEN_EXPIRE_MINUTES` (15), refresh `REFRESH_TOKEN_EXPIRE_DAYS` (7) unless `REFRESH_TOKEN_EXPIRE_MINUTES` is set. `REFRESH_COOKIE_SECURE=false` only for a plain-http origin other than localhost (browsers drop a `Secure` cookie there, so a reload signs the user out). Every other router uses `get_current_active_user` / `get_current_user`; every resource is scoped by `user_id`.
 
 ## Frontend
-Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` live in `js/src/app/router.jsx`. Pages are `js/src/features/auth/`. `ProtectedLayout` gates the signed-in routes. `EmailVerificationPrompt` is used by the dashboard and the watchlist. `contexts/AuthContext.jsx`. `authAPI` and the refresh interceptor are in `services/api.js`. The access token goes through `shared/auth/tokenStore.ts` (memory only). On start `AuthContext` calls `refreshAccessToken()`; no cookie means signed out.
+Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` live in `js/src/app/router.jsx`. Pages are `js/src/features/auth/`. `ProtectedLayout` gates the signed-in routes. `EmailVerificationPrompt` is used by the dashboard and the watchlist. `contexts/AuthContext.jsx`. `authAPI` is in `js/src/features/auth/api.ts`; the 401 interceptor and the single-flight `refreshAccessToken` are in `js/src/shared/api/client.ts`. The access token goes through `shared/auth/tokenStore.ts` (memory only; it also deletes tokens and `user`/`profile` left in localStorage by older builds). `user` and `profile` live in `AuthContext` state only. On start `AuthContext` calls `refreshAccessToken()`; no cookie means signed out.
 
 ## Workflow
 Register → email link → `/verify-email` → login (cookie set) → protected pages; the axios interceptor refreshes on 401, and a reload refreshes once on start. Forgot password → email link → validate → reset. Dev/demo: verification can be set in the DB (`seed_demo_application.py` does this for demouser).
 
 ## Known gaps
-- The cached `user`/`profile` objects are still in localStorage (no tokens).
 - No profile/settings page: `changePassword`, `PUT /me`, `DELETE /me` unused by the UI.
 - `core/database/models/auth.py` is a dead duplicate of the user tables; `generate_two_factor_code` unused (no 2FA).
 

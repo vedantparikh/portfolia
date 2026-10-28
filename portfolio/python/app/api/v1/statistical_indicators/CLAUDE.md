@@ -2,7 +2,7 @@
 
 **Purpose:** compute technical indicators for a symbol, chart them, and save named indicator sets per user.
 
-**State (2026-10-16):** ✅ all 17 indicators match the `ta` reference library (`tests/unit/test_indicator_reference.py`); saved configurations drive the chart; private configurations are private.
+**State (2026-10-28):** ✅ all 17 indicators match the `ta` reference library (`tests/unit/test_indicator_reference.py`); saved configurations drive the chart; private configurations are private.
 
 ## Backend — `routers.py` (prefix `/api/v1/statistical-indicators`)
 - **Services:** `enhanced_statistical_service.py`, `indicator_registry_service.py`, `analysis_configuration_service.py`. Model: `AnalysisConfiguration` (indicators and chart_settings as JSON, is_public, tags, usage_count).
@@ -37,17 +37,16 @@ Strategies in `utils/trading_strategies/{gfs,macd}_strategy.py` are tests only, 
 
 ## Frontend
 No route of its own; it lives inside `/assets`:
-- `analytics/AssetAnalyticsView.jsx` draws on `shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price. 
-- `analytics/IndicatorConfigurationManager.jsx` is a modal (rendered at page level in `Assets.jsx`, opened from "Manage Configurations" in the analytics view) to create, edit, duplicate and select sets. The selected set is passed to `AssetAnalyticsView` as `selectedConfiguration` and calculated by `configuration_id`; the view also lists your saved sets with Apply. Toggling an indicator by hand leaves the set.
-- API wrapper: `statisticalIndicatorsAPI` in `services/api.js`.
+- An asset card's analytics button in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
+- `features/analytics/IndicatorConfigurationManager.jsx` sits in a `Modal` rendered by `Assets.jsx`, opened from "Manage Configurations" in the analytics view, to create, edit, duplicate and select sets. The selected set is passed to `AssetAnalyticsView` as `selectedConfiguration` and calculated by `configuration_id`; the view also lists your saved sets with Apply. Toggling an indicator by hand leaves the set.
+- API wrapper: `statisticalIndicatorsAPI` in `js/src/shared/api/indicators.ts` (also used by `EnhancedChart` and `Chart`). Query hooks `useIndicatorConfigurations`, `useAvailableIndicators`, `useIndicatorCalculation` in `features/analytics/queries.ts`, keyed under `["indicators", …]`.
 
 ## Workflow
-Assets → select an asset → the analytics view loads RSI and MACD (30 days) → "Analysis Configurations" to manage sets.
+Assets → an asset card's analytics button → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
 
 ## Known gaps
 - No UI for templates, statistics or popular sets.
-- A failed router import only logs a warning and the router silently goes unmounted (plan 1.2).
 - Trading strategies (`utils/trading_strategies/`) have no API.
 
 ## Planned
-Plan 1.2 app factory; templates/popular UI if wanted.
+Templates/popular UI if wanted.

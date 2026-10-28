@@ -63,6 +63,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      # Trade Republic export that Bachat refreshes; read only (PYTR_EXPORT_PATH)
+      - ${PORTFOLIO_PYTR_DIR:-../../trade-republic/output}:/pytr:ro
     networks:
       - portfolio_network
     restart: unless-stopped
@@ -93,6 +96,9 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    volumes:
+      # Trade Republic export that Bachat refreshes; read only (PYTR_EXPORT_PATH)
+      - ${PORTFOLIO_PYTR_DIR:-../../trade-republic/output}:/pytr:ro
     networks:
       - portfolio_network
     restart: unless-stopped

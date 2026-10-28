@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -33,9 +33,53 @@ class Portfolio(PortfolioBase):
     user_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    sync_source: Optional[str] = None
+    synced_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class PytrSyncAvailability(BaseModel):
+    available: bool = Field(
+        ..., description="This user may link a portfolio to the export"
+    )
+    file_updated_at: Optional[datetime] = None
+
+
+class PortfolioSyncUpdate(BaseModel):
+    source: Optional[Literal["pytr"]] = Field(None, description="null unlinks")
+
+
+class UnmappedInstrument(BaseModel):
+    isin: str
+    name: str
+    rows: int
+    suggested_symbol: Optional[str] = None
+
+
+class PortfolioSyncReport(BaseModel):
+    file_updated_at: Optional[datetime] = None
+    created: int = 0
+    already_imported: int = 0
+    failed: int = 0
+    errors: List[str] = Field(default_factory=list)
+    unmapped: List[UnmappedInstrument] = Field(default_factory=list)
+    not_imported: dict[str, int] = Field(
+        default_factory=dict, description="Rows the parser skipped, by reason"
+    )
+
+
+class PortfolioSyncStatus(BaseModel):
+    source: Optional[str] = None
+    synced_at: Optional[datetime] = None
+    file_updated_at: Optional[datetime] = None
+    report: Optional[PortfolioSyncReport] = None
+
+
+class InstrumentMapping(BaseModel):
+    isin: str = Field(..., min_length=12, max_length=12)
+    symbol: str = Field(..., min_length=1, max_length=30)
 
 
 class PortfolioAssetBase(BaseModel):

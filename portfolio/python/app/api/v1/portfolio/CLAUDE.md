@@ -14,11 +14,19 @@
 | `POST /{id}/refresh` | Rebuilds every position from transactions (picks up new splits) and re-prices |
 | `POST/GET /{id}/assets`, `GET /{id}/assets/details`, `DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | `POST` and legacy `POST` add a holding by creating a buy. `DELETE` removes the holding and its transactions. There is no update: quantity and P&L are not writable |
 | `POST/GET /{id}/transactions` | Portfolio-scoped transaction create/list (`limit` ≤ 1000, `offset`; newest first; create triggers `recalculate_asset_state`) |
+| `GET /sync/pytr` | Whether this user may link a portfolio to the Trade Republic export (`PYTR_SYNC_USERS`), and the file's time |
+| `GET/PUT/POST /{id}/sync`, `POST /{id}/sync/instruments` | Broker sync (`modules/broker_sync`): status and last report; `PUT {source: "pytr"\|null}` links (EUR portfolios only) and imports at once, or unlinks; `POST` imports now; `instruments {isin, symbol}` gives an unmapped ISIN a Yahoo ticker and imports its rows |
 | `GET /search?search_term=&currency=`, `GET /public/discover` | Own portfolios by name/currency; discover lists public portfolios. No UI for either |
 
 `PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Holding rows (`_holding_rows`) read the cached price and the previous close `get_yesterdays_closes` (last finished session, 12h, UTC-date key), both multiplied by the FX rate on that day.
 
 Cash currency on create (`add_transaction`): the portfolio currency when the listing or the request is already in it, otherwise the listing's currency (converted at valuation).
+
+## Trade Republic sync (`modules/broker_sync/service.py`)
+Bachat logs in to Trade Republic with pytr and keeps `trade-republic/output/account_transactions.csv` fresh; compose mounts that folder read only at `/pytr` (`PYTR_EXPORT_PATH`). Portfolia never logs in itself (ADR 0007). A linked portfolio is re-imported by the worker when the file's SHA-256 changes, and on Sync now:
+- The pytr parser reads every row; bulk-create skips rows whose `source_key` is stored, so a run only adds new rows. Splits and swaps are skipped; the listing's Yahoo split ratios restate the older trades (Beyond Meat 1:30, Lucid 1:10).
+- ISIN → asset: the user's asset with that ISIN; else the same name as a mapped ISIN in the file (an ISIN that changed in a swap, e.g. Lucid's sell after its reverse split); else a resolver match of status existing/matched. Anything else (knock-outs, delisted names) is listed in `sync_report.unmapped` and its rows are left out, so a holding without prices never breaks the chart.
+- `portfolios.sync_source`, `synced_at`, `sync_digest`, `sync_report` (migration `e5b2c8d40a17`). A failed batch is rolled back and retried next pass.
 
 ## Frontend — `js/src/features/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):
@@ -27,7 +35,7 @@ Cash currency on create (`add_transaction`): the portfolio currency when the lis
   3. **Portfolio Assets** — `PortfolioAssets.jsx` cards (`PortfolioAssetCard`), highlights (`StatCard`), filters; enriched with `/assets?include_detail` for sector/market cap/24h.
   4. **Performance Chart** — `PortfolioChart.jsx` (see `api/v1/portfolio_calculations/CLAUDE.md`).
   5. **Performance Metrics** — `PortfolioPerformanceMetrics.jsx`.
-- Modals: `CreatePortfolioModal`, `EditPortfolioModal`.
+- Modals: `CreatePortfolioModal`, `EditPortfolioModal`. Both offer "Keep in sync with Trade Republic" when `GET /sync/pytr` says so (create makes the portfolio EUR). `PortfolioSyncBar` above a linked portfolio shows the last import, Sync now, and a ticker field per unmapped ISIN.
 - `portfolioAPI` and `portfolioCalculationsAPI` in `js/src/features/portfolio/api.ts`; query hooks (`usePortfolios`, `usePortfolioAccountSummary`, `useRecentPortfolioTransactions`, `useCalculationPeriods`) in `features/portfolio/queries.ts`, all under `["portfolios", …]`. Views are wrapped in `CurrencyProvider` with the selected portfolio's currency.
 
 ## Workflow

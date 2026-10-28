@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_PATH: str = "/api/v1/auth"
     REFRESH_COOKIE_SECURE: bool = True
 
+    # The Trade Republic export that Bachat keeps fresh (read-only mount), and
+    # the usernames allowed to link a portfolio to it: it is one person's account.
+    PYTR_EXPORT_PATH: str = ""
+    PYTR_SYNC_USERS: Annotated[List[str], NoDecode] = Field(default_factory=list)
+
     LOG_LEVEL: str = "info"
 
     YAHOO_FINANCE_API_KEY: str = ""
@@ -96,7 +101,7 @@ class Settings(BaseSettings):
 
     STATIC_DIR: str = "STATICS"
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_ORIGINS", "PYTR_SYNC_USERS", mode="before")
     @classmethod
     def split_origins(cls, value: Any) -> Any:
         if isinstance(value, str):

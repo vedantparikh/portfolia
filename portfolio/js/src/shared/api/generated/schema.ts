@@ -830,6 +830,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portfolios/sync/pytr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pytr Sync Availability
+         * @description Whether this user may link a portfolio to the Trade Republic export.
+         */
+        get: operations["get_api_v1_portfolios_sync_pytr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/{portfolio_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Portfolio Sync
+         * @description Broker sync status and the last run's report.
+         */
+        get: operations["get_api_v1_portfolios_portfolio_id_sync"];
+        /**
+         * Set Portfolio Sync
+         * @description Link the portfolio to the Trade Republic export (and import it) or unlink it.
+         */
+        put: operations["put_api_v1_portfolios_portfolio_id_sync"];
+        /**
+         * Run Portfolio Sync
+         * @description Import new rows from the export now.
+         */
+        post: operations["post_api_v1_portfolios_portfolio_id_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/{portfolio_id}/sync/instruments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Map Sync Instrument
+         * @description Give an ISIN from the export a Yahoo ticker, then import its rows.
+         */
+        post: operations["post_api_v1_portfolios_portfolio_id_sync_instruments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portfolios/{portfolio_id}": {
         parameters: {
             query?: never;
@@ -4132,6 +4200,13 @@ export interface components {
              */
             expected_type: string;
         };
+        /** InstrumentMapping */
+        InstrumentMapping: {
+            /** Isin */
+            isin: string;
+            /** Symbol */
+            symbol: string;
+        };
         /**
          * InstrumentResolution
          * @description Suggested listing for one ISIN.
@@ -4866,6 +4941,10 @@ export interface components {
             created_at: string;
             /** Updated At */
             updated_at?: string | null;
+            /** Sync Source */
+            sync_source?: string | null;
+            /** Synced At */
+            synced_at?: string | null;
         };
         /** PortfolioAllocationCreate */
         PortfolioAllocationCreate: {
@@ -5769,6 +5848,55 @@ export interface components {
              */
             missing_prices?: string[];
         };
+        /** PortfolioSyncReport */
+        PortfolioSyncReport: {
+            /** File Updated At */
+            file_updated_at?: string | null;
+            /**
+             * Created
+             * @default 0
+             */
+            created: number;
+            /**
+             * Already Imported
+             * @default 0
+             */
+            already_imported: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /** Errors */
+            errors?: string[];
+            /** Unmapped */
+            unmapped?: components["schemas"]["UnmappedInstrument"][];
+            /**
+             * Not Imported
+             * @description Rows the parser skipped, by reason
+             */
+            not_imported?: {
+                [key: string]: number;
+            };
+        };
+        /** PortfolioSyncStatus */
+        PortfolioSyncStatus: {
+            /** Source */
+            source?: string | null;
+            /** Synced At */
+            synced_at?: string | null;
+            /** File Updated At */
+            file_updated_at?: string | null;
+            report?: components["schemas"]["PortfolioSyncReport"] | null;
+        };
+        /** PortfolioSyncUpdate */
+        PortfolioSyncUpdate: {
+            /**
+             * Source
+             * @description null unlinks
+             */
+            source?: "pytr" | null;
+        };
         /** PortfolioUpdate */
         PortfolioUpdate: {
             /** Name */
@@ -5789,6 +5917,16 @@ export interface components {
         ProvidersResponse: {
             /** Providers */
             providers: components["schemas"]["AccountStatementProvider"][];
+        };
+        /** PytrSyncAvailability */
+        PytrSyncAvailability: {
+            /**
+             * Available
+             * @description This user may link a portfolio to the export
+             */
+            available: boolean;
+            /** File Updated At */
+            file_updated_at?: string | null;
         };
         /** RebalancingEventCreate */
         RebalancingEventCreate: {
@@ -6746,6 +6884,17 @@ export interface components {
             /** Taxes */
             taxes?: number | string | null;
             status?: components["schemas"]["TransactionStatus"] | null;
+        };
+        /** UnmappedInstrument */
+        UnmappedInstrument: {
+            /** Isin */
+            isin: string;
+            /** Name */
+            name: string;
+            /** Rows */
+            rows: number;
+            /** Suggested Symbol */
+            suggested_symbol?: string | null;
         };
         /**
          * UserCreate
@@ -8754,6 +8903,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioDiscoverResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_portfolios_sync_pytr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PytrSyncAvailability"];
+                };
+            };
+        };
+    };
+    get_api_v1_portfolios_portfolio_id_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_api_v1_portfolios_portfolio_id_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PortfolioSyncUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_api_v1_portfolios_portfolio_id_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioSyncStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_api_v1_portfolios_portfolio_id_sync_instruments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstrumentMapping"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortfolioSyncStatus"];
                 };
             };
             /** @description Validation Error */

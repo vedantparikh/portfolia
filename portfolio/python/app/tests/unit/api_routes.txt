@@ -53,11 +53,13 @@ GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance/series
 GET /api/v1/portfolios/public/discover
 GET /api/v1/portfolios/search
 GET /api/v1/portfolios/statistics/overview
+GET /api/v1/portfolios/sync/pytr
 GET /api/v1/portfolios/{portfolio_id}
 GET /api/v1/portfolios/{portfolio_id}/assets
 GET /api/v1/portfolios/{portfolio_id}/assets/details
 GET /api/v1/portfolios/{portfolio_id}/holdings
 GET /api/v1/portfolios/{portfolio_id}/summary
+GET /api/v1/portfolios/{portfolio_id}/sync
 GET /api/v1/portfolios/{portfolio_id}/transactions
 GET /api/v1/statistical-indicators/configurations
 GET /api/v1/statistical-indicators/configurations/search
@@ -104,6 +106,8 @@ POST /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance
 POST /api/v1/portfolios/{portfolio_id}/assets
 POST /api/v1/portfolios/{portfolio_id}/assets/legacy
 POST /api/v1/portfolios/{portfolio_id}/refresh
+POST /api/v1/portfolios/{portfolio_id}/sync
+POST /api/v1/portfolios/{portfolio_id}/sync/instruments
 POST /api/v1/portfolios/{portfolio_id}/transactions
 POST /api/v1/statistical-indicators/calculate
 POST /api/v1/statistical-indicators/configurations
@@ -123,6 +127,7 @@ PUT /api/v1/analytics/portfolios/{portfolio_id}/allocations/{allocation_id}
 PUT /api/v1/assets/{asset_id}
 PUT /api/v1/auth/me
 PUT /api/v1/portfolios/{portfolio_id}
+PUT /api/v1/portfolios/{portfolio_id}/sync
 PUT /api/v1/statistical-indicators/configurations/{config_id}
 PUT /api/v1/transactions/{transaction_id}
 PUT /api/v1/watchlists/{watchlist_id}

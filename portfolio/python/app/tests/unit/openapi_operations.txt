@@ -53,11 +53,13 @@ GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance/series 
 GET /api/v1/portfolios/public/discover get_api_v1_portfolios_public_discover
 GET /api/v1/portfolios/search get_api_v1_portfolios_search
 GET /api/v1/portfolios/statistics/overview get_api_v1_portfolios_statistics_overview
+GET /api/v1/portfolios/sync/pytr get_api_v1_portfolios_sync_pytr
 GET /api/v1/portfolios/{portfolio_id} get_api_v1_portfolios_portfolio_id
 GET /api/v1/portfolios/{portfolio_id}/assets get_api_v1_portfolios_portfolio_id_assets
 GET /api/v1/portfolios/{portfolio_id}/assets/details get_api_v1_portfolios_portfolio_id_assets_details
 GET /api/v1/portfolios/{portfolio_id}/holdings get_api_v1_portfolios_portfolio_id_holdings
 GET /api/v1/portfolios/{portfolio_id}/summary get_api_v1_portfolios_portfolio_id_summary
+GET /api/v1/portfolios/{portfolio_id}/sync get_api_v1_portfolios_portfolio_id_sync
 GET /api/v1/portfolios/{portfolio_id}/transactions get_api_v1_portfolios_portfolio_id_transactions
 GET /api/v1/statistical-indicators/configurations get_api_v1_statistical_indicators_configurations
 GET /api/v1/statistical-indicators/configurations/search get_api_v1_statistical_indicators_configurations_search
@@ -104,6 +106,8 @@ POST /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance post_a
 POST /api/v1/portfolios/{portfolio_id}/assets post_api_v1_portfolios_portfolio_id_assets
 POST /api/v1/portfolios/{portfolio_id}/assets/legacy post_api_v1_portfolios_portfolio_id_assets_legacy
 POST /api/v1/portfolios/{portfolio_id}/refresh post_api_v1_portfolios_portfolio_id_refresh
+POST /api/v1/portfolios/{portfolio_id}/sync post_api_v1_portfolios_portfolio_id_sync
+POST /api/v1/portfolios/{portfolio_id}/sync/instruments post_api_v1_portfolios_portfolio_id_sync_instruments
 POST /api/v1/portfolios/{portfolio_id}/transactions post_api_v1_portfolios_portfolio_id_transactions
 POST /api/v1/statistical-indicators/calculate post_api_v1_statistical_indicators_calculate
 POST /api/v1/statistical-indicators/configurations post_api_v1_statistical_indicators_configurations
@@ -123,6 +127,7 @@ PUT /api/v1/analytics/portfolios/{portfolio_id}/allocations/{allocation_id} put_
 PUT /api/v1/assets/{asset_id} put_api_v1_assets_asset_id
 PUT /api/v1/auth/me put_api_v1_auth_me
 PUT /api/v1/portfolios/{portfolio_id} put_api_v1_portfolios_portfolio_id
+PUT /api/v1/portfolios/{portfolio_id}/sync put_api_v1_portfolios_portfolio_id_sync
 PUT /api/v1/statistical-indicators/configurations/{config_id} put_api_v1_statistical_indicators_configurations_config_id
 PUT /api/v1/transactions/{transaction_id} put_api_v1_transactions_transaction_id
 PUT /api/v1/watchlists/{watchlist_id} put_api_v1_watchlists_watchlist_id

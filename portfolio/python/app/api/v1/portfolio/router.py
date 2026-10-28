@@ -10,11 +10,14 @@ from sqlalchemy.orm import Session
 from core.auth.dependencies import (
     get_current_active_user,
     get_current_verified_user,
+    get_owned_portfolio,
 )
 from core.database.connection import get_db
+from core.database.models import Portfolio as PortfolioModel
 from core.database.models import User
 from core.schemas.portfolio import (
     AssetCreate,
+    InstrumentMapping,
     Portfolio,
     PortfolioAsset,
     PortfolioAssetCreate,
@@ -23,7 +26,10 @@ from core.schemas.portfolio import (
     PortfolioHolding,
     PortfolioStatistics,
     PortfolioSummary,
+    PortfolioSyncStatus,
+    PortfolioSyncUpdate,
     PortfolioUpdate,
+    PytrSyncAvailability,
     Transaction,
     TransactionCreate,
 )
@@ -32,6 +38,7 @@ from core.schemas.portfolio_performance import (
     PortfolioRefreshResponse,
     PortfolioSearchResponse,
 )
+from modules.broker_sync import PytrSyncService
 from modules.portfolios.service import PortfolioService
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -111,6 +118,83 @@ def discover_public_portfolios(
     return PortfolioDiscoverResponse(
         portfolios=portfolios, total_count=len(portfolios), limit=limit, offset=offset
     )
+
+
+@router.get("/sync/pytr", response_model=PytrSyncAvailability)
+def get_pytr_sync_availability(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Whether this user may link a portfolio to the Trade Republic export."""
+    sync = PytrSyncService(db)
+    if not sync.available_for(current_user):
+        return PytrSyncAvailability(available=False)
+    return PytrSyncAvailability(
+        available=True, file_updated_at=sync.file_info()["updated_at"]
+    )
+
+
+def _sync_status(
+    sync: PytrSyncService, portfolio: PortfolioModel
+) -> PortfolioSyncStatus:
+    return PortfolioSyncStatus(
+        source=portfolio.sync_source,
+        synced_at=portfolio.synced_at,
+        file_updated_at=sync.file_info()["updated_at"]
+        if portfolio.sync_source
+        else None,
+        report=portfolio.sync_report,
+    )
+
+
+@router.get("/{portfolio_id}/sync", response_model=PortfolioSyncStatus)
+def get_portfolio_sync(
+    portfolio: PortfolioModel = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """Broker sync status and the last run's report."""
+    return _sync_status(PytrSyncService(db), portfolio)
+
+
+@router.put("/{portfolio_id}/sync", response_model=PortfolioSyncStatus)
+async def set_portfolio_sync(
+    update: PortfolioSyncUpdate,
+    portfolio: PortfolioModel = Depends(get_owned_portfolio),
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db),
+):
+    """Link the portfolio to the Trade Republic export (and import it) or unlink it."""
+    sync = PytrSyncService(db)
+    sync.link(portfolio, current_user, update.source is not None)
+    if portfolio.sync_source:
+        await sync.sync(portfolio, force=True)
+    return _sync_status(sync, portfolio)
+
+
+@router.post("/{portfolio_id}/sync", response_model=PortfolioSyncStatus)
+async def run_portfolio_sync(
+    portfolio: PortfolioModel = Depends(get_owned_portfolio),
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db),
+):
+    """Import new rows from the export now."""
+    sync = PytrSyncService(db)
+    await sync.sync(portfolio, force=True)
+    return _sync_status(sync, portfolio)
+
+
+@router.post("/{portfolio_id}/sync/instruments", response_model=PortfolioSyncStatus)
+async def map_sync_instrument(
+    mapping: InstrumentMapping,
+    portfolio: PortfolioModel = Depends(get_owned_portfolio),
+    current_user: User = Depends(get_current_verified_user),
+    db: Session = Depends(get_db),
+):
+    """Give an ISIN from the export a Yahoo ticker, then import its rows."""
+    sync = PytrSyncService(db)
+    await sync.map_instrument(portfolio, mapping.isin, mapping.symbol)
+    await sync.sync(portfolio, force=True)
+    return _sync_status(sync, portfolio)
 
 
 @router.get("/{portfolio_id}", response_model=Portfolio)

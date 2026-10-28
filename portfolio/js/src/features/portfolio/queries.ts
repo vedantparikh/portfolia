@@ -23,6 +23,8 @@ export const portfolioKeys = {
     ["portfolios", id, "benchmark", period, symbol] as const,
   allocationAnalysis: (id: Id) =>
     ["portfolios", id, "analytics", "allocation-analysis"] as const,
+  sync: (id: Id) => ["portfolios", id, "sync"] as const,
+  pytrAvailability: ["portfolios", "sync", "pytr"] as const,
 };
 
 const isId = (id: Id | null | undefined): id is Id =>
@@ -190,5 +192,20 @@ export function useCalculationPeriods() {
       }
     },
     staleTime: Infinity,
+  });
+}
+
+export function usePytrSyncAvailability() {
+  return useQuery({
+    queryKey: portfolioKeys.pytrAvailability,
+    queryFn: portfolioAPI.getPytrSyncAvailability,
+  });
+}
+
+export function usePortfolioSync(portfolioId: Id | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: portfolioKeys.sync(portfolioId ?? "none"),
+    queryFn: () => portfolioAPI.getSync(portfolioId as Id),
+    enabled: enabled && isId(portfolioId),
   });
 }

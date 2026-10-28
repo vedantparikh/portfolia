@@ -69,6 +69,10 @@ Rotation:
 
 `verify.sh` runs gitleaks over the whole history; `.gitleaksignore` lists findings committed before the scan existed.
 
+## Trade Republic sync
+
+Bachat (`../bachat`) logs in with pytr and writes `/home/bubbly/server/appdata/trade-republic/output/account_transactions.csv` atomically when someone clicks Refresh there. Production mounts that folder read only at `/pytr` on `api` and `worker`; `env/prod.env` sets `PYTR_EXPORT_PATH=/pytr/account_transactions.csv` and `PYTR_SYNC_USERS`. The worker re-imports linked portfolios when the file changes. A portfolio's last report: `GET /api/v1/portfolios/{id}/sync`. Never write into that folder from Portfolia.
+
 ## Monitoring
 
 Gatus checks `portfolio-app-1:8080` and `portfolio-api-1:8000/health/` (Postgres and Redis) and the tailnet certificate; alerts go to ntfy. The homepage tile shows container status. Logs: `docker logs --tail 200 portfolio-api-1` (one access line per request with `X-Request-ID`), `portfolio-worker-1`. There is no Sentry.

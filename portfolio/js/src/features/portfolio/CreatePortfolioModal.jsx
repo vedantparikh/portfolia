@@ -2,6 +2,7 @@ import { DollarSign, Plus, Target, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../shared/ui';
+import { usePytrSyncAvailability } from './queries';
 
 const CreatePortfolioModal = ({ onClose, onCreate }) => {
     const [formData, setFormData] = useState({
@@ -10,9 +11,11 @@ const CreatePortfolioModal = ({ onClose, onCreate }) => {
         initial_cash: '',
         target_return: '',
         risk_tolerance: 'moderate',
-        is_public: false
+        is_public: false,
+        sync: false
     });
     const [loading, setLoading] = useState(false);
+    const { data: pytr } = usePytrSyncAvailability();
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -55,7 +58,8 @@ const CreatePortfolioModal = ({ onClose, onCreate }) => {
                 initial_cash: formData.initial_cash ? parseFloat(formData.initial_cash) : 0,
                 target_return: formData.target_return ? parseFloat(formData.target_return) : null,
                 risk_tolerance: formData.risk_tolerance || 'moderate',
-                is_public: formData.is_public || false
+                is_public: formData.is_public || false,
+                ...(formData.sync ? { currency: 'EUR', sync: true } : {})
             };
 
             console.log('[CreatePortfolioModal] Submitting portfolio data:', portfolioData);
@@ -223,6 +227,27 @@ const CreatePortfolioModal = ({ onClose, onCreate }) => {
                             </p>
                         </div>
                     </div>
+
+                    {pytr?.available && (
+                        <div className="flex items-center space-x-3">
+                            <input
+                                id="portfolio-sync"
+                                type="checkbox"
+                                name="sync"
+                                checked={formData.sync}
+                                onChange={handleInputChange}
+                                className="text-primary-600 focus:ring-primary-500"
+                            />
+                            <div>
+                                <label htmlFor="portfolio-sync" className="text-sm font-medium text-gray-300 cursor-pointer">
+                                    Keep in sync with Trade Republic
+                                </label>
+                                <p className="text-xs text-gray-500">
+                                    Imports the Trade Republic export in EUR and adds new trades whenever it is refreshed
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </form>
 
                 {/* Footer */}

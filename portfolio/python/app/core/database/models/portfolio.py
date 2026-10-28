@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
     ForeignKey,
@@ -54,6 +55,13 @@ class Portfolio(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    # Broker sync: "pytr" re-imports the Trade Republic export when it changes
+    sync_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    sync_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sync_report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="portfolios")

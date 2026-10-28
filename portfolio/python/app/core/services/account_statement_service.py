@@ -200,6 +200,21 @@ class AccountStatementService:
         assets_by_symbol[symbol] = asset
         return asset
 
+    async def asset_for_symbol(
+        self, symbol: str, isin: str | None, user_id: int
+    ) -> Asset:
+        """The user's asset for a Yahoo ticker, created from Yahoo info if missing; remembers the ISIN."""
+        owned = {
+            a.symbol.upper(): a
+            for a in self.db.query(Asset).filter(Asset.user_id == user_id)
+        }
+        asset = await self._asset_for_symbol(
+            symbol.upper(), isin, user_id, owned, set()
+        )
+        if isin and not asset.isin:
+            asset.isin = isin
+        return asset
+
     async def create_bulk_transactions(
         self,
         portfolio_id: int,

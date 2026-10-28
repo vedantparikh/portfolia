@@ -2,6 +2,7 @@ import { DollarSign, Edit, Target, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Modal } from '../../shared/ui';
+import { usePytrSyncAvailability } from './queries';
 
 const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
     const [formData, setFormData] = useState({
@@ -10,9 +11,11 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
         initial_cash: '',
         target_return: '',
         risk_tolerance: 'moderate',
-        is_public: false
+        is_public: false,
+        sync: false
     });
     const [loading, setLoading] = useState(false);
+    const { data: pytr } = usePytrSyncAvailability();
 
     useEffect(() => {
         if (portfolio) {
@@ -22,7 +25,8 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
                 initial_cash: portfolio.initial_cash || '',
                 target_return: portfolio.target_return || '',
                 risk_tolerance: portfolio.risk_tolerance || 'moderate',
-                is_public: portfolio.is_public || false
+                is_public: portfolio.is_public || false,
+                sync: !!portfolio.sync_source
             });
         }
     }, [portfolio]);
@@ -68,7 +72,8 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
                 initial_cash: formData.initial_cash ? parseFloat(formData.initial_cash) : 0,
                 target_return: formData.target_return ? parseFloat(formData.target_return) : null,
                 risk_tolerance: formData.risk_tolerance || 'moderate',
-                is_public: formData.is_public || false
+                is_public: formData.is_public || false,
+                sync: formData.sync
             };
 
             console.log('[EditPortfolioModal] Submitting portfolio data:', portfolioData);
@@ -238,6 +243,27 @@ const EditPortfolioModal = ({ isOpen, onClose, portfolio, onUpdate }) => {
                             </p>
                         </div>
                     </div>
+
+                    {pytr?.available && portfolio?.currency === 'EUR' && (
+                        <div className="flex items-center space-x-3">
+                            <input
+                                id="portfolio-sync"
+                                type="checkbox"
+                                name="sync"
+                                checked={formData.sync}
+                                onChange={handleInputChange}
+                                className="text-primary-600 focus:ring-primary-500"
+                            />
+                            <div>
+                                <label htmlFor="portfolio-sync" className="text-sm font-medium text-gray-300 cursor-pointer">
+                                    Keep in sync with Trade Republic
+                                </label>
+                                <p className="text-xs text-gray-500">
+                                    Imports the Trade Republic export and adds new trades whenever it is refreshed. Rows already in this portfolio are not added twice
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </form>
 
                 {/* Footer */}

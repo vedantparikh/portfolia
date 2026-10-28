@@ -17,6 +17,15 @@ export const portfolioAPI = {
     (await api.get(`/portfolios/${id}/summary`)).data,
   getPortfolioHoldings: async (id: Id) =>
     (await api.get(`/portfolios/${id}/holdings`)).data,
+  getPytrSyncAvailability: async () =>
+    (await api.get("/portfolios/sync/pytr")).data,
+  getSync: async (id: Id) => (await api.get(`/portfolios/${id}/sync`)).data,
+  setSync: async (id: Id, source: "pytr" | null) =>
+    (await api.put(`/portfolios/${id}/sync`, { source })).data,
+  runSync: async (id: Id) => (await api.post(`/portfolios/${id}/sync`)).data,
+  mapSyncInstrument: async (id: Id, isin: string, symbol: string) =>
+    (await api.post(`/portfolios/${id}/sync/instruments`, { isin, symbol }))
+      .data,
 };
 
 const calc = (portfolioId: Id) =>

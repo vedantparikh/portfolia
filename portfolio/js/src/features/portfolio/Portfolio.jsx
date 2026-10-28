@@ -31,6 +31,7 @@ import { usePageChrome, useShell } from "../../app/chrome";
 import { LoadingSpinner } from "../../components/shared";
 import CreatePortfolioModal from "./CreatePortfolioModal";
 import EditPortfolioModal from "./EditPortfolioModal";
+import PortfolioSyncBar from "./PortfolioSyncBar";
 import PortfolioAssets from "./PortfolioAssets";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioChart from "./PortfolioChart";
@@ -120,13 +121,28 @@ const Portfolio = () => {
   const refreshPortfolios = () =>
     queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
 
-  const handleCreatePortfolio = async (portfolioData) => {
-    try {
-      console.log("[Portfolio] Creating portfolio with data:", portfolioData);
-      const response = await portfolioAPI.createPortfolio(portfolioData);
-      console.log("[Portfolio] Create response:", response);
+  const linkSync = async (portfolioId, enabled) => {
+    const status = await portfolioAPI.setSync(portfolioId, enabled ? "pytr" : null);
+    queryClient.setQueryData(portfolioKeys.sync(portfolioId), status);
+    if (enabled) {
+      const r = status.report || {};
+      toast.success(
+        `Trade Republic: ${r.created ?? 0} transactions imported` +
+          (r.unmapped?.length ? `, ${r.unmapped.length} securities need a ticker` : ""),
+      );
+    }
+  };
 
-      const newPortfolio = response;
+  const handleCreatePortfolio = async ({ sync, ...portfolioData }) => {
+    try {
+      const newPortfolio = await portfolioAPI.createPortfolio(portfolioData);
+      if (sync && newPortfolio?.id) {
+        try {
+          await linkSync(newPortfolio.id, true);
+        } catch (error) {
+          toast.error(apiErrorMessage(error, "The portfolio was created, but the sync failed"));
+        }
+      }
 
       await refreshPortfolios();
       if (newPortfolio?.id) setSelectedId(newPortfolio.id);
@@ -153,14 +169,13 @@ const Portfolio = () => {
     }
   };
 
-  const handleUpdatePortfolio = async (portfolioId, portfolioData) => {
+  const handleUpdatePortfolio = async (portfolioId, { sync, ...portfolioData }) => {
     try {
-      console.log("[Portfolio] Updating portfolio with data:", portfolioData);
-      const response = await portfolioAPI.updatePortfolio(
-        portfolioId,
-        portfolioData
-      );
-      console.log("[Portfolio] Update response:", response);
+      await portfolioAPI.updatePortfolio(portfolioId, portfolioData);
+      const current = portfolios.find((p) => p.id === portfolioId);
+      if (sync !== undefined && sync !== !!current?.sync_source) {
+        await linkSync(portfolioId, sync);
+      }
 
       await refreshPortfolios();
 
@@ -456,6 +471,9 @@ const Portfolio = () => {
               {selectedPortfolio && (
                 <CurrencyProvider currency={selectedPortfolio.currency}>
                 <div className="space-y-6">
+                  {selectedPortfolio.sync_source && (
+                    <PortfolioSyncBar portfolio={selectedPortfolio} />
+                  )}
                   {viewMode === "overview" && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {/* CHANGED: Conditional rendering for Portfolio Card */}

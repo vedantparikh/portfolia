@@ -231,7 +231,8 @@ def test_saving_a_crossed_threshold_records_an_alert_immediately(
 
     assert client.put(url, json={"alert_price_high": "140"}).status_code == 200
     assert [
-        (e.threshold_value, e.is_active, e.triggered_value) for e in _events(test_db, item)
+        (e.threshold_value, e.is_active, e.triggered_value)
+        for e in _events(test_db, item)
     ] == [(D("140"), True, D("150"))]
 
     assert client.put(url, json={"alert_price_high": "140"}).status_code == 200

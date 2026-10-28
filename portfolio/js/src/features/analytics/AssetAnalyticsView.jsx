@@ -6,8 +6,8 @@ import {
   Settings,
   Target,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-import { statisticalIndicatorsAPI } from "../../shared/api/indicators";
+import { useEffect, useState } from "react";
+import { useIndicatorCalculation, useIndicatorConfigurations } from "./queries";
 import EnhancedChart from "../../components/shared/EnhancedChart";
 import { seriesLabel } from "../../utils/indicatorLabels";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
@@ -16,52 +16,39 @@ const DEFAULT_INDICATORS = ["rsi_indicator", "macd_indicator"];
 
 const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, height = 500 }) => {
   const [period, setPeriod] = useState("30d");
-  const [chartData, setChartData] = useState([]);
-  const [analysisData, setAnalysisData] = useState(null);
-  const [indicatorConfigurations, setIndicatorConfigurations] = useState([]);
   const [selectedIndicators, setSelectedIndicators] = useState(DEFAULT_INDICATORS);
   const [activeConfiguration, setActiveConfiguration] = useState(selectedConfiguration);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
 
-  // FIX: `loadData` function is now defined BEFORE it is used in the useEffect hook.
-  const loadData = useCallback(async () => {
-    if (!asset?.symbol) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // A saved configuration is calculated server-side with its own parameters
-      const response = await statisticalIndicatorsAPI.calculateIndicators({
-        symbol: asset.symbol,
-        period: period,
-        interval: "1d",
-        ...(activeConfiguration
-          ? { configuration_id: activeConfiguration.id }
-          : {
-              indicators: selectedIndicators.map((indicatorName) => ({
-                indicator_name: indicatorName,
-                parameters: {},
-                enabled: true,
-              })),
-            }),
-      });
-
-      setChartData(response.data || []);
-      setAnalysisData({
+  // A saved configuration is calculated server-side with its own parameters
+  const calculation = useIndicatorCalculation({
+    symbol: asset?.symbol,
+    period: period,
+    interval: "1d",
+    ...(activeConfiguration
+      ? { configuration_id: activeConfiguration.id }
+      : {
+          indicators: selectedIndicators.map((indicatorName) => ({
+            indicator_name: indicatorName,
+            parameters: {},
+            enabled: true,
+          })),
+        }),
+  });
+  const response = calculation.data;
+  const chartData = response?.data || [];
+  const analysisData = response
+    ? {
         indicators: response.indicator_series || [],
         indicatorPanelData: response.indicator_series || [],
         fullResponse: response,
-      });
-    } catch (err) {
-      console.error("Failed to load analysis data:", err);
-      setError("Failed to load analysis data");
-    } finally {
-      setLoading(false);
-    }
-  }, [asset?.symbol, period, selectedIndicators, activeConfiguration]);
+      }
+    : null;
+  const loading = calculation.isFetching;
+  const error = calculation.isError ? "Failed to load analysis data" : null;
+  const { data: indicatorConfigurations = [] } = useIndicatorConfigurations({
+    enabled: Boolean(asset?.symbol),
+  });
 
   useEffect(() => {
     setActiveConfiguration(selectedConfiguration);
@@ -75,29 +62,6 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
     setSelectedIndicators((config.indicators || []).map((i) => i.indicator_name));
   };
 
-  // Load configurations only once when asset changes
-  useEffect(() => {
-    if (asset?.symbol) {
-      loadIndicatorConfigurations();
-    }
-  }, [asset?.symbol]);
-
-  // Load analysis AND chart data when asset, period, or indicators change
-  useEffect(() => {
-    if (asset?.symbol) {
-      loadData();
-    }
-  }, [asset?.symbol, period, selectedIndicators, loadData]); // Now this works correctly
-
-  const loadIndicatorConfigurations = async () => {
-    try {
-      const response = await statisticalIndicatorsAPI.getConfigurations(0, 100, true);
-      setIndicatorConfigurations(response?.configurations || []);
-    } catch (err) {
-      console.error("Failed to load indicator configurations:", err);
-    }
-  };
-
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod);
   };
@@ -109,7 +73,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
   };
 
   const handleRefresh = () => {
-    loadData();
+    calculation.refetch();
     if (onRefresh) {
       onRefresh();
     }

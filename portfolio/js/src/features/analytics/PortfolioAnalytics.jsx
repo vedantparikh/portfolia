@@ -7,9 +7,9 @@ import {
     Info,
     X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { analyticsAPI } from './api';
-import { portfolioCalculationsAPI } from '../portfolio/api';
+import { useState } from 'react';
+import { useCalculationPeriods } from '../portfolio/queries';
+import { useRiskMetrics } from './queries';
 import { formatPercentage, formatRatio } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
@@ -27,77 +27,23 @@ const MetricRow = ({ label, hint, value }) => (
 );
 
 const PortfolioAnalytics = ({ portfolioId }) => {
-    const [analyticsData, setAnalyticsData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [refreshing, setRefreshing] = useState(false);
+    const { data: availablePeriods = [] } = useCalculationPeriods();
+    const [chosenPeriod, setSelectedPeriod] = useState("inception");
+    const selectedPeriod =
+        availablePeriods.length === 0 || availablePeriods.some((p) => p.period_code === chosenPeriod)
+            ? chosenPeriod
+            : availablePeriods[0].period_code;
 
-    const [availablePeriods, setAvailablePeriods] = useState([]);
-    const [selectedPeriod, setSelectedPeriod] = useState("inception"); 
-    
     const [showRiskModal, setShowRiskModal] = useState(false);
 
-    const loadAvailablePeriods = async () => {
-        try {
-            const response = await portfolioCalculationsAPI.getAvailablePeriods();
-            const periods = response.periods || [];
-            setAvailablePeriods(periods);
-            
-            if (periods.length > 0 && !periods.find(p => p.period_code === 'inception')) {
-                setSelectedPeriod(periods[0].period_code);
-            }
-        } catch (error) {
-            console.error("Failed to load available periods:", error);
-            setAvailablePeriods([{ period_code: 'inception', period_name: 'Since Inception' }]);
-        }
-    };
-
-    const loadAnalyticsData = useCallback(async (forceRefresh = false) => {
-        if (!portfolioId) return; 
-
-        try {
-            if (forceRefresh) {
-                setRefreshing(true);
-            } else {
-                setLoading(true);
-            }
-            setError(null);
-
-            const [riskMetrics, advanceRiskMetrics] = await Promise.allSettled([
-                analyticsAPI.getPortfolioRiskMetrics(portfolioId, selectedPeriod),
-                analyticsAPI.getPortfolioAdvanceRiskMetrics(portfolioId, selectedPeriod),
-            ]);
-
-            const analytics = {
-                riskMetrics: riskMetrics.status === 'fulfilled' ? riskMetrics.value : null,
-                advanceRiskMetrics: advanceRiskMetrics.status === 'fulfilled' ? advanceRiskMetrics.value : null,
-            };
-
-            setAnalyticsData(analytics);
-        } catch (err) {
-            console.error('Failed to load analytics data:', err);
-            setError('Failed to load analytics data. Please try again.');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [portfolioId, selectedPeriod]);
-
-    useEffect(() => {
-        if (portfolioId) {
-            setLoading(true);
-            loadAvailablePeriods();
-        }
-    }, [portfolioId]);
-
-    useEffect(() => {
-        if (portfolioId) {
-            loadAnalyticsData();
-        }
-    }, [portfolioId, selectedPeriod, loadAnalyticsData]); 
+    const metrics = useRiskMetrics(portfolioId, selectedPeriod);
+    const analyticsData = metrics.data ?? null;
+    const loading = metrics.isPending;
+    const refreshing = metrics.isFetching && !metrics.isPending;
+    const error = metrics.isError ? 'Failed to load analytics data. Please try again.' : null;
 
     const handleRefresh = () => {
-        loadAnalyticsData(true);
+        metrics.refetch();
     };
 
     const getRiskLevelClass = (level) => {

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
-import { prefetchAssets } from "../../shared/api/queries";
+import { prefetchAssets } from "../../features/assets/queries";
 
 const Sidebar = ({
   currentView = "dashboard",

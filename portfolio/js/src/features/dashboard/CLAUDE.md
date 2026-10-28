@@ -12,10 +12,10 @@
 | Your Portfolios: value, today's P&L, total P&L, 3-month sparkline | `getPortfolios` + `getPortfolioSummary` per portfolio + `portfolioCalculationsAPI.getPerformanceSeries(id, "3m")` |
 | Recent Transactions (5) | `transactionAPI.getTransactions({limit: 5, order: desc})` |
 | Today's Movers: top 3 / bottom 3 held symbols by today's % | `getPortfolioHoldings` per portfolio, de-duplicated by symbol. The browser only sorts |
-| Top Market Assets (10) | `marketAPI.getAssets({sort: market_cap, include_detail})` |
+| Top Market Assets (10) | `assetAPI.getAssets({sort: market_cap, include_detail})` |
 | Quick Actions | Links |
 
-All sections load in parallel with their own loading state; Refresh reloads everything.
+Each section is its own query (`queries.ts`, plus `useRecentTransactions`, `useTopAssets` and `useUnreadAlertCount` from their features), so they load in parallel and come from the cache when you return within 5 minutes. A section shows its spinner only on the first load. Refresh invalidates every section, and the refresh button spins while any of them refetches. Portfolio and transaction writes elsewhere invalidate the portfolio cards and movers.
 
 ## Known gaps
 - Market status ignores US holidays.
@@ -23,4 +23,4 @@ All sections load in parallel with their own loading state; Refresh reloads ever
 - Top Market Assets are the user's own assets (`/assets/`), and the `sort=market_cap` param is ignored by the backend, so neither "top" nor "market" holds.
 
 ## Planned
-Plan 4.4 (TanStack Query caching between pages) and 4.8 (routing/layout).
+Nothing scheduled.

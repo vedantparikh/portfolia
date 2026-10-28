@@ -3,46 +3,32 @@ import {
     Plus,
     Target
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { analyticsAPI } from './api';
+import { invalidateAnalytics, usePortfolioBenchmarks } from './queries';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const BenchmarkComparison = ({ portfolioId }) => {
-    const [benchmarks, setBenchmarks] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const query = usePortfolioBenchmarks(portfolioId);
+    const benchmarks = query.data || [];
+    const [addError, setAddError] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
+    const loading = query.isPending;
+    const error = addError || (query.isError ? 'Failed to load benchmark data' : null);
 
-    useEffect(() => {
-        if (portfolioId) {
-            loadBenchmarkData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when portfolioId changes
-    }, [portfolioId]);
-
-    const loadBenchmarkData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const benchmarksResponse = await analyticsAPI.getPortfolioBenchmarks(portfolioId);
-            setBenchmarks(benchmarksResponse);
-        } catch (err) {
-            console.error('Failed to load benchmark data:', err);
-            setError('Failed to load benchmark data');
-        } finally {
-            setLoading(false);
-        }
+    const loadBenchmarkData = () => {
+        setAddError(null);
+        return query.refetch();
     };
 
     const handleAddBenchmark = async (benchmarkData) => {
         try {
             await analyticsAPI.addPortfolioBenchmark(portfolioId, benchmarkData);
-            await loadBenchmarkData();
+            await invalidateAnalytics(portfolioId);
             setShowAddModal(false);
         } catch (err) {
             console.error('Failed to add benchmark:', err);
-            setError('Failed to add benchmark');
+            setAddError('Failed to add benchmark');
         }
     };
 

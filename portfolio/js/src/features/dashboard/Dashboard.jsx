@@ -13,14 +13,21 @@ import {
   User,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../contexts/AuthContext";
-import { assetAPI } from "../assets/api";
-import { portfolioAPI, portfolioCalculationsAPI } from "../portfolio/api";
-import { transactionAPI } from "../transactions/api";
-import { watchlistAPI } from "../watchlist/api";
-import { marketAPI } from "../../shared/api/market";
+import { queryClient } from "../../shared/api/queryClient";
+import { assetKeys, useTopAssets } from "../assets/queries";
+import { portfolioKeys } from "../portfolio/queries";
+import { transactionKeys, useRecentTransactions } from "../transactions/queries";
+import { useUnreadAlertCount, watchlistKeys } from "../watchlist/queries";
+import {
+  dashboardKeys,
+  useMarketStatus,
+  useMovers,
+  usePortfolioCards,
+  useStatisticsOverview,
+} from "./queries";
 import {
   formatCurrency,
   formatDateTime,
@@ -39,169 +46,46 @@ const CardLoader = ({ text = "Loading..." }) => (
   </div>
 );
 
+const useErrorToast = (isError, message) => {
+  useEffect(() => {
+    if (isError) toast.error(message);
+  }, [isError, message]);
+};
+
 const Dashboard = () => {
   const { user, profile, refreshUser } = useAuth();
   const { toggleSidebar } = useShell();
 
-  const [dashboardData, setDashboardData] = useState({
-    portfolios: [],
-    recentTransactions: [],
-    topAssets: [],
-  });
-  const [overview, setOverview] = useState(null);
-  const [unreadAlerts, setUnreadAlerts] = useState(0);
-  const [movers, setMovers] = useState(null);
-  const [marketStatus, setMarketStatus] = useState(null);
-  const [loadingStates, setLoadingStates] = useState({
-    portfolios: true,
-    transactions: true,
-    assets: true,
-  });
+  const cards = usePortfolioCards();
+  const recent = useRecentTransactions(5);
+  const top = useTopAssets();
+  const { data: overview = null } = useStatisticsOverview();
+  const { data: marketStatus = null } = useMarketStatus();
+  const { data: unreadAlerts = 0 } = useUnreadAlertCount();
+  const { data: movers = null } = useMovers();
 
-  // Load dashboard data
-  useEffect(() => {
-    loadDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount
-  }, []);
+  useErrorToast(cards.isError, "Failed to load portfolios.");
+  useErrorToast(recent.isError, "Failed to load recent transactions.");
+  useErrorToast(top.isError, "Failed to load top market assets.");
 
-  const loadDashboardData = async () => {
-    // Reset all loading states to true on refresh
-    setLoadingStates({
-      portfolios: true,
-      transactions: true,
-      assets: true,
-    });
-
-    // Independent sections load in parallel so a slow one doesn't block the others
-    await Promise.all([
-      loadTransactions(),
-      loadTopAssets(),
-      loadPortfolios(),
-      loadOverview(),
-      loadMovers(),
-    ]);
+  const dashboardData = {
+    portfolios: cards.data || [],
+    recentTransactions: recent.data || [],
+    topAssets: top.data || [],
   };
-
-  const loadMovers = async () => {
-    try {
-      const portfolios = await portfolioAPI.getPortfolios();
-      const results = await Promise.allSettled(
-        portfolios.map((p) => portfolioAPI.getPortfolioHoldings(p.id))
-      );
-      const bySymbol = new Map();
-      results
-        .filter((r) => r.status === "fulfilled")
-        .flatMap((r) => r.value || [])
-        .filter((h) => h.today_pnl_percent != null)
-        .forEach((h) => bySymbol.set(h.symbol, h));
-      const sorted = [...bySymbol.values()].sort(
-        (a, b) => b.today_pnl_percent - a.today_pnl_percent
-      );
-      setMovers({
-        gainers: sorted.filter((h) => h.today_pnl_percent > 0).slice(0, 3),
-        losers: sorted
-          .filter((h) => h.today_pnl_percent < 0)
-          .reverse()
-          .slice(0, 3),
-      });
-    } catch (error) {
-      console.error("Failed to load movers:", error);
-      setMovers({ gainers: [], losers: [] });
-    }
-  };
-
-  const loadOverview = async () => {
-    const [stats, status, alerts] = await Promise.allSettled([
-      portfolioAPI.getStatisticsOverview(),
-      marketAPI.getMarketStatus(),
-      watchlistAPI.getAlerts(true, 1),
-    ]);
-    setOverview(stats.status === "fulfilled" ? stats.value : null);
-    setMarketStatus(status.status === "fulfilled" ? status.value : null);
-    setUnreadAlerts(alerts.status === "fulfilled" ? alerts.value.unread_count : 0);
-  };
-
-  const loadTransactions = async () => {
-    try {
-      const transactionsResponse = await transactionAPI.getTransactions({
-        limit: 5,
-        order_by: "transaction_date",
-        order: "desc",
-      });
-      setDashboardData((prev) => ({
-        ...prev,
-        recentTransactions: transactionsResponse || [],
-      }));
-    } catch (error) {
-      console.error("Failed to load transactions:", error);
-      toast.error("Failed to load recent transactions.");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, transactions: false }));
-    }
-  };
-
-  const loadTopAssets = async () => {
-    try {
-      const assetsResponse = await assetAPI.getAssets({
-        limit: 10,
-        sort: "market_cap",
-        include_detail: true,
-      });
-      setDashboardData((prev) => ({
-        ...prev,
-        topAssets: assetsResponse || [],
-      }));
-    } catch (error) {
-      console.error("Failed to load assets:", error);
-      toast.error("Failed to load top market assets.");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, assets: false }));
-    }
-  };
-
-  const loadPortfolios = async () => {
-    try {
-      const portfolios = await portfolioAPI.getPortfolios();
-      if (portfolios && portfolios.length > 0) {
-        const [portfolioSummaries, histories] = await Promise.all([
-          Promise.allSettled(
-            portfolios.map((p) => portfolioAPI.getPortfolioSummary(p.id))
-          ),
-          Promise.allSettled(
-            portfolios.map((p) =>
-              portfolioCalculationsAPI.getPerformanceSeries(p.id, "3m")
-            )
-          ),
-        ]);
-        const portfoliosWithStats = portfolios.map((portfolio, index) => ({
-          ...portfolio,
-          stats:
-            portfolioSummaries[index].status === "fulfilled"
-              ? portfolioSummaries[index].value
-              : null,
-          history:
-            histories[index].status === "fulfilled"
-              ? histories[index].value.points.map((p) => p.value)
-              : [],
-        }));
-        setDashboardData((prev) => ({
-          ...prev,
-          portfolios: portfoliosWithStats,
-        }));
-      } else {
-        setDashboardData((prev) => ({ ...prev, portfolios: [] }));
-      }
-    } catch (error) {
-      console.error("Failed to load portfolios:", error);
-      toast.error("Failed to load portfolios.");
-    } finally {
-      setLoadingStates((prev) => ({ ...prev, portfolios: false }));
-    }
+  const loadingStates = {
+    portfolios: cards.isPending,
+    transactions: recent.isPending,
+    assets: top.isPending,
   };
 
   const handleRefresh = () => {
     refreshUser();
-    loadDashboardData();
+    queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
+    queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+    queryClient.invalidateQueries({ queryKey: assetKeys.top });
+    queryClient.invalidateQueries({ queryKey: watchlistKeys.unreadAlerts });
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.marketStatus });
     toast.success("Dashboard data refreshed");
   };
 
@@ -231,9 +115,7 @@ const Dashboard = () => {
     );
   };
 
-  const isAnythingLoading = Object.values(loadingStates).some(
-    (state) => state === true
-  );
+  const isAnythingLoading = cards.isFetching || recent.isFetching || top.isFetching;
 
   return (
     <div className="min-h-screen gradient-bg flex">

@@ -21,7 +21,7 @@ import {
   useWatchlist,
   useWatchlistAlerts,
   useWatchlists,
-} from "../../shared/api/queries";
+} from "./queries";
 import { usePageChrome, useShell } from "../../app/chrome";
 import EmailVerificationPrompt from "../../features/auth/EmailVerificationPrompt";
 import { LoadingSpinner } from "../../components/shared";

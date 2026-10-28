@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { accountStatementsAPI } from "./api";
-import { assetKeys, useAssets } from "../../shared/api/queries";
+import { assetKeys, useAssets } from "../assets/queries";
 import { formatCurrency, formatDate } from "../../utils/formatters";
 import transactionTypes from "../../utils/transactionTypes";
 import { ClientSideAssetSearch } from "../../components/shared";
@@ -120,9 +120,9 @@ const ParsedDataTable = ({
 
   useEffect(() => {
     if (!localAssets || localAssets.length === 0) return;
-    const current = queryClient.getQueryData(assetKeys.all);
+    const current = queryClient.getQueryData(assetKeys.list);
     if (current !== localAssets) {
-      queryClient.setQueryData(assetKeys.all, localAssets);
+      queryClient.setQueryData(assetKeys.list, localAssets);
     }
   }, [localAssets, queryClient]);
 

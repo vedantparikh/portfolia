@@ -11,6 +11,11 @@ import {
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { statisticalIndicatorsAPI } from '../../shared/api/indicators';
+import {
+    invalidateIndicatorConfigurations,
+    useAvailableIndicators,
+    useIndicatorConfigurations,
+} from './queries';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const IndicatorConfigurationManager = ({
@@ -21,9 +26,10 @@ const IndicatorConfigurationManager = ({
     showFilters = true,
     className = ''
 }) => {
-    const [configurations, setConfigurations] = useState([]);
-    const [availableIndicators, setAvailableIndicators] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const configurationsQuery = useIndicatorConfigurations();
+    const configurations = configurationsQuery.data || [];
+    const loading = configurationsQuery.isPending;
+    const { data: availableIndicators = [] } = useAvailableIndicators();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -38,33 +44,9 @@ const IndicatorConfigurationManager = ({
         tags: []
     });
 
-    // Load configurations and available indicators
     useEffect(() => {
-        loadConfigurations();
-        loadAvailableIndicators();
-    }, []);
-
-    const loadConfigurations = async () => {
-        try {
-            setLoading(true);
-            const response = await statisticalIndicatorsAPI.getConfigurations(0, 100, true);
-            setConfigurations(response.configurations || []);
-        } catch (error) {
-            console.error('Failed to load configurations:', error);
-            toast.error('Failed to load configurations');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const loadAvailableIndicators = async () => {
-        try {
-            const response = await statisticalIndicatorsAPI.getAvailableIndicators();
-            setAvailableIndicators(response.indicators || []);
-        } catch (error) {
-            console.error('Failed to load indicators:', error);
-        }
-    };
+        if (configurationsQuery.isError) toast.error('Failed to load configurations');
+    }, [configurationsQuery.isError]);
 
     const handleCreateConfiguration = async () => {
         try {
@@ -78,8 +60,8 @@ const IndicatorConfigurationManager = ({
                 return;
             }
 
-            const response = await statisticalIndicatorsAPI.createConfiguration(newConfig);
-            setConfigurations(prev => [response, ...prev]);
+            await statisticalIndicatorsAPI.createConfiguration(newConfig);
+            invalidateIndicatorConfigurations();
             setShowCreateModal(false);
             setNewConfig({
                 name: '',
@@ -108,10 +90,8 @@ const IndicatorConfigurationManager = ({
                 return;
             }
 
-            const response = await statisticalIndicatorsAPI.updateConfiguration(editingConfig.id, editingConfig);
-            setConfigurations(prev => prev.map(config =>
-                config.id === editingConfig.id ? response : config
-            ));
+            await statisticalIndicatorsAPI.updateConfiguration(editingConfig.id, editingConfig);
+            invalidateIndicatorConfigurations();
             setShowEditModal(false);
             setEditingConfig(null);
             toast.success('Configuration updated successfully');
@@ -128,7 +108,7 @@ const IndicatorConfigurationManager = ({
 
         try {
             await statisticalIndicatorsAPI.deleteConfiguration(configId);
-            setConfigurations(prev => prev.filter(config => config.id !== configId));
+            invalidateIndicatorConfigurations();
             toast.success('Configuration deleted successfully');
         } catch (error) {
             console.error('Failed to delete configuration:', error);
@@ -139,8 +119,8 @@ const IndicatorConfigurationManager = ({
     const handleDuplicateConfiguration = async (config) => {
         try {
             const newName = `${config.name} (Copy)`;
-            const response = await statisticalIndicatorsAPI.duplicateConfiguration(config.id, newName);
-            setConfigurations(prev => [response, ...prev]);
+            await statisticalIndicatorsAPI.duplicateConfiguration(config.id, newName);
+            invalidateIndicatorConfigurations();
             toast.success('Configuration duplicated successfully');
         } catch (error) {
             console.error('Failed to duplicate configuration:', error);

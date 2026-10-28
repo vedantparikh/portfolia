@@ -8,8 +8,7 @@ import {
     TrendingDown,
     TrendingUp
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { analyticsAPI } from './api';
+import { useRebalancingRecommendations } from './queries';
 import { formatPercentage, formatQuantity } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
@@ -22,40 +21,14 @@ const humanize = (code) => {
 
 const RebalancingRecommendations = ({ portfolioId }) => {
   const money = useMoney();
-    const [recommendations, setRecommendations] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [refreshing, setRefreshing] = useState(false);
-
-    useEffect(() => {
-        if (portfolioId) {
-            loadRecommendations();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when portfolioId changes
-    }, [portfolioId]);
-
-    const loadRecommendations = async (forceRefresh = false) => {
-        try {
-            if (forceRefresh) {
-                setRefreshing(true);
-            } else {
-                setLoading(true);
-            }
-            setError(null);
-
-            const response = await analyticsAPI.getRebalancingRecommendations(portfolioId);
-            setRecommendations(response);
-        } catch (err) {
-            console.error('Failed to load rebalancing recommendations:', err);
-            setError('Failed to load rebalancing recommendations');
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
+    const query = useRebalancingRecommendations(portfolioId);
+    const recommendations = query.data ?? null;
+    const loading = query.isPending;
+    const refreshing = query.isFetching && !query.isPending;
+    const error = query.isError ? 'Failed to load rebalancing recommendations' : null;
 
     const handleRefresh = () => {
-        loadRecommendations(true);
+        query.refetch();
     };
 
     const getPriorityColor = (priority) => {

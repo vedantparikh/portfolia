@@ -21,7 +21,7 @@ import {
   usePortfolioAccountSummary,
   usePortfolios,
   useRecentPortfolioTransactions,
-} from "../../shared/api/queries";
+} from "./queries";
 import {
   formatCurrency,
   formatDateTime,

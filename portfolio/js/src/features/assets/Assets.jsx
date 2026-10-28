@@ -18,15 +18,17 @@ import {
     X,
     Zap
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import useIsMobile from '../../hooks/useIsMobile';
 import toast from 'react-hot-toast';
 import { InView } from 'react-intersection-observer';
 import { assetAPI } from './api';
-import { portfolioAPI } from '../portfolio/api';
 import { transactionAPI } from '../transactions/api';
 import { apiErrorMessage } from '../../shared/api/client';
-import { useAssets } from '../../shared/api/queries';
+import { queryClient } from '../../shared/api/queryClient';
+import { portfolioKeys, usePortfolios } from '../portfolio/queries';
+import { transactionKeys } from '../transactions/queries';
+import { invalidateAssets, useAssetPages, useAssets } from './queries';
 import { formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
@@ -38,7 +40,17 @@ import AssetFilters from './AssetFilters';
 import AssetModal from './AssetModal';
 import BulkAssetModal from './BulkAssetModal';
 
-const PAGE_SIZE = 8;
+const CATEGORY_TYPES = {
+    cryptocurrency: 'CRYPTOCURRENCY',
+    stock: 'EQUITY',
+    commodity: 'COMMODITY',
+    forex: 'CASH',
+    etf: 'ETF',
+    bond: 'BOND',
+    real_estate: 'REAL_ESTATE',
+    mutual_fund: 'MUTUALFUND',
+    index_fund: 'INDEX',
+};
 
 const assetPayload = (asset, overrides = {}) => ({
     symbol: asset.symbol,
@@ -54,10 +66,6 @@ const assetPayload = (asset, overrides = {}) => ({
 });
 
 const Assets = () => {
-    const [assets, setAssets] = useState([]);
-    const [portfolios, setPortfolios] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -72,9 +80,6 @@ const Assets = () => {
     const [showTransactionModal, setShowTransactionModal] = useState(false);
     const [transactionAsset, setTransactionAsset] = useState(null);
     const [showBulkAssetModal, setShowBulkAssetModal] = useState(false);
-    const [, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [totalAssetsCount, setTotalAssetsCount] = useState(0);
 
     const [filters, setFilters] = useState({
         category: 'all',
@@ -86,117 +91,40 @@ const Assets = () => {
         sortOrder: 'asc'
     });
     const [autoRefresh, setAutoRefresh] = useState(false);
-    const [refreshInterval, setRefreshInterval] = useState(null);
 
-    const loadData = useCallback(async (currentPage, isRefresh = false) => {
-        if (currentPage > 1) {
-            setLoadingMore(true);
-        } else {
-            setLoading(true);
-        }
+    const apiParams = useMemo(() => {
+        const params = {
+            include_detail: true,
+            include_performance: true,
+            include_analytics: true,
+            sort_by: filters.sortBy,
+            sort_order: filters.sortOrder,
+        };
+        if (searchQuery) params.symbol = searchQuery;
+        if (filters.category !== 'all') params.asset_type = CATEGORY_TYPES[filters.category];
+        if (filters.priceRange !== 'all') params.price_range = filters.priceRange;
+        if (filters.valueRange !== 'all') params.value_range = filters.valueRange;
+        if (filters.changeRange !== 'all') params.change_range = filters.changeRange;
+        if (filters.marketCapRange !== 'all') params.market_cap_range = filters.marketCapRange;
+        return params;
+    }, [filters, searchQuery]);
 
-        try {
-            if (currentPage === 1 && portfolios.length === 0) {
-                const portfoliosResponse = await portfolioAPI.getPortfolios();
-                setPortfolios(portfoliosResponse || []);
-            }
-
-            const skip = (currentPage - 1) * PAGE_SIZE;
-
-            const apiParams = {
-                limit: PAGE_SIZE,
-                skip: skip,
-                include_detail: true,
-                include_performance: true,
-                include_analytics: true,
-                sort_by: filters.sortBy,
-                sort_order: filters.sortOrder,
-            };
-
-            if (searchQuery) apiParams.symbol = searchQuery;
-            if (filters.category !== 'all') {
-                const categoryMap = {
-                    'cryptocurrency': 'CRYPTOCURRENCY',
-                    'stock': 'EQUITY',
-                    'commodity': 'COMMODITY',
-                    'forex': 'CASH',
-                    'etf': 'ETF',
-                    'bond': 'BOND',
-                    'real_estate': 'REAL_ESTATE',
-                    'mutual_fund': 'MUTUALFUND',
-                    'index_fund': 'INDEX'
-                };
-                apiParams.asset_type = categoryMap[filters.category];
-            }
-            if (filters.priceRange !== 'all') apiParams.price_range = filters.priceRange;
-            if (filters.valueRange !== 'all') apiParams.value_range = filters.valueRange;
-            if (filters.changeRange !== 'all') apiParams.change_range = filters.changeRange;
-            if (filters.marketCapRange !== 'all') apiParams.market_cap_range = filters.marketCapRange;
-
-            const response = {
-                assets: await assetAPI.getAssets(apiParams).catch((error) => {
-                    console.error('Failed to get assets:', error);
-                    return [];
-                }),
-            };
-
-            if (response?.assets) {
-                setHasMore(response.assets.length === PAGE_SIZE);
-                // After
-                setAssets(prev => {
-                    if (isRefresh) {
-                        return response.assets; // For a refresh, just replace the data
-                    }
-                    // For infinite scroll, combine previous and new assets
-                    const combinedAssets = [...prev, ...response.assets];
-                    // Create a new array with unique assets based on their ID
-                    const uniqueAssets = Array.from(new Map(combinedAssets.map(asset => [asset.id, asset])).values());
-                    return uniqueAssets;
-                });
-                if (response.total) {
-                    setTotalAssetsCount(response.total);
-                }
-            } else {
-                setHasMore(false);
-                if (isRefresh) setAssets([]);
-            }
-        } catch (error) {
-            console.error('Failed to load user assets:', error);
-            toast.error('Failed to load your assets');
-        } finally {
-            setLoading(false);
-            setLoadingMore(false);
-        }
-    }, [filters, searchQuery, portfolios.length]);
-
-
-    useEffect(() => {
-        setAssets([]);
-        setPage(1);
-        setHasMore(true);
-        loadData(1, true);
-    }, [filters, searchQuery, loadData]);
+    const { data: portfolios = [] } = usePortfolios();
+    const pages = useAssetPages(apiParams, { refetchInterval: autoRefresh ? 30000 : false });
+    const assets = useMemo(
+        () => Array.from(new Map((pages.data?.pages.flat() || []).map((asset) => [asset.id, asset])).values()),
+        [pages.data],
+    );
+    const loading = pages.isPending;
+    const loadingMore = pages.isFetchingNextPage;
+    const hasMore = pages.hasNextPage;
 
     useAssets();
 
-    const handleRefresh = useCallback((silent = false) => {
-        setPage(1);
-        setHasMore(true);
-        loadData(1, true);
+    const handleRefresh = (silent = false) => {
+        invalidateAssets();
         if (!silent) toast.success('Assets refreshed');
-    }, [loadData]);
-
-    useEffect(() => {
-        if (autoRefresh) {
-            const interval = setInterval(() => handleRefresh(true), 30000);
-            setRefreshInterval(interval);
-        } else if (refreshInterval) {
-            clearInterval(refreshInterval);
-        }
-        return () => {
-            if (refreshInterval) clearInterval(refreshInterval);
-        };
-    }, [autoRefresh, handleRefresh, refreshInterval]);
+    };
 
     const handleAssetClick = (asset) => {
         setSelectedAsset(asset);
@@ -220,7 +148,9 @@ const Assets = () => {
             setShowTransactionModal(false);
             setTransactionAsset(null);
             toast.success('Transaction created successfully');
-            setTimeout(() => handleRefresh(), 500);
+            queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
+            queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+            handleRefresh(true);
         } catch (error) {
             console.error('Failed to create transaction:', error);
             const errorMessage = apiErrorMessage(error, 'Failed to create transaction');
@@ -488,8 +418,7 @@ const Assets = () => {
                             </button>
                         </div>
                         <p className="text-sm text-gray-400">
-                            Showing {assets.length}
-                            {totalAssetsCount > assets.length ? ` of ${totalAssetsCount}` : ""} assets
+                            Showing {assets.length} assets
                         </p>
                     </div>
 
@@ -570,11 +499,7 @@ const Assets = () => {
                                         as="div"
                                         onChange={(inView) => {
                                             if (inView && hasMore && !loadingMore && !loading) {
-                                                setPage(prev => {
-                                                    const nextPage = prev + 1;
-                                                    loadData(nextPage);
-                                                    return nextPage;
-                                                });
+                                                pages.fetchNextPage();
                                             }
                                         }}
                                         threshold={0.5}

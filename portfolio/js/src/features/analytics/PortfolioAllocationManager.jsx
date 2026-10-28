@@ -8,45 +8,26 @@ import {
     Target,
     Trash2
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { analyticsAPI } from './api';
+import { invalidateAnalytics, useAllocations } from './queries';
 import { formatPercentage } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../components/shared/LoadingSpinner';
 
 const PortfolioAllocationManager = ({ portfolioId }) => {
   const money = useMoney();
-    const [allocations, setAllocations] = useState([]);
-    const [analysis, setAnalysis] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const query = useAllocations(portfolioId);
+    const allocations = query.data?.allocations || [];
+    const analysis = query.data?.analysis ?? null;
+    const [writeError, setError] = useState(null);
+    const loading = query.isPending;
+    const error = writeError || (query.isError ? 'Failed to load allocation data' : null);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingAllocation, setEditingAllocation] = useState(null);
 
-    useEffect(() => {
-        if (portfolioId) {
-            loadAllocationData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when portfolioId changes
-    }, [portfolioId]);
-
-    const loadAllocationData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const [allocationsResponse, analysisResponse] = await Promise.allSettled([
-                analyticsAPI.getPortfolioAllocations(portfolioId),
-                analyticsAPI.analyzePortfolioAllocation(portfolioId)
-            ]);
-
-            setAllocations(allocationsResponse.status === 'fulfilled' ? allocationsResponse.value : []);
-            setAnalysis(analysisResponse.status === 'fulfilled' ? analysisResponse.value : null);
-        } catch (err) {
-            console.error('Failed to load allocation data:', err);
-            setError('Failed to load allocation data');
-        } finally {
-            setLoading(false);
-        }
+    const loadAllocationData = () => {
+        setError(null);
+        return invalidateAnalytics(portfolioId);
     };
 
     const handleAddAllocation = async (allocationData) => {

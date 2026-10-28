@@ -9,7 +9,7 @@ import {
   assetKeys,
   findAssetBySymbol,
   useAssets,
-} from "../../shared/api/queries";
+} from "../assets/queries";
 import { ClientSideAssetSearch, SymbolSearch } from "../../components/shared";
 import { formatCurrency } from "../../utils/formatters.jsx";
 import transactionTypes, { colorSchemes } from "../../utils/transactionTypes";

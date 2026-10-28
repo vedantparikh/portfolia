@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, HelpCircle, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { useAssets } from "../../shared/api/queries";
+import { useAssets } from "../assets/queries";
 import { ClientSideAssetSearch } from "../../components/shared";
 
 /**

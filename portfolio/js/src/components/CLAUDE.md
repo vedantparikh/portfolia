@@ -33,7 +33,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).
 
 ## Conventions
-- All HTTP goes through the axios instance in `shared/api/client.ts` (`API_BASE_URL`, `apiErrorMessage`, the auth header and the single-flight `refreshAccessToken` on a 401). Each feature has its endpoint wrappers in `features/<name>/api.ts`; market data and indicators, used by shared components too, are `shared/api/market.ts` and `shared/api/indicators.ts`. Assets have one wrapper (`assetAPI`), whose functions return the response body. The portfolio, transaction, and watchlist screens read through TanStack Query and invalidate those queries after a write. The dashboard, assets page, and analytics tabs still load in their own effects. Errors show via `react-hot-toast`.
+- All HTTP goes through the axios instance in `shared/api/client.ts` (`API_BASE_URL`, `apiErrorMessage`, the auth header and the single-flight `refreshAccessToken` on a 401). Each feature has its endpoint wrappers in `features/<name>/api.ts`; market data and indicators, used by shared components too, are `shared/api/market.ts` and `shared/api/indicators.ts`. Assets have one wrapper (`assetAPI`), whose functions return the response body. - Reads go through TanStack Query hooks in `features/<name>/queries.ts` (keys and hooks per resource; `shared/api/queryClient.ts` holds the client: 5 min stale time, one retry). Keys are prefixes: everything about a portfolio, including its analytics tabs and the dashboard cards, sits under `["portfolios", …]`, so invalidating `portfolioKeys.all` after a portfolio or transaction write refreshes them all. Assets are under `["assets", …]` (`list` for search, `pages` for the Assets page's infinite scroll, `top` for the dashboard), indicator configurations under `["indicators", …]`, alerts under `["watchlists", "alerts", …]`. Writes invalidate the matching prefix; the sidebar's refresh invalidates everything; logout clears the cache. Errors show via `react-hot-toast`.
 - Money: in portfolio-scoped views `const money = useMoney()` (`hooks/useMoney.js`; `money(v, opts)`, `money.price(v)`, `money.currency`) — `Portfolio.jsx` wraps its views in `CurrencyProvider` with the selected portfolio's currency, the dashboard wraps nothing and passes `currency` per row/total. `formatCurrency` falls back to USD when `currency` is missing.
 - Formatting only through `utils/formatters.jsx`:
   - `formatCurrency` takes Intl options, so use `signDisplay: "exceptZero"`; `showSign` is ignored by it.
@@ -51,7 +51,6 @@ A static glossary of about 30 concepts in categories: returns (TWR, MWR, XIRR, C
 Plan Phase 4:
 - Vitest/RTL/MSW and Playwright.
 - Gradual TypeScript with generated API types.
-- TanStack Query.
 - `shared/ui` primitives (Modal, Table…), collapsing the 24 modals, 4 search components and 2 charts.
 - Chart tooltips and risk reasoning are text, not HTML. Access and refresh tokens go through `shared/auth/tokenStore.ts` (still `localStorage`; an httpOnly cookie is still an open decision).
 - Feature folders are in place. The concepts page still lives in `components/FinancialConcepts.jsx`.

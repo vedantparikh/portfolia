@@ -18,14 +18,9 @@ import { useLocation } from "react-router";
 import { accountStatementsAPI, transactionAPI } from "./api";
 import { apiErrorMessage } from "../../shared/api/client";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  assetKeys,
-  portfolioKeys,
-  transactionKeys,
-  useAssets,
-  usePortfolios,
-  useTransactions,
-} from "../../shared/api/queries";
+import { assetKeys, useAssets } from "../assets/queries";
+import { portfolioKeys, usePortfolios } from "../portfolio/queries";
+import { transactionKeys, useTransactions } from "./queries";
 import { usePageChrome, useShell } from "../../app/chrome";
 import useIsMobile from "../../hooks/useIsMobile";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";

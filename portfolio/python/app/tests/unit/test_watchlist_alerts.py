@@ -219,6 +219,28 @@ async def test_worker_pass_uses_its_own_session(
     assert (result["updated"], result["triggered"]) == (1, 1)
 
 
+def test_saving_a_crossed_threshold_records_an_alert_immediately(
+    client, test_db, watch
+):
+    user, item, _ = watch
+    item.current_price = D("150")
+    item.alert_price_high = None
+    test_db.commit()
+    app.dependency_overrides[get_current_user] = lambda: user
+    url = f"/api/v1/watchlists/{item.watchlist_id}/items/{item.id}"
+
+    assert client.put(url, json={"alert_price_high": "140"}).status_code == 200
+    assert [
+        (e.threshold_value, e.is_active, e.triggered_value) for e in _events(test_db, item)
+    ] == [(D("140"), True, D("150"))]
+
+    assert client.put(url, json={"alert_price_high": "140"}).status_code == 200
+    assert len(_events(test_db, item)) == 1
+
+    assert client.put(url, json={"alert_price_high": None}).status_code == 200
+    assert [e.is_active for e in _events(test_db, item)] == [False]
+
+
 def test_item_update_saves_and_clears_alert_thresholds(client, test_db, watch):
     user, item, _ = watch
     app.dependency_overrides[get_current_user] = lambda: user

@@ -613,7 +613,11 @@ const WatchlistContent = ({
                                 {/* Alerts Column */}
                                 <div className="text-right w-20 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    {item.alerts?.length || 0}
+                                    {[
+                                      item.alert_price_high,
+                                      item.alert_price_low,
+                                      item.alert_price_change_percent,
+                                    ].filter((value) => value != null && value !== "").length}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Alerts

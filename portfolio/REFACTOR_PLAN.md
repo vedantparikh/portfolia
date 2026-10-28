@@ -351,7 +351,7 @@ Open:
 | 2026-10-27 | `feat/app-shell` | — | 4.8: protected layout, lazy routes, error boundary, 404. 4.9 started: auth pages in `features/auth`. Live UI not restarted |
 | 2026-10-27 | `feat/feature-folders` | — | 4.9: portfolios, transactions, assets, watchlists, analytics, and the dashboard live under `features/`. Live UI not restarted |
 | 2026-10-27 | `feat/query-screens` | — | 4.4: portfolio, transaction, and watchlist screens read through the query cache and invalidate it after writes. Live UI not restarted |
-| 2026-10-28 | `fix/manual-test-findings` | — | Manual pass after 4.4: adding a watchlist item no longer returns 500, existing assets can be watched, watchlist prices are formatted and drag reorder only runs in custom order, asset search filters by symbol, quick actions work on every page, login returns to the requested page. Live API not restarted |
+| 2026-10-28 | `fix/manual-test-findings` | — | Manual pass after 4.4: adding a watchlist item no longer returns 500, existing assets can be watched, watchlist prices are formatted and drag reorder only runs in custom order, asset search filters by symbol, quick actions work on every page, login returns to the requested page. A watchlist threshold the price already meets is recorded when it is saved, and the alerts panel refreshes. Live API not restarted |
 
 
 ## 6b. Findings and to-do (2026-10-16)

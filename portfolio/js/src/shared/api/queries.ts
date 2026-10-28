@@ -185,6 +185,7 @@ export function useWatchlistAlerts() {
   return useQuery({
     queryKey: watchlistKeys.alerts,
     queryFn: () => watchlistAPI.getAlerts(false, 50),
+    refetchInterval: 60_000,
   });
 }
 

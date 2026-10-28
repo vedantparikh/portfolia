@@ -59,7 +59,7 @@ const WatchlistAlerts = ({ alerts, unreadCount, onAcknowledge, onOpenWatchlist }
               </p>
               <p className="text-xs text-gray-500">
                 {a.watchlist_name} · {formatDateTime(a.triggered_at)}
-                {a.still_true && <span className="ml-2 text-warning-400">still true</span>}
+                {a.still_true && <span className="text-warning-400"> · still true</span>}
               </p>
             </div>
             {!a.acknowledged_at && (

@@ -326,6 +326,7 @@ const Watchlist = () => {
   };
 
   const handleUpdateWatchlistItem = (updatedItem) => {
+    queryClient.invalidateQueries({ queryKey: watchlistKeys.alerts });
     if (selectedId == null) return;
     queryClient.setQueryData(
       watchlistKeys.detail(selectedId, true),

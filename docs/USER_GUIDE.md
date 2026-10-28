@@ -6,7 +6,7 @@ The API and the calculation rules are documented next to the code. Start at [por
 
 ## Open the app
 
-On the machine that runs Docker, open <http://localhost:3000>. From another device on the tailnet, open `http://100.104.10.24:3000`. The API is only on the server, at <http://127.0.0.1:8000/docs>.
+Open <https://ubuntu-1.tail13e229.ts.net:3443> from any device on the tailnet (on the server itself, <http://localhost:3000> also works). You stay signed in across reloads through a secure cookie, which browsers only keep over HTTPS or localhost: on plain `http://100.104.10.24:3000` a reload signs you out. The API is only on the server, at <http://127.0.0.1:8000/docs>.
 
 ![Sign-in page](images/01-login.png)
 

@@ -51,7 +51,7 @@ Signed in as the demo user on 26 October 2026. Prices are live Yahoo quotes, so 
 
 ## Demo account
 
-On this server, sign in at <http://localhost:3000> (or `http://100.104.10.24:3000` from another device on the tailnet).
+On this server, sign in at <https://ubuntu-1.tail13e229.ts.net:3443> from any device on the tailnet. The session is kept in a `Secure` cookie, so use the HTTPS address: over plain `http://100.104.10.24:3000` a reload signs you out.
 
 | | |
 |---|---|
@@ -87,24 +87,21 @@ Percentages are shown as percents (`15.0` means 15%). The risk-free rate used fo
 - Splits are taken from market data. Importing a split row would double-count it, so those rows are skipped.
 - Watchlist alerts are in-app only. Nothing is emailed or pushed.
 - The Benchmarks tab still says comparison is coming. The working comparison is **Compare with** on the Performance Chart.
-- PDF export still prints a `$`. Watchlist prices are also shown with a `$`.
+- Watchlist items have no currency of their own, so their prices are plain numbers.
 - The Highest Growth tile on Asset Analysis can show an implausible percent. Do not use it for a decision.
 - The first request for a portfolio's history talks to Yahoo and can take several seconds. Later requests are served from Redis.
 
 ## Upcoming
 
-Not built yet. The design notes are in [portfolio/REFACTOR_PLAN.md](portfolio/REFACTOR_PLAN.md).
+Not built yet. Notes are in [portfolio/REFACTOR_PLAN.md](portfolio/REFACTOR_PLAN.md).
 
 - A cash balance, so deposits, withdrawals, and interest can be imported instead of skipped
-- Security transfers, swaps, and spin-offs
+- Security transfers, swaps, and spin-offs from imports
 - Withholding tax kept on Trade Republic PDF dividends (the pytr CSV import already stores it)
 - Email or phone alerts for watchlist prices
 - The Benchmarks tab showing the same comparison the chart already does, with beta against a total-return index
 - A settings page: profile, change password, delete account
-- The background worker also refreshing holding prices and stored performance snapshots
-- Statements from brokers other than Trade Republic, including a model-assisted parser and OCR for scans
-- Production images, a staging copy, backups, and an HTTPS name on the tailnet
-- Frontend tests and a gradual TypeScript migration
+- Statements from brokers other than Trade Republic, including a model-assisted parser on the shared GPU and OCR for scans
 
 ## Stack
 
@@ -113,29 +110,21 @@ Not built yet. The design notes are in [portfolio/REFACTOR_PLAN.md](portfolio/RE
 | API | Python 3.14, FastAPI 0.143, SQLAlchemy 2.1, Alembic, pandas 3, polars 2, yfinance 1 |
 | UI | React 19, React Router 8, Vite 8, Tailwind 4, Node 22 |
 | Data | Postgres 16, Redis 7 |
-| Worker | Same API image; watchlist prices and alerts every 15 minutes |
+| Worker | Same API image; every 15 minutes: holding and watchlist prices, FX, alerts, performance snapshots |
 
-Market data is Yahoo Finance via yfinance and yahooquery. Nothing calls a paid market-data API.
+Market data is Yahoo Finance via yfinance. Nothing calls a paid market-data API.
 
 ## Run the app
 
-From `portfolio/`, with Docker. This host has no usable Node or a current Python, so the containers are the supported way to run it.
+From `portfolio/`, with Docker (this host has no usable Node or current Python):
 
 ```bash
 cd portfolio
-cp python/app/.env.example python/app/.env.docker   # then set real secrets
-cp js/.env.example js/.env.docker
-docker network create homepage_proxy-network        # once; already exists on the home server
-docker compose -f compose.dev.yaml up -d --wait
+scripts/setup.sh                                  # env files with generated secrets, shared network
+docker compose -f compose.dev.yaml up -d --wait   # dev: UI http://localhost:3200, API http://127.0.0.1:8200/docs
 ```
 
-Development uses project `portfolio-dev` (UI :3200, API :8200). Production is `compose.yaml` (project `portfolio`, UI :3000, API :8000). A bare `docker compose up` in `portfolio/` selects the production file.
-
-- Dev UI: <http://localhost:3200>
-- Dev API docs (on the server only): <http://127.0.0.1:8200/docs>
-- Dev health: `curl -f http://127.0.0.1:8200/health/`
-
-Postgres and Redis are not published on the host. Developer commands, tests, and the layout are in [portfolio/README.md](portfolio/README.md). The rules for changing the code are in [portfolio/CLAUDE.md](portfolio/CLAUDE.md).
+Production is `compose.yaml` (project `portfolio`, UI :3000, HTTPS on the tailnet at :3443), deployed with `scripts/deploy.sh`. Developer commands, architecture and configuration: [portfolio/README.md](portfolio/README.md). Operations: [portfolio/docs/RUNBOOK.md](portfolio/docs/RUNBOOK.md).
 
 ## Documentation map
 
@@ -143,7 +132,10 @@ Postgres and Redis are not published on the host. Developer commands, tests, and
 |---|---|
 | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Using the product |
 | [docs/README.md](docs/README.md) | Index of every doc |
-| [portfolio/CLAUDE.md](portfolio/CLAUDE.md) | How the code is put together, and the per-feature references |
+| [portfolio/README.md](portfolio/README.md) | Developing: setup, architecture, checks, configuration |
+| [portfolio/CONTRIBUTING.md](portfolio/CONTRIBUTING.md) | Adding a feature, migrations, tests |
+| [portfolio/docs/RUNBOOK.md](portfolio/docs/RUNBOOK.md) | Deploy, rollback, backups |
+| [portfolio/CLAUDE.md](portfolio/CLAUDE.md) | Code rules and the per-feature references |
 | [portfolio/REFACTOR_PLAN.md](portfolio/REFACTOR_PLAN.md) | What is done and what is left |
 
 ## License

@@ -87,7 +87,7 @@ Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, kno
 ## Known state (2026-10-28)
 - The refactor plan is finished apart from what `REFACTOR_PLAN.md` §6c lists as left on purpose (needs the user, GitHub settings, or a feature that does not exist yet).
 - Docs: `../README.md`, `../docs/USER_GUIDE.md`, `README.md`, `CONTRIBUTING.md`, `docs/RUNBOOK.md`, `docs/adr/` and the feature `CLAUDE.md` files. The old `python/app/docs/`, `STARTUP_GUIDE.md` and the deployment checklist were folded into those and deleted.
-- Gate, last recorded: ruff, eslint and tsc clean; 407 backend tests passed, quarantine empty; 12 Vitest tests; Playwright smoke passing.
+- Gate, last recorded: ruff, eslint and tsc clean; 407 backend tests passed, quarantine empty; 13 Vitest tests; Playwright smoke passing.
 - Demo data (`scripts/seed_demo_application.py --reset`, run inside `portfolio-api-1` against `http://localhost:8000`) uses real Yahoo prices, splits and dividends over ~3 years; an independent replay matched the engine to the cent on every day. The seed sends the refresh cookie itself (an http client will not return a `Secure` cookie).
 - Advance-risk beta uses the `^GSPC` price index.
 - `tests/unit/test_calculation_snapshots.py` pins every computed number (engine, risk, indicators, analytics) against `snapshots/calculations.json`. If it fails, a number the app shows changed: fix the regression, or regenerate with `UPDATE_SNAPSHOTS=1` only for an intended change and explain it in the commit.

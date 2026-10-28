@@ -15,7 +15,7 @@ Target host: NVIDIA Jetson AGX Xavier home server shared with ~35 other containe
 | **Calculation correctness** | ✅ (2026-10-28) | One engine in `core/domain` (FIFO with fees, automatic splits, transfers, completed-only, no cost fallback, today's P&L, one risk-free rate, Yahoo FX). Chart, performance, risk, summary, holdings, overview, allocation, rebalancing, stored snapshots, analytics summary and user dashboard all read it. Indicators match `ta`. Open: beta against a total-return index (§6c). |
 | **Backend architecture** | ✅ | Sync SQLAlchemy with `def` routes (ADR 0001), unit-of-work session, one error envelope, request ids, pydantic-settings, app factory, repositories for analytics/assets/auth, Alembic only, health checks, PyJWT with hashed refresh tokens in an httpOnly cookie. |
 | **Frontend** | ✅ | Feature folders, per-feature `api.ts` on one client, TanStack Query, generated API types, `shared/ui` Modal and states, formatters enforced by lint, no financial maths, no HTML injection, access token in memory only. Vitest + MSW unit tests and a Playwright smoke test. |
-| **Tests** | ✅ Green gate | 407 backend tests, quarantine empty, golden and snapshot tests for every number, 12 Vitest tests, Playwright smoke in `verify.sh --stack`. Coverage targets of Phase 5 are not measured (§6c). |
+| **Tests** | ✅ Green gate | 407 backend tests, quarantine empty, golden and snapshot tests for every number, 13 Vitest tests, Playwright smoke in `verify.sh --stack`. Coverage targets of Phase 5 are not measured (§6c). |
 | **Infra / CI** | ✅ | `verify.sh --stack` on arm64 (with gitleaks), production images (non-root, Trivy-gated), prod/dev/staging compose, GHCR release workflow, deploy with rollback, staging sync, backups and restore drill, tailnet HTTPS and Gatus. Timers and branch protection are user steps (§6c). |
 
 > ✅ **Resolved:** the staged `docker-compose.yml` change.
@@ -406,6 +406,9 @@ The plan is finished. What is left is in §6c.
 | E2E against release images in staging before promotion | Needs staging running | After timers |
 | Prettier, husky/lint-staged, knip, jsx-a11y; hypothesis, testcontainers, schemathesis, pytest-socket; coverage targets | New dependencies not approved in this pass | Ask first |
 | mypy strict on the rest of `core/` (264 errors) | Gradual, per module | Ongoing |
+| Services still call `db.commit()` (29 places, e.g. `remove_asset_from_portfolio`); the request unit of work makes them harmless but not atomic | The worker relies on some of them; needs a per-call review | Backlog |
+| ESLint does not lint `.ts` files | Needs `typescript-eslint`, a new dependency | Ask first |
+| Unused routes with no UI caller (`/portfolios/search`, `/public/discover`, `/{id}/assets/details`, `/transactions/{id}/summary`, most `/market-data` and `/stock`), unused `WatchlistSidebar` | Removing endpoints is an API change; listed in the feature docs | Backlog |
 | Postgres on the official image | Recreates the live container; needs a planned window and a dump | Planned window |
 | Beta against a total-return index; Benchmarks tab on the shadow comparison | Product changes, not refactor | Backlog |
 | HIGH CVEs in pypdf 6.20.1, urllib3 2.7.0, msgpack 1.1.2 | Fixes are dependency upgrades (Renovate-style), not critical | Ask first |

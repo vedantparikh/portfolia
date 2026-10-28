@@ -175,6 +175,11 @@ docker run --rm --user "$(id -u):$(id -g)" \
 step "migrations: upgrade, drift check, downgrade (throwaway Postgres)"
 scripts/check_migrations.sh
 
+step "frontend: unit tests (Vitest, jsdom, MSW)"
+docker run --rm --network none \
+  -v "$ROOT/js/src:/app/src:ro" -v "$ROOT/js/vite.config.js:/app/vite.config.js:ro" \
+  "$PROJECT-app" npx vitest run
+
 step "frontend: production build"
 docker run --rm --network none \
   -v "$ROOT/js/src:/app/src:ro" -v "$ROOT/js/vite.config.js:/app/vite.config.js:ro" \
@@ -226,6 +231,19 @@ if [[ "${1:-}" == "--stack" ]]; then
     done
     echo "ok  $url"
   done
+
+  step "stack: browser e2e (Playwright)"
+  docker compose exec -T api python -c "
+import logging; logging.disable(logging.CRITICAL)
+from scripts.seed_demo_application import _ensure_demo_user_db as ensure
+ensure('e2e@example.com', 'e2e', 'E2e!Passw0rd1', 'E2E', 'User')" >/dev/null
+  pw_version=$(python3 -c "import json; print(json.load(open('$ROOT/js/package-lock.json'))['packages']['node_modules/@playwright/test']['version'])")
+  docker run --rm --network host --ipc=host \
+    -v "$ROOT/js/e2e:/e2e/e2e:ro" -v "$ROOT/js/playwright.config.ts:/e2e/playwright.config.ts:ro" \
+    -w /e2e -e HOME=/tmp -e E2E_BASE_URL="http://localhost:${PORTFOLIO_UI_PORT:-3200}" \
+    "mcr.microsoft.com/playwright:v${pw_version}-noble" sh -c "
+      npm i --no-save --no-audit --no-fund --loglevel=error @playwright/test@${pw_version} >/dev/null &&
+      npx playwright test"
 fi
 
 step "all checks passed"

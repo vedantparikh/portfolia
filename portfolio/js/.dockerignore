@@ -73,3 +73,7 @@ temp/
 .env.docker
 .env.*
 !.env.example
+
+# Tests
+e2e/
+playwright.config.ts

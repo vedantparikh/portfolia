@@ -26,4 +26,10 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: apiProxy,
   },
+  test: {
+    environment: 'jsdom',
+    environmentOptions: { jsdom: { url: 'http://localhost/' } },
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{js,jsx,ts,tsx}'],
+  },
 })

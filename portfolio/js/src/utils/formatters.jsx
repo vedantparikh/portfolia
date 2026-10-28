@@ -24,11 +24,11 @@ export const formatPrice = (price, currency = 'USD') => {
  * @returns {string} Formatted currency string
  */
 export const formatCurrency = (amount, options = {}) => {
+    const { currency, defaultValue, ...rest } = options;
     if (amount === null || amount === undefined || isNaN(amount)) {
-        return options.defaultValue || '$0.00';
+        return defaultValue || formatCurrency(0, { currency });
     }
 
-    const { currency, ...rest } = options;
     const defaultOptions = {
         style: 'currency',
         minimumFractionDigits: 2,

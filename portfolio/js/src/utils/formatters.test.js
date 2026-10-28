@@ -12,6 +12,11 @@ describe("formatCurrency", () => {
     expect(formatCurrency(1234.5, { currency: "EUR" })).toBe("€1,234.50");
   });
 
+  it("shows zero in the requested currency for a missing amount", () => {
+    expect(formatCurrency(null, { currency: "EUR" })).toBe("€0.00");
+    expect(formatCurrency(undefined, { defaultValue: "—" })).toBe("—");
+  });
+
   it("falls back to USD without a currency", () => {
     expect(formatCurrency(-3)).toBe("-$3.00");
   });

@@ -14,7 +14,6 @@ repos:
       - id: debug-statements
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
-      - id: requirements-txt-fixer
       - id: trailing-whitespace
       - id: check-json
       - id: pretty-format-json

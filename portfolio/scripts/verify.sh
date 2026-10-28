@@ -127,7 +127,9 @@ PY
 step "build images"
 docker compose build -q api app postgres worker
 
-step "lint: ruff (backend), eslint (frontend)"
+step "lint: ruff (backend), eslint (frontend), uv.lock matches pyproject"
+docker run --rm --user "$(id -u):$(id -g)" -v "$ROOT/python/app:/app:ro" -w /app \
+  -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv "$PROJECT-api" uv lock --check
 docker run --rm --user "$(id -u):$(id -g)" -v "$ROOT/python/app:/app" -w /app \
   "$PROJECT-api" sh -c 'ruff check --no-cache . && ruff format --check --no-cache .'
 docker run --rm --network none \
@@ -154,9 +156,8 @@ step "backend: app import + pytest (throwaway container, not on the stack networ
 docker run --rm --user "$(id -u):$(id -g)" \
   -v "$ROOT/python/app:/app" -w /app \
   -e HOME=/tmp -e TESTING=true -e TEST_DATABASE_URL=sqlite:////tmp/test.db \
-  -e PYTHONPATH=/app:/tmp/extra -e PYTHONDONTWRITEBYTECODE=1 \
+  -e PYTHONPATH=/app -e PYTHONDONTWRITEBYTECODE=1 \
   "$PROJECT-api" sh -c '
-    pip install -q --disable-pip-version-check --no-deps --target /tmp/extra ta &&
     python -c "import main; assert len(main.app.openapi()[\"paths\"]) >= 85" &&
     python -m pytest tests -q -p no:cacheprovider &&
     python -m mypy --explicit-package-bases core/domain'

@@ -1,82 +1,47 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "portfolia-api"
-version = "1.0.0"
-description = "Portfolio management and trading strategy API"
-readme = "README.md"
+version = "0.0.0"
+description = "Portfolia investment-portfolio tracker API"
 requires-python = ">=3.14"
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Financial and Insurance Industry",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Office/Business :: Financial :: Investment",
-    "Topic :: Scientific/Engineering :: Information Analysis",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
 dependencies = [
-    "fastapi>=0.116.1",
-    "uvicorn[standard]>=0.30.1",
-    "sqlalchemy>=2.0.31",
-    "psycopg2-binary>=2.9.9",
-    "alembic>=1.13.1",
-    "redis>=5.0.3",
-    "polars>=0.20.1",
-    "numpy>=2.0.0",
-    "pandas>=2.2.2",
-    "yfinance>=0.2.65",
-    "yahooquery>=2.4.1",
-    "httpx>=0.27.0",
-    "PyJWT>=2.15.1",
-    "bcrypt>=5.0.0",
-    "pydantic>=2.8.2",
-    "pydantic-settings>=2.3.4",
-    "email-validator>=2.1.0",
-    "python-dotenv>=1.0.1",
-    "python-dateutil>=2.9.0.post0",
-    "environs>=14.3.0",
+    "fastapi==0.143.1",
+    "uvicorn[standard]==0.54.0",
+    "python-multipart==0.0.32",
+    "sqlalchemy==2.1.4",
+    "psycopg2==2.9.13",
+    "alembic==1.20.0",
+    "redis==8.1.0",
+    "polars==2.0.0",
+    "numpy==2.5.4",
+    "pandas==3.0.6",
+    "yfinance==1.7.0",
+    "pyarrow==26.0.0",
+    "httpx==0.28.1",
+    "PyJWT==2.15.1",
+    "bcrypt==5.0.0",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.0",
+    "email-validator==2.3.0",
+    "python-dateutil==2.9.0.post0",
+    "pyxirr==0.10.8",
+    "reportlab==5.0.1",
+    "pypdf==6.20.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pytest>=8.2.2",
-    "pytest-asyncio>=0.23.7",
-    "pytest-cov>=5.0.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
     "ruff==0.17.0",
-    "mypy>=1.10.1",
-    "pre-commit>=3.7.1",
-    "fakeredis>=2.31.0",
-]
-docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-material>=9.5.27",
-    "mkdocstrings[python]>=0.25.1",
+    "mypy==2.4.0",
+    "pre-commit==4.7.0",
+    "fakeredis==2.40.0",
+    "ta==0.11.0",
 ]
 
-[project.urls]
-Homepage = "https://github.com/portfolia/portfolia-api"
-Documentation = "https://portfolia-api.readthedocs.io/"
-Repository = "https://github.com/portfolia/portfolia-api.git"
-Issues = "https://github.com/portfolia/portfolia-api/issues"
-Changelog = "https://github.com/portfolia/portfolia-api/blob/main/CHANGELOG.md"
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["app*", "api*", "services*", "models*", "utils*"]
-exclude = [
-    "tests*",
-    "docs*",
-    "scripts*",
-]
+[tool.uv]
+package = false
 
 [tool.mypy]
 python_version = "3.14"
@@ -96,57 +61,6 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = ["pandas", "numpy"]
 ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --strict-markers --strict-config"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "unit: marks tests as unit tests",
-    "integration: marks tests as integration tests",
-    "e2e: marks tests as end-to-end tests",
-]
-
-[tool.coverage.run]
-source = ["app", "api", "services", "models", "utils"]
-omit = [
-    "*/tests/*",
-    "*/test_*",
-    "*/__pycache__/*",
-    "*/venv/*",
-    "*/.venv/*",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
-    "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
-    "@(abc\\.)?abstractmethod",
-]
-
-# Python bytecode generation settings
-[tool.setuptools.package-data]
-"*" = ["*.py"]
-
-# Environment variables to disable bytecode generation
-[tool.setuptools.dynamic]
-version = {attr = "app.__version__"}
-
-# Additional configuration to prevent __pycache__ generation
-[tool.setuptools]
-use_scm_version = false
-zip_safe = false
 
 [tool.ruff]
 line-length = 88

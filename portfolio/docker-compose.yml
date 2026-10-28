@@ -70,7 +70,6 @@ services:
       - ./python/app/main.py:/app/main.py:delegated
       - ./python/app/start_api.py:/app/start_api.py:delegated
       - ./python/app/start_api.sh:/app/start_api.sh:delegated
-      - ./python/app/requirements.txt:/app/requirements.txt:delegated
       - ./python/app/health_check.py:/app/health_check.py:delegated
       - ./python/app/scripts:/app/scripts:delegated
     networks:

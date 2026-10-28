@@ -1,12 +1,9 @@
 import smtplib
 from email.message import EmailMessage
 
-from environs import Env
-
 from config import settings
 from core.logging_config import get_logger
 
-env = Env()
 logger = get_logger(__name__)
 
 

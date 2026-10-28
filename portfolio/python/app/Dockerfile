@@ -18,13 +18,9 @@ RUN apt-get update \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY requirements.txt .
-#
-# We have REMOVED all the "--no-binary" flags.
-# This will be MUCH faster as it downloads pre-compiled wheels.
-#
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
+COPY pyproject.toml uv.lock ./
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --frozen --inexact --no-cache
 
 # Copy project
 COPY . .

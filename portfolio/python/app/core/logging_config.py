@@ -145,7 +145,6 @@ def setup_logging(
         "fastapi": logging.INFO,
         "sqlalchemy": logging.WARNING,
         "httpx": logging.INFO,
-        "yahooquery": logging.INFO,
         "yfinance": logging.INFO,
         "pandas": logging.WARNING,
         "numpy": logging.WARNING,

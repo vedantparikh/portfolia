@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import useIsMobile from "../hooks/useIsMobile";
 import Sidebar from "../components/shared/Sidebar";
@@ -29,8 +30,10 @@ export default function ProtectedLayout() {
   const callbacks = useRef({
     onPortfolioChange: () => {},
     onSearchChange: () => {},
-    onQuickAction: () => {},
+    onQuickAction: () => false,
   });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [data, setData] = useState({
     portfolios: [],
     selectedPortfolio: null,
@@ -44,6 +47,17 @@ export default function ProtectedLayout() {
   const openSidebar = useCallback(() => setOpen(true), []);
   const closeSidebar = useCallback(() => setOpen(false), []);
   const toggleSidebar = useCallback(() => setOpen((value) => !value), []);
+
+  const runQuickAction = (action) => {
+    if (callbacks.current.onQuickAction(action)) return;
+    if (action === "create-portfolio") {
+      navigate("/portfolio", { state: { action: "createPortfolio" } });
+    } else if (action === "create-transaction") {
+      navigate("/transactions", { state: { action: "createTransaction" } });
+    } else if (action === "refresh") {
+      queryClient.invalidateQueries();
+    }
+  };
 
   const shell = useMemo(
     () => ({
@@ -87,7 +101,7 @@ export default function ProtectedLayout() {
             callbacks.current.onPortfolioChange(portfolio)
           }
           onSearchChange={(value) => callbacks.current.onSearchChange(value)}
-          onQuickAction={(action) => callbacks.current.onQuickAction(action)}
+          onQuickAction={runQuickAction}
           isMobile={isMobile}
           isOpen={open}
           onClose={closeSidebar}

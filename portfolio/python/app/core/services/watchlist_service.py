@@ -237,12 +237,13 @@ class WatchlistService:
             )
 
             self.db.add(item)
+            self.db.flush()
+            if current_price:
+                self._record_daily_price(
+                    item.id, current_price, datetime.now(timezone.utc)
+                )
             self.db.commit()
             self.db.refresh(item)
-
-            # Create initial performance record
-            if current_price:
-                self._create_performance_record(item.id, current_price)
 
             logger.info(
                 f"Added {item.symbol} to watchlist '{watchlist.name}' for user {user_id}"

@@ -45,6 +45,7 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onUpdate }) => {
                 asset_id: transaction.asset_id || '',
                 quantity: transaction.quantity || '',
                 price: transaction.price || '',
+                amount: '',
                 fees: transaction.fees || '',
                 notes: transaction.notes || '',
                 date: transaction.transaction_date ? transaction.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0]

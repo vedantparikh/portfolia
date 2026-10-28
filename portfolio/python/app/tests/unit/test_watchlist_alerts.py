@@ -13,6 +13,7 @@ from core.database.models.watchlist import (
     WatchlistPerformance,
 )
 from core.domain.alerts import PRICE_HIGH, PRICE_LOW, check_alerts
+from core.schemas.watchlist import WatchlistItemCreate
 from core.services.watchlist_service import WatchlistService
 from main import app
 
@@ -245,3 +246,28 @@ def test_item_update_saves_and_clears_alert_thresholds(client, test_db, watch):
     test_db.refresh(item)
     assert (item.alert_price_high, item.alert_price_low) == (None, D("70"))
     assert client.put(url, json={"alert_price_low": "-1"}).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_adding_an_item_records_its_first_price(test_db, watch):
+    user, item, service = watch
+
+    async def price(symbol):
+        return D("42")
+
+    service.market_data_service.get_current_price = price
+    added = await service.add_item_to_watchlist(
+        item.watchlist_id, user.id, WatchlistItemCreate(symbol="beta")
+    )
+
+    assert (added.symbol, added.added_price, added.sort_order) == (
+        "BETA",
+        D("42"),
+        item.sort_order + 1,
+    )
+    history = (
+        test_db.query(WatchlistPerformance)
+        .filter(WatchlistPerformance.watchlist_item_id == added.id)
+        .all()
+    )
+    assert [p.price for p in history] == [D("42")]

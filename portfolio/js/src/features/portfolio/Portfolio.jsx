@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { API_BASE_URL, apiErrorMessage, portfolioAPI } from "../../services/api";
 import {
   portfolioKeys,
@@ -40,6 +40,7 @@ const noPortfolios = [];
 
 const Portfolio = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const portfoliosQuery = usePortfolios();
   const portfolios = portfoliosQuery.data ?? noPortfolios;
@@ -53,8 +54,16 @@ const Portfolio = () => {
   const detailsLoading =
     selectedPortfolio !== null &&
     (summaryQuery.isPending || recentQuery.isPending);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(
+    () => location.state?.action === "createPortfolio"
+  );
   const [showEditModal, setShowEditModal] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.action === "createPortfolio") {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, location.pathname, navigate]);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
   const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance
   const [searchQuery, setSearchQuery] = useState("");
@@ -222,16 +231,10 @@ const Portfolio = () => {
   };
 
   const handleQuickAction = (action) => {
-    switch (action) {
-      case "create-portfolio":
-        setShowCreateModal(true);
-        break;
-      case "refresh":
-        handleRefresh();
-        break;
-      default:
-        break;
-    }
+    if (action === "create-portfolio") setShowCreateModal(true);
+    else if (action === "refresh") handleRefresh();
+    else return false;
+    return true;
   };
 
   usePageChrome({

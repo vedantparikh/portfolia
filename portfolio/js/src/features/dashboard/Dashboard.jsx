@@ -31,7 +31,7 @@ import {
   formatVolume,
   getChangeColor,
 } from "../../utils/formatters";
-import { useShell } from "../../app/chrome";
+import { usePageChrome, useShell } from "../../app/chrome";
 import EmailVerificationPrompt from "../../features/auth/EmailVerificationPrompt";
 import { LoadingSpinner, Sparkline, StatCard } from "../../components/shared";
 
@@ -206,6 +206,14 @@ const Dashboard = () => {
     loadDashboardData();
     toast.success("Dashboard data refreshed");
   };
+
+  usePageChrome({
+    onQuickAction: (action) => {
+      if (action !== "refresh") return false;
+      handleRefresh();
+      return true;
+    },
+  });
 
   // Helper component for displaying P&L stats to avoid repetitive code
   const PnlDisplay = ({ value, percent, label, currency }) => {

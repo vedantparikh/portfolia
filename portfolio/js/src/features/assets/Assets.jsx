@@ -97,7 +97,7 @@ const Assets = () => {
                 sort_order: filters.sortOrder,
             };
 
-            if (searchQuery) apiParams.query = searchQuery;
+            if (searchQuery) apiParams.symbol = searchQuery;
             if (filters.category !== 'all') {
                 const categoryMap = {
                     'cryptocurrency': 'CRYPTOCURRENCY',
@@ -260,7 +260,9 @@ const Assets = () => {
     };
 
     const handleQuickAction = (action) => {
-        if (action === 'refresh') handleRefresh();
+        if (action !== 'refresh') return false;
+        handleRefresh();
+        return true;
     };
 
     usePageChrome({
@@ -421,7 +423,7 @@ const Assets = () => {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search assets by symbol or name..."
+                                placeholder="Search assets by symbol..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="input-field w-full pl-10 pr-4 py-3"

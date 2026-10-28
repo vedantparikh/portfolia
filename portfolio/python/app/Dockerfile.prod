@@ -1,5 +1,5 @@
 # Production API. No reload, no bind mounts, migrations are a separate command.
-# The dev image remains Dockerfile and is what docker-compose.yml builds.
+# The dev image is Dockerfile, built by compose.dev.yaml.
 FROM python:3.14.9-slim-trixie AS build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

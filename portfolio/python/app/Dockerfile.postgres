@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-contrib \
     && rm -rf /var/lib/apt/lists/*
 
-# Environment variables will be passed from docker-compose.yml
+# Environment variables come from the compose env_file
 # No need to hardcode them here
 
 # Expose port

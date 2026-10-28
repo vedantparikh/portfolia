@@ -6,10 +6,10 @@ name: portfolio
 # ghcr.io/vedantparikh/portfolia-api:0.1.0).
 # Migrate: docker compose --profile migrate run --rm migrate
 #
-# Postgres and Redis are copied from docker-compose.yml, including build.
-# Their config hash matches the containers already running. Replacing build
-# with an official image changes that hash and recreates them. Do that only
-# in a planned window.
+# Postgres keeps the build: block the live container was created from, so its
+# config hash matches and `up` does not recreate it (verify.sh checks this).
+# Moving it to the official image recreates it: do that only in a planned window.
+# Redis is a cache. It reads REDIS_PASSWORD from the same env file as the API.
 
 x-logging: &logging
   driver: json-file
@@ -154,7 +154,7 @@ services:
       context: ./python/app
       dockerfile: Dockerfile.redis
     env_file:
-      - ./python/app/.env.docker
+      - ../env/prod.env
     volumes:
       - redis_data:/data
     networks:

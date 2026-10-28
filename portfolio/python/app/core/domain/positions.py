@@ -12,7 +12,7 @@ cost. A transfer out closes lots at the given proceeds.
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from core.database.models.transaction import TransactionStatus, TransactionType
 from core.errors import DomainError
@@ -45,6 +45,7 @@ class Trade:
     quantity: Decimal
     price: Decimal
     total_amount: Decimal
+    taxes: Decimal = Decimal(0)
 
 
 def split_factor(splits: Iterable[Split], on: date) -> Decimal:
@@ -90,6 +91,7 @@ def to_trades(
                 quantity=quantity,
                 price=price,
                 total_amount=Decimal(tx.total_amount),
+                taxes=Decimal(getattr(tx, "taxes", None) or 0),
             )
         )
     trades.sort(
@@ -141,14 +143,20 @@ class Lots:
         return cost_sold
 
 
+def realized_proceeds(trade: Any) -> Decimal:
+    """What a close realises before tax: the cash received plus the tax withheld from it."""
+    return Decimal(trade.total_amount) + Decimal(getattr(trade, "taxes", None) or 0)
+
+
 def compute_position(transactions: Iterable) -> Dict[str, Decimal]:
     """
     Rebuild one asset's position from its transactions (chronological, completed).
 
     `total_amount` is the cash or the given transfer cost, so opening lots include
-    fees and closing proceeds are net of fees and taxes. A transfer in opens a
-    lot at that cost. A transfer out closes lots FIFO and realises the given
-    proceeds against that cost. Raises OversellError if a close exceeds the holding.
+    fees and taxes. Realized P&L is before tax: a close realises its proceeds net
+    of fees plus the tax withheld on it (`taxes`, e.g. German capital gains tax)
+    against the FIFO cost. A transfer in opens a lot at that cost. Raises
+    OversellError if a close exceeds the holding.
     """
     lots = Lots()
     realized_pnl = Decimal(0)
@@ -158,7 +166,7 @@ def compute_position(transactions: Iterable) -> Dict[str, Decimal]:
             lots.buy(Decimal(tx.quantity), Decimal(tx.total_amount))
         elif tx.transaction_type in _CLOSING:
             sold = lots.sell(Decimal(tx.quantity), _as_date(tx.transaction_date))
-            realized_pnl += Decimal(tx.total_amount) - sold
+            realized_pnl += realized_proceeds(tx) - sold
             cost_of_sold += sold
     return {
         "quantity": lots.quantity,

@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from core.database.models import Transaction, TransactionStatus, TransactionType
+from core.domain.fx import convert_trades
 from core.domain.positions import (
     OversellError,
     compute_position,
@@ -38,9 +39,17 @@ BUY, SELL, DIVIDEND, TRANSFER_IN, TRANSFER_OUT = (
 
 
 def tx(
-    kind, qty, price, day, fees=0, asset_id=1, status=TransactionStatus.COMPLETED, id=0
+    kind,
+    qty,
+    price,
+    day,
+    fees=0,
+    asset_id=1,
+    status=TransactionStatus.COMPLETED,
+    id=0,
+    taxes=0,
 ):
-    qty, price, fees = (Decimal(str(v)) for v in (qty, price, fees))
+    qty, price, fees, taxes = (Decimal(str(v)) for v in (qty, price, fees, taxes))
     return SimpleNamespace(
         id=id,
         asset_id=asset_id,
@@ -48,7 +57,8 @@ def tx(
         transaction_type=kind,
         quantity=qty,
         price=price,
-        total_amount=Transaction.compute_total_amount(kind, qty, price, fees),
+        total_amount=Transaction.compute_total_amount(kind, qty, price, fees, taxes),
+        taxes=taxes,
         transaction_date=datetime.combine(
             day, datetime.min.time(), tzinfo=timezone.utc
         ),
@@ -85,6 +95,55 @@ class TestSplits:
         assert position["quantity"] == 15
         assert position["cost_basis_total"] == 750
         assert position["realized_pnl"] == 50
+
+
+class TestReverseSplitAndTax:
+    """Beyond Meat on Trade Republic: a 1:30 reverse split, tax withheld on the sale."""
+
+    SPLIT = {1: [(date(2025, 1, 10), Decimal(1) / Decimal(30))]}
+
+    def trades(self):
+        return to_trades(
+            [
+                tx(BUY, 3000, 1, THU, fees=1),
+                tx(SELL, 50, 40, date(2025, 1, 13), fees=1, taxes=250),
+            ],
+            self.SPLIT,
+        )
+
+    def test_buy_before_reverse_split_is_in_todays_shares(self):
+        buy = self.trades()[0]
+        assert float(buy.quantity) == pytest.approx(100)
+        assert float(buy.price) == pytest.approx(30)
+        assert buy.total_amount == 3001
+
+    def test_realized_is_before_tax(self):
+        position = compute_position(self.trades())
+        # proceeds 2000 - 1 fee; half the lot cost 1500.50; the 250 tax is not a loss
+        assert float(position["quantity"]) == pytest.approx(50)
+        assert float(position["cost_basis_total"]) == pytest.approx(1500.5)
+        assert float(position["realized_pnl"]) == pytest.approx(498.5)
+
+    def test_series_realizes_before_tax_but_cash_flow_is_net(self):
+        series = daily_series(
+            self.trades(),
+            {1: closes({THU: 30, date(2025, 1, 13): 40})},
+            date(2025, 1, 13),
+        )
+        last = series.iloc[-1]
+        assert last["realized_pnl"] == pytest.approx(498.5)
+        assert last["outflow"] == pytest.approx(1749)
+
+    def test_tax_converts_with_the_cash(self):
+        trade = self.trades()[1]
+        converted = convert_trades(
+            [trade],
+            {trade.id: "USD"},
+            "EUR",
+            {"USD": pd.Series([0.5], index=[pd.Timestamp(date(2025, 1, 13))])},
+        )[0]
+        assert converted.taxes == 125
+        assert converted.total_amount == Decimal("874.5")
 
 
 class TestToTrades:

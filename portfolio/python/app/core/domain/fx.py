@@ -159,6 +159,7 @@ def convert_trades(
                     trade,
                     price=trade.price * factor,
                     total_amount=trade.total_amount * factor,
+                    taxes=trade.taxes * factor,
                 )
             )
     return converted

@@ -15,7 +15,7 @@ from typing import Dict, Mapping, Optional, Sequence
 import pandas as pd
 
 from core.database.models.transaction import TransactionType
-from core.domain.positions import Lots, Trade
+from core.domain.positions import Lots, Trade, realized_proceeds
 from core.errors import DomainError
 
 
@@ -80,7 +80,7 @@ def daily_series(
         net_invested   cumulative cash in (buys) minus cash out (sales, dividends)
         inflow         cash invested that day
         outflow        cash returned that day
-        realized_pnl   cumulative realized gain on sales
+        realized_pnl   cumulative realized gain on sales, before tax withheld
         dividends      cumulative dividends received
         stale_price    a held asset's close is more than STALE_PRICE_DAYS sessions old
         stale_symbols  those symbols, or "asset {id}" when no name was given
@@ -129,7 +129,7 @@ def daily_series(
                 TransactionType.TRANSFER_OUT,
             ):
                 sold = lots[trade.asset_id].sell(trade.quantity, trade.transaction_date)
-                realized += trade.total_amount - sold
+                realized += realized_proceeds(trade) - sold
                 outflow += trade.total_amount
             elif trade.transaction_type == TransactionType.DIVIDEND:
                 dividends += trade.total_amount

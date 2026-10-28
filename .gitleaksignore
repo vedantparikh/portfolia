@@ -1,0 +1,25 @@
+# Findings in history before the scan existed (2026-10-28). Rotated or dead; see REFACTOR_PLAN.md 0.2.
+d32532b87cb7069de9d926d1f5833951849bd75b:portfolio/python/app/docs/PDF_EXPORT_API_SPEC.md:curl-auth-header:316
+d32532b87cb7069de9d926d1f5833951849bd75b:portfolio/python/app/docs/PDF_EXPORT_API_SPEC.md:curl-auth-header:334
+ab250ed567c7f60f5df21564608f8332533cd596:portfolio/js/src/services/api.js:jwt:47
+5dea9a4ca7f8e0b408da66742dff68bab009cd49:portfolio/js/src/services/api.js:jwt:45
+b5773f866d4a4c8f9ff6e69e93c10ed8ece39117:portfolio/js/src/services/api.js:jwt:45
+ea25165fb6a6fdd148e5b0a6664ab4841a3cf249:portfolio/js/src/services/api.js:jwt:45
+34638f38a6eacf675cb1df36cec6b08214fd780a:portfolio/js/src/services/api.js:jwt:45
+5b5979a1827a9057159581b36a5855b21d0ff3f9:portfolio/python/api/scripts/demo_logging.py:generic-api-key:167
+5b5979a1827a9057159581b36a5855b21d0ff3f9:portfolio/python/api/scripts/demo_logging.py:generic-api-key:168
+0f937e520f3a73535c9a67a1030a37e23e7350e8:portfolio/python/.env:generic-api-key:18
+0f937e520f3a73535c9a67a1030a37e23e7350e8:portfolio/python/.env:generic-api-key:19
+0f937e520f3a73535c9a67a1030a37e23e7350e8:portfolio/python/api/generate_env_docker.sh:generic-api-key:42
+0f937e520f3a73535c9a67a1030a37e23e7350e8:portfolio/python/api/generate_env_docker.sh:generic-api-key:43
+508abfd9a204dd58b4170383035644925329bb7d:portfolio/python/.env:generic-api-key:18
+508abfd9a204dd58b4170383035644925329bb7d:portfolio/python/.env:generic-api-key:19
+2d5d53bc4304da5865d5c3ba58432fac969e1f90:portfolio/python/streamlit/main.py:generic-api-key:11
+babba9e50635d37c055eab5a963f10a97d65dd3c:portfolio/python/streamlit/main.py:generic-api-key:12
+2d5d53bc4304da5865d5c3ba58432fac969e1f90:portfolio/python/streamlit/main.py:generic-api-key:30
+2d5d53bc4304da5865d5c3ba58432fac969e1f90:portfolio/python/streamlit/main.py:generic-api-key:37
+f70dd521c222b0898b911338b12c70e76c96fdef:portfolio/python/streamlit/main.py:generic-api-key:11
+d987cfe3297e976b51c477b9400deeb4de625f2c:portfolio/python/streamlit/main.py:generic-api-key:11
+d987cfe3297e976b51c477b9400deeb4de625f2c:portfolio/python/streamlit/main.py:generic-api-key:30
+d987cfe3297e976b51c477b9400deeb4de625f2c:portfolio/python/streamlit/main.py:generic-api-key:37
+2adf7e4724eef2b73a1c4a3cc87ef4cdf6e9d3c9:portfolio/python/streamlit/main.py:generic-api-key:12

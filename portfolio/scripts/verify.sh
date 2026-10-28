@@ -13,6 +13,13 @@ PROJECT=$COMPOSE_PROJECT_NAME
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "secrets: gitleaks over the git history"
+# A worktree's .git is a file pointing into the main repository, so mount both.
+repo=$(git -C "$ROOT" rev-parse --show-toplevel)
+git_dir=$(cd "$(git -C "$ROOT" rev-parse --git-common-dir)" && pwd)
+docker run --rm --user "$(id -u):$(id -g)" -v "$repo:$repo:ro" -v "$git_dir:$git_dir:ro" \
+  -w "$repo" zricethezav/gitleaks:v8.30.1 git "$repo" --redact --no-banner --log-level warn
+
 step "deploy rollback"
 "$ROOT/scripts/test-deploy.sh"
 "$ROOT/scripts/test-staging-sync.sh"
@@ -65,8 +72,8 @@ def rendered(files):
     cmd += ["config", "--format", "json"]
     return json.loads(subprocess.check_output(cmd, text=True, env=env))
 
-# Postgres and Redis keep the build definitions of the live containers so a
-# later `up` does not recreate them. Every other service is images only.
+# Postgres keeps the build definition of the live container so a later `up`
+# does not recreate it. Every other service is images only.
 DATA_SERVICES = {"postgres", "redis"}
 
 def binds_or_builds(data):
@@ -96,11 +103,14 @@ if bad:
     print("FAIL compose.yaml has build or bind mounts")
     print("\n".join(bad))
     sys.exit(1)
-for svc in ("postgres", "redis"):
-    live = service_hash(["docker-compose.yml"], svc)
-    new = service_hash(["compose.yaml"], svc)
-    if live != new:
-        sys.exit(f"FAIL {svc} config hash would recreate the live container")
+# On the server, compare with the running production database. CI has none.
+live = subprocess.run(
+    ["docker", "inspect", "-f", '{{index .Config.Labels "com.docker.compose.config-hash"}}',
+     "portfolio-postgres-1"],
+    capture_output=True, text=True,
+)
+if live.returncode == 0 and live.stdout.strip() != service_hash(["compose.yaml"], "postgres"):
+    sys.exit("FAIL postgres config hash would recreate the live container")
 if prod.get("name") != "portfolio":
     sys.exit("FAIL compose.yaml project name")
 staging = rendered(["compose.yaml", "compose.staging.yaml"])
@@ -121,7 +131,7 @@ prod_vol = prod["services"]["postgres"]["volumes"][0]["source"]
 stg_vol = staging["services"]["postgres"]["volumes"][0]["source"]
 if prod_vol == stg_vol:
     sys.exit("FAIL staging postgres volume matches production")
-print("prod compose: app services have no bind mounts; database hashes match")
+print("prod compose: app services have no bind mounts; postgres hash matches")
 PY
 
 step "build images"

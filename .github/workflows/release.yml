@@ -84,6 +84,19 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
+      - name: Build images for the scan
+        run: |
+          docker build -q -f portfolio/python/app/Dockerfile.prod -t portfolia-api:scan portfolio/python/app
+          docker build -q -f portfolio/js/Dockerfile.prod -t portfolia-web:scan portfolio/js
+
+      - name: Trivy (fails on a fixable critical CVE)
+        run: |
+          for image in portfolia-api:scan portfolia-web:scan; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+              aquasec/trivy:0.76.1 image --scanners vuln --severity CRITICAL \
+              --ignore-unfixed --exit-code 1 --no-progress "$image"
+          done
+
       - name: API image
         uses: docker/build-push-action@v7
         with:

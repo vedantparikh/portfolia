@@ -25,6 +25,8 @@ jobs:
         working-directory: portfolio
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans every commit
       - name: Env files from templates
         run: |
           cp python/app/.env.example python/app/.env.docker

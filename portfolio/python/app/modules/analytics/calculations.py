@@ -36,6 +36,7 @@ from core.domain.valuation import MissingPriceError, daily_series
 from core.errors import NotFoundError
 from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
+from core.services.trade_prices import is_trade_priced, trade_price_history
 from core.services.utils import PeriodType
 
 # Total-return series (accumulating ETFs, TR indices) per portfolio currency; first = default.
@@ -622,7 +623,10 @@ class PortfolioCalculationService:
                 raise NotFoundError(f"Asset {asset_id} not found")
             symbols[asset_id] = asset.symbol
             currencies[asset_id] = getattr(asset, "currency", None) or "USD"
-            history = await self.market_data_service.get_daily_history(asset.symbol)
+            if is_trade_priced(asset):
+                history = trade_price_history(self.db, asset)
+            else:
+                history = await self.market_data_service.get_daily_history(asset.symbol)
             if history is None:
                 continue
             closes[asset_id] = history["close"]

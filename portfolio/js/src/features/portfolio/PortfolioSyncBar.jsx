@@ -12,7 +12,7 @@ function summarize(report) {
   if (!report) return "Not synced yet";
   const parts = [`${report.created} new`];
   if (report.failed) parts.push(`${report.failed} failed`);
-  if (report.unmapped?.length) parts.push(`${report.unmapped.length} securities need a ticker`);
+  if (report.trade_priced?.length) parts.push(`${report.trade_priced.length} without market prices`);
   return parts.join(" · ");
 }
 
@@ -62,7 +62,7 @@ export default function PortfolioSyncBar({ portfolio }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {(report?.unmapped?.length > 0 || report?.errors?.length > 0) && (
+          {(report?.trade_priced?.length > 0 || report?.errors?.length > 0) && (
             <button type="button" className="btn-secondary flex items-center gap-1" onClick={() => setOpen(!open)}>
               Details {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
@@ -75,16 +75,16 @@ export default function PortfolioSyncBar({ portfolio }) {
       </div>
       {open && report && (
         <div className="space-y-3 text-sm">
-          {report.unmapped?.length > 0 && (
+          {report.trade_priced?.length > 0 && (
             <div>
               <p className="text-gray-400 mb-2">
-                No price source was found for these securities, so their rows are not imported. Enter a Yahoo ticker to import them.
+                Yahoo has no prices for these securities (knock-outs, warrants), so they are valued at their own last trade. A redeemed knock-out is booked as sold at its redemption amount. Enter a Yahoo ticker to use market prices instead.
               </p>
               <ul className="space-y-2">
-                {report.unmapped.map((item) => (
+                {report.trade_priced.map((item) => (
                   <li key={item.isin} className="flex flex-wrap items-center gap-2">
                     <span className="text-gray-200 min-w-[14rem]">{item.name}</span>
-                    <span className="text-gray-500">{item.isin} · {item.rows} rows</span>
+                    <span className="text-gray-500">{item.isin}</span>
                     <input
                       aria-label={`Ticker for ${item.isin}`}
                       className="input-field w-36"
@@ -93,7 +93,7 @@ export default function PortfolioSyncBar({ portfolio }) {
                       onChange={(e) => setTickers({ ...tickers, [item.isin]: e.target.value.trim() })}
                     />
                     <button type="button" className="btn-secondary" disabled={busy || !tickers[item.isin]} onClick={() => map(item.isin)}>
-                      Import
+                      Use ticker
                     </button>
                   </li>
                 ))}

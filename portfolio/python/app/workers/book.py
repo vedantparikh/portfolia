@@ -59,7 +59,7 @@ async def refresh_book(
         db.query(Asset.symbol, Asset.currency, Portfolio.currency, Portfolio.id)
         .join(PortfolioAsset, PortfolioAsset.asset_id == Asset.id)
         .join(Portfolio, Portfolio.id == PortfolioAsset.portfolio_id)
-        .filter(Portfolio.is_active.is_(True))
+        .filter(Portfolio.is_active.is_(True), Asset.price_source.is_(None))
         .all()
     )
     symbols = sorted({symbol.upper() for symbol, _, _, _ in held if symbol})

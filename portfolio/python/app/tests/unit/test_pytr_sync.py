@@ -80,12 +80,16 @@ async def test_sync_imports_and_follows_an_isin_change(test_db, book):
 
     report = await sync.sync(portfolio)
 
-    assert report["created"] == 2
-    assert [u["isin"] for u in report["unmapped"]] == ["DE000HM46ZS7"]
+    assert report["created"] == 3
+    assert [u["isin"] for u in report["trade_priced"]] == ["DE000HM46ZS7"]
     assert report["not_imported"]
     rows = test_db.query(Transaction).filter_by(portfolio_id=portfolio.id).all()
-    assert {r.asset_id for r in rows} == {asset.id}
-    holding = test_db.query(PortfolioAsset).filter_by(portfolio_id=portfolio.id).one()
+    assert len({r.asset_id for r in rows}) == 2
+    holding = (
+        test_db.query(PortfolioAsset)
+        .filter_by(portfolio_id=portfolio.id, asset_id=asset.id)
+        .one()
+    )
     # 100 old shares are 10 after the 1:10 swap; all sold, before tax 1499 + 100 - 1001
     assert holding.quantity == 0
     assert holding.realized_pnl == Decimal("598")
@@ -98,7 +102,7 @@ async def test_unchanged_file_is_skipped_and_new_rows_are_added(test_db, book):
     sync.link(portfolio, user, True)
     await sync.sync(portfolio)
 
-    assert (await sync.sync(portfolio))["created"] == 2  # same report, nothing re-read
+    assert (await sync.sync(portfolio))["created"] == 3  # same report, nothing re-read
 
     export.write_text(
         HEADER
@@ -107,23 +111,93 @@ async def test_unchanged_file_is_skipped_and_new_rows_are_added(test_db, book):
     )
     report = await sync.sync(portfolio)
     assert report["created"] == 1
-    assert report["already_imported"] == 2
-    assert test_db.query(Transaction).filter_by(portfolio_id=portfolio.id).count() == 3
+    assert report["already_imported"] == 3
+    assert test_db.query(Transaction).filter_by(portfolio_id=portfolio.id).count() == 4
 
 
 @pytest.mark.asyncio
-async def test_mapping_an_isin_imports_its_rows(test_db, book):
+async def test_unpriced_security_is_valued_from_its_trades(test_db, book):
+    user, portfolio, _, _ = book
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+    await sync.sync(portfolio)
+
+    knock_out = test_db.query(Asset).filter_by(isin="DE000HM46ZS7").one()
+    assert (knock_out.symbol, knock_out.price_source) == ("DE000HM46ZS7", "trades")
+    holding = (
+        test_db.query(PortfolioAsset)
+        .filter_by(portfolio_id=portfolio.id, asset_id=knock_out.id)
+        .one()
+    )
+    assert holding.quantity == 10
+    assert holding.cost_basis_total == 501
+
+
+@pytest.mark.asyncio
+async def test_redemption_is_booked_as_a_sale(test_db, book):
+    user, portfolio, _, export = book
+    export.write_text(
+        HEADER
+        + "".join(ROWS)
+        + "2025-06-17T02:37:49;Dividend;0.18;Knock-out;DE000HM46ZS7;10.0;;;;\n"
+    )
+    (export.parent / "portfolio.csv").write_text(
+        "Name;ISIN;quantity;price;avgCost;netValue\nLucid;US5494982029;0;0;0;0\n"
+    )
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+
+    report = await sync.sync(portfolio)
+
+    assert [r["isin"] for r in report["redeemed"]] == ["DE000HM46ZS7"]
+    knock_out = test_db.query(Asset).filter_by(isin="DE000HM46ZS7").one()
+    kinds = sorted(
+        t.transaction_type.value
+        for t in test_db.query(Transaction).filter_by(asset_id=knock_out.id)
+    )
+    assert kinds == ["buy", "sell"]
+    holding = (
+        test_db.query(PortfolioAsset)
+        .filter_by(portfolio_id=portfolio.id, asset_id=knock_out.id)
+        .one()
+    )
+    assert holding.quantity == 0
+    assert holding.realized_pnl == Decimal("-500.82")
+
+
+@pytest.mark.asyncio
+async def test_a_dividend_on_a_position_sold_later_is_not_a_redemption(test_db, book):
+    user, portfolio, _, export = book
+    export.write_text(
+        HEADER
+        + "2025-01-02T09:00:00;Buy;-1001;Lucid Group;US5494981039;100;1;;;\n"
+        + "2025-02-01T09:00:00;Dividend;5;Lucid Group;US5494981039;100;;;;\n"
+        + "2025-03-01T09:00:00;Sell;1100;Lucid Group;US5494981039;100;1;;;\n"
+    )
+    (export.parent / "portfolio.csv").write_text(
+        "Name;ISIN;quantity;price;avgCost;netValue\n"
+    )
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+
+    report = await sync.sync(portfolio)
+
+    assert report["redeemed"] == []
+    assert report["errors"] == []
+    assert report["created"] == 3
+
+
+@pytest.mark.asyncio
+async def test_giving_a_ticker_switches_to_market_prices(test_db, book):
     user, portfolio, _, _ = book
     sync = PytrSyncService(test_db)
     sync.link(portfolio, user, True)
     await sync.sync(portfolio)
 
     await sync.map_instrument(portfolio, "DE000HM46ZS7", "KO.F")
-    report = await sync.sync(portfolio)
 
-    assert report["created"] == 1
-    assert report["unmapped"] == []
-    assert test_db.query(Asset).filter_by(symbol="KO.F").one().isin == "DE000HM46ZS7"
+    asset = test_db.query(Asset).filter_by(isin="DE000HM46ZS7").one()
+    assert (asset.symbol, asset.price_source) == ("KO.F", None)
 
 
 def test_link_rules(test_db, book, monkeypatch):
@@ -137,3 +211,21 @@ def test_link_rules(test_db, book, monkeypatch):
     assert not sync.available_for(user)
     with pytest.raises(DomainError):
         sync.link(portfolio, user, True)
+
+
+@pytest.mark.asyncio
+async def test_series_prices_a_trade_priced_asset_from_its_fills(test_db, book):
+    from modules.analytics.calculations import PortfolioCalculationService
+
+    user, portfolio, _, _ = book
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+    await sync.sync(portfolio)
+    knock_out = test_db.query(Asset).filter_by(isin="DE000HM46ZS7").one()
+
+    closes, splits, _, _ = await PortfolioCalculationService(
+        test_db
+    ).get_market_history([knock_out.id])
+
+    assert closes[knock_out.id].to_dict() == {pd.Timestamp("2025-03-01"): 50.0}
+    assert splits[knock_out.id] == []

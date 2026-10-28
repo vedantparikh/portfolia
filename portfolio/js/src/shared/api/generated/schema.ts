@@ -5869,8 +5869,16 @@ export interface components {
             failed: number;
             /** Errors */
             errors?: string[];
-            /** Unmapped */
-            unmapped?: components["schemas"]["UnmappedInstrument"][];
+            /**
+             * Trade Priced
+             * @description No market data: valued at their own last fill until given a ticker
+             */
+            trade_priced?: components["schemas"]["TradePricedInstrument"][];
+            /**
+             * Redeemed
+             * @description Knock-outs booked as sold at their redemption
+             */
+            redeemed?: components["schemas"]["RedeemedInstrument"][];
             /**
              * Not Imported
              * @description Rows the parser skipped, by reason
@@ -6056,6 +6064,17 @@ export interface components {
              * @description Creation timestamp
              */
             created_at: string;
+        };
+        /** RedeemedInstrument */
+        RedeemedInstrument: {
+            /** Isin */
+            isin: string;
+            /** Name */
+            name: string;
+            /** Date */
+            date: string;
+            /** Amount */
+            amount: string;
         };
         /**
          * ResolveInstrumentsRequest
@@ -6615,6 +6634,15 @@ export interface components {
             /** Expires In */
             expires_in: number;
         };
+        /** TradePricedInstrument */
+        TradePricedInstrument: {
+            /** Isin */
+            isin: string;
+            /** Name */
+            name: string;
+            /** Suggested Symbol */
+            suggested_symbol?: string | null;
+        };
         /** Transaction */
         Transaction: {
             /** Portfolio Id */
@@ -6884,17 +6912,6 @@ export interface components {
             /** Taxes */
             taxes?: number | string | null;
             status?: components["schemas"]["TransactionStatus"] | null;
-        };
-        /** UnmappedInstrument */
-        UnmappedInstrument: {
-            /** Isin */
-            isin: string;
-            /** Name */
-            name: string;
-            /** Rows */
-            rows: number;
-            /** Suggested Symbol */
-            suggested_symbol?: string | null;
         };
         /**
          * UserCreate

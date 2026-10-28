@@ -128,7 +128,7 @@ const Portfolio = () => {
       const r = status.report || {};
       toast.success(
         `Trade Republic: ${r.created ?? 0} transactions imported` +
-          (r.unmapped?.length ? `, ${r.unmapped.length} securities need a ticker` : ""),
+          (r.trade_priced?.length ? `, ${r.trade_priced.length} valued from their own trades` : ""),
       );
     }
   };

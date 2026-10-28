@@ -17,31 +17,31 @@ const status = (report) => ({
 });
 
 describe("PortfolioSyncBar", () => {
-  it("shows the last report and imports an unmapped security with a ticker", async () => {
+  it("shows the last report and switches a trade-priced security to a ticker", async () => {
     let mapped = null;
     let current = status({
       created: 3,
       already_imported: 10,
       failed: 0,
       errors: [],
-      unmapped: [{ isin: "IE00B4NCWG09", name: "Physical Silver", rows: 58 }],
+      trade_priced: [{ isin: "IE00B4NCWG09", name: "Physical Silver" }],
       not_imported: {},
     });
     server.use(
       http.get(`${API}/portfolios/7/sync`, () => HttpResponse.json(current)),
       http.post(`${API}/portfolios/7/sync/instruments`, async ({ request }) => {
         mapped = await request.json();
-        current = status({ created: 58, already_imported: 13, failed: 0, errors: [], unmapped: [], not_imported: {} });
+        current = status({ created: 58, already_imported: 13, failed: 0, errors: [], trade_priced: [], not_imported: {} });
         return HttpResponse.json(current);
       }),
     );
 
     renderWithProviders(<PortfolioSyncBar portfolio={portfolio} />);
 
-    expect(await screen.findByText(/3 new · 1 securities need a ticker/)).toBeInTheDocument();
+    expect(await screen.findByText(/3 new · 1 without market prices/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Details/ }));
     await userEvent.type(screen.getByLabelText("Ticker for IE00B4NCWG09"), "ISLN.L");
-    await userEvent.click(screen.getByRole("button", { name: "Import" }));
+    await userEvent.click(screen.getByRole("button", { name: "Use ticker" }));
 
     await waitFor(() => expect(mapped).toEqual({ isin: "IE00B4NCWG09", symbol: "ISLN.L" }));
     expect(await screen.findByText(/58 new/)).toBeInTheDocument();

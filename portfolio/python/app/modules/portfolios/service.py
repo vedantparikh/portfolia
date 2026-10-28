@@ -45,6 +45,7 @@ from core.schemas.portfolio import (
 )
 from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
+from core.services.trade_prices import is_trade_priced, last_trade_price
 
 logger = logging.getLogger(__name__)
 
@@ -555,11 +556,20 @@ class PortfolioService:
         if not portfolio_assets_with_info:
             return []
 
-        symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
+        symbols = [
+            asset.symbol
+            for pa, asset in portfolio_assets_with_info
+            if not is_trade_priced(asset)
+        ]
         current_prices, yesterdays_prices = await asyncio.gather(
             self.market_data_service.get_current_prices(symbols, fetch=False),
             self.market_data_service.get_yesterdays_closes(symbols, fetch=False),
         )
+        for _, asset in portfolio_assets_with_info:
+            if is_trade_priced(asset):
+                last = last_trade_price(self.db, asset)
+                current_prices[asset.symbol] = last
+                yesterdays_prices[asset.symbol] = last
         portfolio = (
             self.db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
         )
@@ -811,7 +821,9 @@ class PortfolioService:
         asset = None
         try:
             asset = self.db.query(Asset).filter(Asset.id == asset_id).first()
-            if asset:
+            if is_trade_priced(asset):
+                current_price = last_trade_price(self.db, asset)
+            elif asset:
                 current_price = await self.market_data_service.get_current_price(
                     asset.symbol
                 )

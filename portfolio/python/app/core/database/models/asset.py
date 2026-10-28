@@ -69,6 +69,8 @@ class Asset(Base):
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # None = Yahoo; "trades" = no market data (e.g. knock-outs), priced from its own fills
+    price_source: Mapped[str | None] = mapped_column(String(10), nullable=True)
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )

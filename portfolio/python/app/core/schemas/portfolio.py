@@ -51,11 +51,17 @@ class PortfolioSyncUpdate(BaseModel):
     source: Optional[Literal["pytr"]] = Field(None, description="null unlinks")
 
 
-class UnmappedInstrument(BaseModel):
+class TradePricedInstrument(BaseModel):
     isin: str
     name: str
-    rows: int
     suggested_symbol: Optional[str] = None
+
+
+class RedeemedInstrument(BaseModel):
+    isin: str
+    name: str
+    date: str
+    amount: Decimal
 
 
 class PortfolioSyncReport(BaseModel):
@@ -64,7 +70,14 @@ class PortfolioSyncReport(BaseModel):
     already_imported: int = 0
     failed: int = 0
     errors: List[str] = Field(default_factory=list)
-    unmapped: List[UnmappedInstrument] = Field(default_factory=list)
+    trade_priced: List[TradePricedInstrument] = Field(
+        default_factory=list,
+        description="No market data: valued at their own last fill until given a ticker",
+    )
+    redeemed: List[RedeemedInstrument] = Field(
+        default_factory=list,
+        description="Knock-outs booked as sold at their redemption",
+    )
     not_imported: dict[str, int] = Field(
         default_factory=dict, description="Rows the parser skipped, by reason"
     )

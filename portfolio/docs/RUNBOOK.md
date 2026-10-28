@@ -48,6 +48,7 @@ Copying the volume of a running Postgres is not a backup.
 ## Install the timers (root)
 
 ```bash
+sudo install -d -o bubbly -g bubbly -m 700 /mnt/samsung_ufs/backups/portfolio   # backup.sh and deploy.sh write here
 sudo cp deploy/portfolia-*.service deploy/portfolia-*.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now portfolia-backup.timer portfolia-restore-drill.timer portfolia-staging.timer

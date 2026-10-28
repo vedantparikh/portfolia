@@ -360,6 +360,7 @@ Answered:
 | 2026-10-28 | `fix/analytics-engine` | — | Stored snapshots, `/analytics/.../summary` and `/users/dashboard` on the engine (percent, no cost fallback, totals per currency); migration `d4e8a2f61c07` clears old metrics; dead analytics helpers removed |
 | 2026-10-28 | `fix/analytics-engine` | — | 0.3: `scripts/setup.sh` |
 | 2026-10-28 | `docs/consolidate` | — | 6.4: README, CONTRIBUTING, RUNBOOK, ADRs, feature references corrected, old guides folded in and deleted |
+| 2026-10-28 | `master` | `7309f68` | Deployed to the live `portfolio` project from local `portfolia-{api,web}:prod` images: dump in `env/backups/`, migration `d4e8a2f61c07`, `ENVIRONMENT=production`, `DEBUG=false`. Rotated: the Postgres password (was `password`), the JWT key (was the 40-character placeholder; everyone signs in again), a new Redis password. HTTPS login, cookie refresh, health and the worker checked. About 3 minutes down |
 
 ## 6b. Findings and to-do (2026-10-16)
 
@@ -399,10 +400,9 @@ The plan is finished. What is left is in §6c.
 | Item | Why it is not done here | Who |
 |---|---|---|
 | Rotate the Brevo SMTP key; revoke the Alpha Vantage key found in history | Needs the provider accounts | User |
-| Postgres password (`password`, in public history) | Rotated during the 2026-10-28 deploy if approved; otherwise `docs/RUNBOOK.md` → Secrets | User / deploy |
 | Branch protection on `master` (require `verify`, squash only) | GitHub repository setting | User |
 | First GHCR release; set both packages Public | Happens on the first push and release PR | User |
-| Install `portfolia-{backup,restore-drill,staging}.timer` | Needs root; belongs in an Ansible role | User |
+| Create `/mnt/samsung_ufs/backups/portfolio` and install `portfolia-{backup,restore-drill,staging}.timer` | Needs root; belongs in an Ansible role. Until then `backup.sh` and `deploy.sh` cannot write their dumps | User |
 | E2E against release images in staging before promotion | Needs staging running | After timers |
 | Prettier, husky/lint-staged, knip, jsx-a11y; hypothesis, testcontainers, schemathesis, pytest-socket; coverage targets | New dependencies not approved in this pass | Ask first |
 | mypy strict on the rest of `core/` (264 errors) | Gradual, per module | Ongoing |

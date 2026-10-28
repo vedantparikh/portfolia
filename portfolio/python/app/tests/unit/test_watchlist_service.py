@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.database.models import User
 from core.database.models.watchlist import Watchlist, WatchlistAlert, WatchlistItem
+from core.errors import DomainError
 from core.schemas.watchlist import (
     WatchlistAlertCreate,
     WatchlistCreate,
@@ -306,198 +307,6 @@ class TestWatchlistService:
         assert len(result) == 1
         assert result[0].item_count == 1
 
-    def test_update_watchlist_success(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist
-    ):
-        """Test successful watchlist update."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = (
-            sample_watchlist
-        )
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        update_data = WatchlistUpdate(
-            name="Updated Watchlist",
-            description="Updated description",
-            is_public=True,
-            color="#00FF00",
-        )
-
-        # Execute
-        result = watchlist_service.update_watchlist(
-            sample_watchlist.id, sample_user.id, update_data
-        )
-
-        # Verify
-        assert result == sample_watchlist
-        assert sample_watchlist.name == update_data.name
-        assert sample_watchlist.description == update_data.description
-        assert sample_watchlist.is_public == update_data.is_public
-        assert sample_watchlist.color == update_data.color
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    def test_update_watchlist_not_found(self, watchlist_service, mock_db, sample_user):
-        """Test watchlist update when not found."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        update_data = WatchlistUpdate(name="Updated Watchlist")
-
-        # Execute
-        result = watchlist_service.update_watchlist(999, sample_user.id, update_data)
-
-        # Verify
-        assert result is None
-
-    def test_delete_watchlist_success(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist
-    ):
-        """Test successful watchlist deletion."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = (
-            sample_watchlist
-        )
-        mock_db.delete = Mock()
-        mock_db.commit = Mock()
-
-        # Execute
-        result = watchlist_service.delete_watchlist(sample_watchlist.id, sample_user.id)
-
-        # Verify
-        assert result is True
-        mock_db.delete.assert_called_once_with(sample_watchlist)
-        mock_db.commit.assert_called_once()
-
-    def test_delete_watchlist_not_found(self, watchlist_service, mock_db, sample_user):
-        """Test watchlist deletion when not found."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        # Execute
-        result = watchlist_service.delete_watchlist(999, sample_user.id)
-
-        # Verify
-        assert result is False
-
-    # Test Watchlist Item Operations
-
-    @pytest.mark.asyncio
-    async def test_add_watchlist_item_success(
-        self,
-        watchlist_service,
-        mock_db,
-        sample_user,
-        sample_watchlist,
-        sample_watchlist_item_data,
-    ):
-        """Test successful watchlist item addition."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = (
-            sample_watchlist
-        )
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        # Execute
-        result = await watchlist_service.add_item_to_watchlist(
-            sample_watchlist.id, sample_user.id, sample_watchlist_item_data
-        )
-
-        # Verify
-        assert result is not None
-        assert result.watchlist_id == sample_watchlist.id
-        assert result.symbol == sample_watchlist_item_data.symbol
-        assert result.company_name == sample_watchlist_item_data.company_name
-        assert result.added_price == sample_watchlist_item_data.added_price
-        assert result.notes == sample_watchlist_item_data.notes
-        assert result.personal_rating == sample_watchlist_item_data.personal_rating
-        assert result.investment_thesis == sample_watchlist_item_data.investment_thesis
-        assert result.alert_price_high == sample_watchlist_item_data.alert_price_high
-        assert result.alert_price_low == sample_watchlist_item_data.alert_price_low
-        assert result.alerts_enabled == sample_watchlist_item_data.alerts_enabled
-        assert result.tags == sample_watchlist_item_data.tags
-
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_add_watchlist_item_watchlist_not_found(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist_item_data
-    ):
-        """Test adding item to non-existent watchlist."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        # Execute
-        result = await watchlist_service.add_item_to_watchlist(
-            999, sample_user.id, sample_watchlist_item_data
-        )
-
-        # Verify
-        assert result is None
-
-    def test_update_watchlist_item_success(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist_item
-    ):
-        """Test successful watchlist item update."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = (
-            sample_watchlist_item
-        )
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        update_data = WatchlistItemUpdate(
-            notes="Updated notes",
-            personal_rating=4,
-            investment_thesis="Updated thesis",
-            alert_price_high=Decimal("170.00"),
-            alert_price_low=Decimal("120.00"),
-            alerts_enabled=False,
-            tags=["tech", "growth"],
-        )
-
-        # Execute
-        result = watchlist_service.update_watchlist_item(
-            sample_watchlist_item.id, sample_user.id, update_data
-        )
-
-        # Verify
-        assert result == sample_watchlist_item
-        assert sample_watchlist_item.notes == update_data.notes
-        assert sample_watchlist_item.personal_rating == update_data.personal_rating
-        assert sample_watchlist_item.investment_thesis == update_data.investment_thesis
-        assert sample_watchlist_item.alert_price_high == update_data.alert_price_high
-        assert sample_watchlist_item.alert_price_low == update_data.alert_price_low
-        assert sample_watchlist_item.alerts_enabled == update_data.alerts_enabled
-        assert sample_watchlist_item.tags == update_data.tags
-
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    def test_remove_watchlist_item_success(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist_item
-    ):
-        """Test successful watchlist item removal."""
-        # Setup
-        mock_db.query.return_value.join.return_value.filter.return_value.first.return_value = sample_watchlist_item
-        mock_db.delete = Mock()
-        mock_db.commit = Mock()
-
-        # Execute
-        result = watchlist_service.remove_item_from_watchlist(
-            sample_watchlist_item.id, sample_user.id
-        )
-
-        # Verify
-        assert result is True
-        mock_db.delete.assert_called_once_with(sample_watchlist_item)
-        mock_db.commit.assert_called_once()
-
     def test_remove_watchlist_item_not_found(
         self, watchlist_service, mock_db, sample_user
     ):
@@ -512,42 +321,6 @@ class TestWatchlistService:
         assert result is False
 
     # Test Performance Tracking
-
-    def test_get_watchlist_performance_summary_success(
-        self,
-        watchlist_service,
-        mock_db,
-        sample_user,
-        sample_watchlist,
-        sample_watchlist_item,
-    ):
-        """Test successful performance summary retrieval."""
-        # Setup
-        sample_watchlist_item.price_change_since_added = Decimal("10.00")
-        sample_watchlist_item.price_change_percent_since_added = Decimal("7.14")
-        sample_watchlist.items = [sample_watchlist_item]
-
-        # Mock the get_watchlist method to return our sample watchlist
-        with patch.object(
-            watchlist_service, "get_watchlist", return_value=sample_watchlist
-        ):
-            # Execute
-            result = watchlist_service.get_watchlist_performance_summary(
-                sample_watchlist.id, sample_user.id
-            )
-
-        # Verify
-        assert result is not None
-        assert result["total_items"] == 1
-        assert result["items_with_gains"] == 1
-        assert result["items_with_losses"] == 0
-        assert result["total_gain_loss"] == Decimal("10.00")
-        assert abs(result["total_gain_loss_percent"] - Decimal("7.14")) < Decimal(
-            "0.01"
-        )
-        assert result["average_gain_loss"] == Decimal("10.00")
-        assert result["best_performer"] == "AAPL"
-        assert result["worst_performer"] == "AAPL"
 
     def test_get_watchlist_performance_summary_empty_watchlist(
         self, watchlist_service, mock_db, sample_user, sample_watchlist
@@ -592,32 +365,6 @@ class TestWatchlistService:
     # Test Real-time Data Integration
 
     @pytest.mark.asyncio
-    async def test_get_watchlist_with_real_time_data_success(
-        self,
-        watchlist_service,
-        mock_db,
-        sample_user,
-        sample_watchlist,
-        sample_watchlist_item,
-    ):
-        """Test successful real-time data retrieval."""
-        # Setup
-        sample_watchlist.items = [sample_watchlist_item]
-        mock_db.query.return_value.filter.return_value.options.return_value.first.return_value = sample_watchlist
-        mock_db.refresh = Mock()
-
-        # Execute
-        result = await watchlist_service.get_watchlist_with_real_time_data(
-            sample_watchlist.id, sample_user.id
-        )
-
-        # Verify
-        assert result == sample_watchlist
-        assert hasattr(result, "item_count")
-        assert result.item_count == 1
-        mock_db.refresh.assert_called_once_with(sample_watchlist)
-
-    @pytest.mark.asyncio
     async def test_get_watchlist_with_real_time_data_not_found(
         self, watchlist_service, mock_db, sample_user
     ):
@@ -632,187 +379,6 @@ class TestWatchlistService:
 
         # Verify
         assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_watchlist_with_real_time_data_calculates_days_since_added(
-        self,
-        watchlist_service,
-        mock_db,
-        sample_user,
-        sample_watchlist,
-        sample_watchlist_item,
-    ):
-        """Test that real-time data method calculates days since added."""
-        # Setup
-        added_date = datetime.now(timezone.utc) - timedelta(days=30)
-        sample_watchlist_item.added_date = added_date
-        sample_watchlist.items = [sample_watchlist_item]
-        mock_db.query.return_value.filter.return_value.options.return_value.first.return_value = sample_watchlist
-        mock_db.refresh = Mock()
-
-        # Execute
-        result = await watchlist_service.get_watchlist_with_real_time_data(
-            sample_watchlist.id, sample_user.id
-        )
-
-        # Verify
-        assert result == sample_watchlist
-        assert hasattr(sample_watchlist_item, "days_since_added")
-        assert sample_watchlist_item.days_since_added == 30
-
-    # Test Alert Management
-
-    def test_create_watchlist_alert_success(
-        self, watchlist_service, mock_db, sample_user, sample_watchlist_item
-    ):
-        """Test successful watchlist alert creation."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = (
-            sample_watchlist_item
-        )
-        mock_db.add = Mock()
-        mock_db.commit = Mock()
-        mock_db.refresh = Mock()
-
-        alert_data = WatchlistAlertCreate(
-            alert_type="price_high",
-            threshold_value=Decimal("160.00"),
-            condition="above",
-            notify_email=True,
-            notify_push=False,
-            notify_sms=False,
-        )
-
-        # Execute
-        result = watchlist_service.create_watchlist_alert(
-            sample_watchlist_item.id, sample_user.id, alert_data
-        )
-
-        # Verify
-        assert result is not None
-        assert result.watchlist_item_id == sample_watchlist_item.id
-        assert result.user_id == sample_user.id
-        assert result.alert_type == alert_data.alert_type
-        assert result.target_price == alert_data.target_price
-        assert result.is_active == alert_data.is_active
-        assert result.message == alert_data.message
-
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    def test_create_watchlist_alert_item_not_found(
-        self, watchlist_service, mock_db, sample_user
-    ):
-        """Test alert creation for non-existent watchlist item."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        alert_data = WatchlistAlertCreate(
-            alert_type="price_high",
-            threshold_value=Decimal("160.00"),
-            condition="above",
-            notify_email=True,
-            notify_push=False,
-            notify_sms=False,
-        )
-
-        # Execute
-        result = watchlist_service.create_watchlist_alert(
-            999, sample_user.id, alert_data
-        )
-
-        # Verify
-        assert result is None
-
-    def test_get_user_alerts_success(self, watchlist_service, mock_db, sample_user):
-        """Test successful user alerts retrieval."""
-        # Setup
-        alert1 = WatchlistAlert(
-            id=1,
-            watchlist_item_id=1,
-            user_id=sample_user.id,
-            alert_type="price_high",
-            threshold_value=Decimal("160.00"),
-            condition="above",
-            is_active=True,
-            notify_email=True,
-            notify_push=False,
-            notify_sms=False,
-        )
-        alert2 = WatchlistAlert(
-            id=2,
-            watchlist_item_id=2,
-            user_id=sample_user.id,
-            alert_type="price_low",
-            threshold_value=Decimal("130.00"),
-            condition="below",
-            is_active=False,
-            notify_email=True,
-            notify_push=False,
-            notify_sms=False,
-        )
-        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
-            alert1,
-            alert2,
-        ]
-
-        # Execute
-        result = watchlist_service.get_user_alerts(sample_user.id)
-
-        # Verify
-        assert len(result) == 2
-        assert result[0] == alert1
-        assert result[1] == alert2
-
-    def test_get_user_alerts_active_only(self, watchlist_service, mock_db, sample_user):
-        """Test user alerts retrieval with active_only filter."""
-        # Setup
-        active_alert = WatchlistAlert(
-            id=1,
-            watchlist_item_id=1,
-            user_id=sample_user.id,
-            alert_type="price_high",
-            threshold_value=Decimal("160.00"),
-            condition="above",
-            is_active=True,
-            notify_email=True,
-            notify_push=False,
-            notify_sms=False,
-        )
-        mock_db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = [
-            active_alert
-        ]
-
-        # Execute
-        result = watchlist_service.get_user_alerts(sample_user.id, active_only=True)
-
-        # Verify
-        assert len(result) == 1
-        assert result[0] == active_alert
-
-    # Test Statistics
-
-    def test_get_watchlist_statistics_success(
-        self, watchlist_service, mock_db, sample_user
-    ):
-        """Test successful watchlist statistics retrieval."""
-        # Setup
-        mock_db.query.return_value.filter.return_value.count.side_effect = [
-            3,
-            15,
-            1,
-        ]  # total_watchlists, total_items, public_watchlists
-
-        # Execute
-        result = watchlist_service.get_watchlist_statistics(sample_user.id)
-
-        # Verify
-        assert result["total_watchlists"] == 3
-        assert result["total_items"] == 15
-        assert result["public_watchlists"] == 1
-        assert "average_items_per_watchlist" in result
-        assert result["average_items_per_watchlist"] == 5.0
 
     def test_get_public_watchlists_success(
         self, watchlist_service, mock_db, sample_watchlist
@@ -950,5 +516,223 @@ class TestWatchlistService:
         assert result["average_gain_loss"] == Decimal("0")
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+class Quotes:
+    def __init__(self, prices):
+        self.prices = prices
+
+    async def get_current_price(self, symbol, fetch=True):
+        return self.prices.get(symbol)
+
+    async def get_symbols_info(self, symbols):
+        return [
+            {"symbol": s, "current_price": self.prices[s], "short_name": f"{s} Inc."}
+            for s in symbols
+            if s in self.prices
+        ]
+
+
+class TestWatchlistServiceWithDatabase:
+    @pytest.fixture
+    def owner(self, test_db):
+        user = User(email="owner@example.com", username="owner", password_hash="x")
+        other = User(email="other@example.com", username="other", password_hash="x")
+        test_db.add_all([user, other])
+        test_db.commit()
+        return user, other
+
+    @pytest.fixture
+    def service(self, test_db):
+        service = WatchlistService(test_db)
+        service.market_data_service = Quotes(
+            {"AAPL": Decimal("150"), "MSFT": Decimal("90")}
+        )
+        return service
+
+    @pytest.fixture
+    def watchlist(self, service, owner):
+        user, _ = owner
+        return service.create_watchlist(user.id, WatchlistCreate(name="Tech"))
+
+    async def _add(self, service, watchlist, symbol, added_price=None):
+        item = await service.add_item_to_watchlist(
+            watchlist.id, watchlist.user_id, WatchlistItemCreate(symbol=symbol)
+        )
+        if added_price is not None:
+            item.added_price = added_price
+            service.db.commit()
+        return item
+
+    def test_update_watchlist(self, service, watchlist, owner):
+        user, other = owner
+
+        updated = service.update_watchlist(
+            watchlist.id, user.id, WatchlistUpdate(name="Growth", is_public=True)
+        )
+
+        assert updated.name == "Growth"
+        assert updated.is_public is True
+        assert (
+            service.update_watchlist(watchlist.id, other.id, WatchlistUpdate(name="x"))
+            is None
+        )
+
+    def test_delete_watchlist(self, service, watchlist, owner):
+        user, other = owner
+        second = service.create_watchlist(user.id, WatchlistCreate(name="Second"))
+
+        assert service.delete_watchlist(second.id, other.id) is False
+        assert service.delete_watchlist(second.id, user.id) is True
+        assert service.get_watchlist(second.id, user.id) is None
+
+    def test_only_watchlist_cannot_be_deleted(self, service, watchlist, owner):
+        user, _ = owner
+        assert watchlist.is_default is True
+
+        with pytest.raises(DomainError, match="only watchlist"):
+            service.delete_watchlist(watchlist.id, user.id)
+
+    @pytest.mark.asyncio
+    async def test_add_item_records_current_price(self, service, watchlist, owner):
+        user, other = owner
+
+        item = await service.add_item_to_watchlist(
+            watchlist.id, user.id, WatchlistItemCreate(symbol="aapl", notes="n")
+        )
+
+        assert item.symbol == "AAPL"
+        assert item.added_price == Decimal("150")
+        assert item.current_price == Decimal("150")
+        assert item.sort_order == 1
+        assert (
+            await service.add_item_to_watchlist(
+                watchlist.id, other.id, WatchlistItemCreate(symbol="MSFT")
+            )
+            is None
+        )
+        with pytest.raises(DomainError, match="already exists"):
+            await service.add_item_to_watchlist(
+                watchlist.id, user.id, WatchlistItemCreate(symbol="AAPL")
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_and_remove_item(self, service, watchlist, owner):
+        user, other = owner
+        item = await self._add(service, watchlist, "AAPL")
+
+        assert (
+            service.update_watchlist_item(
+                item.id, other.id, WatchlistItemUpdate(notes="x")
+            )
+            is None
+        )
+        updated = service.update_watchlist_item(
+            item.id,
+            user.id,
+            WatchlistItemUpdate(notes="Buy the dip", personal_rating=4),
+        )
+        assert updated.notes == "Buy the dip"
+        assert updated.personal_rating == 4
+
+        assert service.remove_item_from_watchlist(item.id, other.id) is False
+        assert service.remove_item_from_watchlist(item.id, user.id) is True
+        assert service.get_watchlist(watchlist.id, user.id).items == []
+
+    @pytest.mark.asyncio
+    async def test_performance_summary(self, service, watchlist, owner):
+        user, _ = owner
+        await self._add(service, watchlist, "AAPL", added_price=Decimal("100"))
+        await self._add(service, watchlist, "MSFT", added_price=Decimal("100"))
+
+        summary = service.get_watchlist_performance_summary(watchlist.id, user.id)
+
+        assert summary["total_items"] == 2
+        assert summary["items_with_gains"] == 1
+        assert summary["items_with_losses"] == 1
+        assert summary["total_gain_loss"] == Decimal("40")
+        assert summary["average_gain_loss"] == Decimal("20")
+        assert summary["best_performer"].symbol == "AAPL"
+        assert summary["worst_performer"].symbol == "MSFT"
+
+    @pytest.mark.asyncio
+    async def test_real_time_data_updates_prices(self, service, watchlist, owner):
+        user, other = owner
+        item = await self._add(service, watchlist, "AAPL", added_price=Decimal("120"))
+
+        result = await service.get_watchlist_with_real_time_data(watchlist.id, user.id)
+
+        assert result.items[0].id == item.id
+        assert item.current_price == Decimal("150")
+        assert item.company_name == "AAPL Inc."
+        assert item.price_change_since_added == Decimal("30")
+        assert item.price_change_percent_since_added == Decimal("25")
+        assert (
+            await service.get_watchlist_with_real_time_data(watchlist.id, other.id)
+            is None
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_price_alert(self, service, watchlist, owner):
+        user, other = owner
+        item = await self._add(service, watchlist, "AAPL")
+        data = WatchlistAlertCreate(
+            alert_type="price_high", threshold_value=Decimal("160"), condition="above"
+        )
+
+        alert = service.create_price_alert(item.id, user.id, data)
+
+        assert alert.watchlist_item_id == item.id
+        assert alert.user_id == user.id
+        assert alert.threshold_value == Decimal("160")
+        assert alert.is_active is True
+        assert service.create_price_alert(item.id, other.id, data) is None
+
+    @pytest.mark.asyncio
+    async def test_alert_events_and_acknowledge(
+        self, test_db, service, watchlist, owner
+    ):
+        user, other = owner
+        item = await self._add(service, watchlist, "AAPL")
+        now = datetime.now(timezone.utc)
+        for i in range(2):
+            test_db.add(
+                WatchlistAlert(
+                    watchlist_item_id=item.id,
+                    user_id=user.id,
+                    alert_type="price_high",
+                    threshold_value=Decimal("140"),
+                    condition="above",
+                    is_triggered=True,
+                    triggered_value=Decimal("150"),
+                    triggered_at=now - timedelta(minutes=i),
+                )
+            )
+        test_db.commit()
+
+        events = service.get_alert_events(user.id)
+        assert events["unread_count"] == 2
+        assert [e["symbol"] for e in events["alerts"]] == ["AAPL", "AAPL"]
+        assert events["alerts"][0]["watchlist_name"] == "Tech"
+        assert service.get_alert_events(other.id)["alerts"] == []
+
+        assert service.acknowledge_alerts(user.id, [events["alerts"][0]["id"]]) == 1
+        assert service.get_alert_events(user.id, unread_only=True)["unread_count"] == 1
+        assert len(service.get_alert_events(user.id, unread_only=True)["alerts"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_statistics(self, service, watchlist, owner):
+        user, _ = owner
+        second = service.create_watchlist(
+            user.id, WatchlistCreate(name="Public", is_public=True)
+        )
+        await self._add(service, watchlist, "AAPL")
+        await self._add(service, watchlist, "MSFT")
+        await self._add(service, second, "AAPL")
+
+        stats = service.get_watchlist_statistics(user.id)
+
+        assert stats["total_watchlists"] == 2
+        assert stats["total_items"] == 3
+        assert stats["public_watchlists"] == 1
+        assert stats["active_alerts"] == 0
+        assert stats["most_watched_symbols"][0] == {"symbol": "AAPL", "count": 2}
+        assert len(stats["recent_additions"]) == 3

@@ -99,7 +99,10 @@ def test_domain_error_text_reaches_the_client(client, monkeypatch):
 
     response = client.post(
         "/api/v1/statistical-indicators/calculate",
-        json={"symbol": "ZZZZ"},
+        json={
+            "symbol": "ZZZZ",
+            "indicators": [{"indicator_name": "rsi_indicator", "parameters": {}}],
+        },
     )
 
     assert response.status_code == 400

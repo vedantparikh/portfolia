@@ -13,12 +13,12 @@ Do not point pytest at the stack database. `TESTING=true` and `TEST_DATABASE_URL
 | Numbers the UI shows | `tests/unit/test_calculation_snapshots.py` and `tests/unit/snapshots/` |
 | Indicators vs `ta` | `tests/unit/test_indicator_reference.py` plus the per-group files |
 | Trade Republic PDF and pytr CSV | `tests/unit/test_trade_republic_import.py`, `test_pytr_csv_import.py`, `test_import_dedup.py` |
-| Watchlist alerts | `tests/unit/test_watchlist_alerts.py` |
+| Watchlists and alerts | `tests/unit/test_watchlist_service.py`, `test_watchlist_alerts.py` |
 | Route order and error leaks | `tests/unit/test_route_order.py`, `test_error_messages.py` |
 | Currency guard | `tests/unit/test_currency_guard.py` |
 
-`tests/quarantine.txt` lists tests that are allowed to fail. The file only shrinks. When a fix makes one pass, delete its line.
+`tests/quarantine.txt` is empty and stays that way: never add a line to hide a failure. Fix the test, or delete it if the code it covered is gone.
 
-Integration tests are in `tests/integration/`. Several are quarantined. See [integration/README.md](integration/README.md).
+Integration tests are in `tests/integration/`. See [integration/README.md](integration/README.md).
 
 There is no frontend test suite.

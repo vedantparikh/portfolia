@@ -162,7 +162,7 @@ class IndicatorCalculationRequest(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Start date for data")
     end_date: Optional[datetime] = Field(None, description="End date for data")
 
-    @validator("indicators")
+    @validator("indicators", always=True)
     def validate_indicators(cls, v, values):
         """Validate that either configuration_id or indicators is provided."""
         if not values.get("configuration_id") and not v:

@@ -83,7 +83,7 @@ Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, kno
 
 ## Known state (2026-10-26)
 - Product docs (`../README.md`, `../docs/USER_GUIDE.md`, `python/app/docs/`) match the app as of this date. Feature `CLAUDE.md` files stay the endpoint reference.
-- Gate, last recorded: lint clean (ruff + eslint, 0 warnings); 259 tests passed, 42 quarantined xfail, plus 8 quarantined uncollectable files. Not re-run for the doc rewrite.
+- Gate, last recorded: lint clean (ruff + eslint, 0 warnings); 402 tests passed, `tests/quarantine.txt` empty (2026-10-28).
 - Demo data (`scripts/seed_demo_application.py --reset`, run inside `portfolio-api-1` against `http://localhost:8000`) uses real Yahoo prices, splits and dividends over ~3 years; an independent replay matched the engine to the cent on every day.
 - Still on old code paths: analytics `/summary` and `/users/dashboard` (snapshot metrics that count deposits as returns). Advance-risk beta uses `^GSPC` price index.
 - `tests/unit/test_calculation_snapshots.py` pins every computed number (engine, risk, indicators, analytics) against `snapshots/calculations.json`. If it fails, a number the app shows changed: fix the regression, or regenerate with `UPDATE_SNAPSHOTS=1` only for an intended change and explain it in the commit.

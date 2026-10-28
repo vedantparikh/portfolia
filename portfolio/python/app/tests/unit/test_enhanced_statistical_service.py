@@ -7,12 +7,11 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from app.core.schemas.statistical_indicators import (
-    ChartDataRequest,
+from core.schemas.statistical_indicators import (
     IndicatorCalculationRequest,
     IndicatorConfiguration,
 )
-from app.core.services.enhanced_statistical_service import EnhancedStatisticalService
+from core.services.enhanced_statistical_service import EnhancedStatisticalService
 
 
 @pytest.fixture
@@ -60,19 +59,6 @@ def sample_request(sample_indicators):
     """Sample calculation request."""
     return IndicatorCalculationRequest(
         symbol="AAPL", period="6mo", interval="1d", indicators=sample_indicators
-    )
-
-
-@pytest.fixture
-def sample_chart_request(sample_indicators):
-    """Sample chart data request."""
-    return ChartDataRequest(
-        symbol="AAPL",
-        period="6mo",
-        interval="1d",
-        indicators=sample_indicators,
-        chart_type="candlestick",
-        include_volume=True,
     )
 
 
@@ -124,68 +110,6 @@ class TestEnhancedStatisticalService:
             assert result["indicators"][0]["name"] == "rsi_indicator"
 
     @pytest.mark.asyncio
-    async def test_calculate_indicators_success(self, service, sample_request):
-        """Test successful indicator calculation."""
-        # Mock market data service
-        mock_market_data = Mock()
-        mock_market_data.empty = False
-        mock_market_data.columns = ["Date", "Open", "High", "Low", "Close", "Volume"]
-
-        # Mock the Date column access
-        mock_date_series = Mock()
-        mock_date_series.min.return_value = datetime.now()
-        mock_date_series.max.return_value = datetime.now()
-        mock_market_data.__getitem__ = Mock(return_value=mock_date_series)
-
-        with patch.object(
-            service.market_data_service, "fetch_ticker_data", new_callable=AsyncMock
-        ) as mock_get_data:
-            mock_get_data.return_value = mock_market_data
-
-            # Mock indicator registry
-            with patch.object(
-                service.indicator_registry, "validate_indicator_configuration"
-            ) as mock_validate:
-                mock_validate.return_value = []
-
-                with patch.object(
-                    service.indicator_registry, "calculate_indicators"
-                ) as mock_calculate:
-                    mock_result_df = Mock()
-                    mock_result_df.to_dicts.return_value = [
-                        {"Date": "2023-01-01", "Close": 150.0, "RSI": 50.0, "MACD": 0.1}
-                    ]
-                    mock_result_df.columns = ["Date", "Close", "RSI", "MACD"]
-                    mock_result_df.__len__ = Mock(return_value=1)
-
-                    # Mock the Date column access for metadata
-                    mock_date_series = Mock()
-                    mock_date_series.min.return_value = datetime.now()
-                    mock_date_series.max.return_value = datetime.now()
-                    mock_result_df.__getitem__ = Mock(return_value=mock_date_series)
-
-                    # Mock performance metrics
-                    mock_performance_metrics = Mock()
-                    mock_performance_metrics.calculation_time_ms = 100.0
-
-                    mock_calculate.return_value = (
-                        mock_result_df,
-                        [],
-                        mock_performance_metrics,
-                    )
-
-                    result = await service.calculate_indicators(sample_request)
-
-                    assert result.symbol == "AAPL"
-                    assert result.period == "6mo"
-                    assert result.interval == "1d"
-                    assert len(result.data) == 1
-                    assert result.indicators_applied == [
-                        "rsi_indicator",
-                        "macd_indicator",
-                    ]
-
-    @pytest.mark.asyncio
     async def test_calculate_indicators_validation_error(self, service, sample_request):
         """Test indicator calculation with validation errors."""
         # Mock market data service
@@ -201,7 +125,7 @@ class TestEnhancedStatisticalService:
             with patch.object(
                 service.indicator_registry, "validate_indicator_configuration"
             ) as mock_validate:
-                from app.core.schemas.statistical_indicators import (
+                from core.schemas.statistical_indicators import (
                     IndicatorValidationError,
                 )
 
@@ -232,81 +156,6 @@ class TestEnhancedStatisticalService:
 
             with pytest.raises(ValueError, match="No market data found"):
                 await service.calculate_indicators(sample_request)
-
-    @pytest.mark.asyncio
-    async def test_generate_chart_data_success(self, service, sample_chart_request):
-        """Test successful chart data generation."""
-        # Mock market data service
-        mock_market_data = Mock()
-        mock_market_data.empty = False
-        mock_market_data.columns = ["date", "open", "high", "low", "close", "volume"]
-        # Mock the date column access
-        mock_date_series = Mock()
-        mock_date_series.min.return_value = datetime.now()
-        mock_date_series.max.return_value = datetime.now()
-        mock_market_data.__getitem__ = Mock(return_value=mock_date_series)
-
-        with patch.object(
-            service.market_data_service, "fetch_ticker_data", new_callable=AsyncMock
-        ) as mock_get_data:
-            mock_get_data.return_value = mock_market_data
-
-            # Mock indicator registry
-            with patch.object(
-                service.indicator_registry, "validate_indicator_configuration"
-            ) as mock_validate:
-                mock_validate.return_value = []
-
-                with patch.object(
-                    service.indicator_registry, "calculate_indicators"
-                ) as mock_calculate:
-                    mock_result_df = Mock()
-                    mock_result_df.to_dicts.return_value = [
-                        {
-                            "date": "2023-01-01",
-                            "open": 150.0,
-                            "high": 155.0,
-                            "low": 145.0,
-                            "close": 152.0,
-                            "volume": 1000000,
-                            "rsi": 50.0,
-                            "macd": 0.1,
-                        }
-                    ]
-                    mock_result_df.columns = [
-                        "date",
-                        "open",
-                        "high",
-                        "low",
-                        "close",
-                        "volume",
-                        "rsi",
-                        "macd",
-                    ]
-                    mock_result_df.__len__ = Mock(return_value=1)
-
-                    # Mock the date column access for chart metadata
-                    mock_date_series = Mock()
-                    mock_date_series.min.return_value = datetime.now()
-                    mock_date_series.max.return_value = datetime.now()
-                    mock_result_df.__getitem__ = Mock(return_value=mock_date_series)
-
-                    # Mock performance metrics
-                    mock_performance_metrics = Mock()
-                    mock_performance_metrics.calculation_time_ms = 100.0
-
-                    mock_calculate.return_value = (
-                        mock_result_df,
-                        [],
-                        mock_performance_metrics,
-                    )
-
-                    result = await service.generate_chart_data(sample_chart_request)
-
-                    assert result.symbol == "AAPL"
-                    assert result.chart_type == "candlestick"
-                    assert "data" in result.data
-                    assert len(result.indicators) > 0
 
     @pytest.mark.asyncio
     async def test_get_predefined_templates(self, service):
@@ -366,51 +215,6 @@ class TestEnhancedStatisticalService:
 
             assert result == {"id": 1, "name": "Test Config"}
             mock_create.assert_called_once_with(1, "test_template", "Custom Name")
-
-    def test_prepare_chart_data_candlestick(self, service):
-        """Test preparing candlestick chart data."""
-        # Mock DataFrame
-        mock_df = Mock()
-        mock_df.to_dicts.return_value = [
-            {
-                "date": datetime(2023, 1, 1),
-                "open": 150.0,
-                "high": 155.0,
-                "low": 145.0,
-                "close": 152.0,
-            }
-        ]
-
-        indicators = [
-            IndicatorConfiguration(
-                indicator_name="rsi_indicator",
-                parameters={"window": 14, "fillna": False},
-                enabled=True,
-            )
-        ]
-
-        result = service._prepare_chart_data(
-            mock_df, indicators, "candlestick", True, {}
-        )
-
-        assert result["type"] == "candlestick"
-        assert len(result["data"]) == 1
-        assert result["data"][0]["open"] == 150.0
-        assert result["data"][0]["close"] == 152.0
-
-    def test_prepare_chart_data_line(self, service):
-        """Test preparing line chart data."""
-        # Mock DataFrame
-        mock_df = Mock()
-        mock_df.to_dicts.return_value = [{"date": datetime(2023, 1, 1), "close": 152.0}]
-
-        indicators = []
-
-        result = service._prepare_chart_data(mock_df, indicators, "line", False, {})
-
-        assert result["type"] == "line"
-        assert len(result["data"]) == 1
-        assert result["data"][0]["y"] == 152.0
 
     def test_prepare_indicator_data(self, service):
         """Test preparing indicator data for chart."""

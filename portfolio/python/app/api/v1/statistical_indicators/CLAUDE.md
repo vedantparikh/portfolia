@@ -11,7 +11,7 @@
 | Endpoint | Behaviour |
 |---|---|
 | `GET /indicators` | Registry, built by introspecting `*_indicator` methods |
-| `POST /calculate` | OHLCV plus the requested indicator series; with `configuration_id` the saved set (and its parameters) is used — only the caller's own or a public set |
+| `POST /calculate` | OHLCV plus the requested indicator series; with `configuration_id` the saved set (and its parameters) is used — only the caller's own or a public set. A request with neither `configuration_id` nor `indicators` is a 422 before any market data is fetched |
 | `POST/GET /configurations`, `GET/PUT/DELETE /configurations/{id}`, `POST /configurations/{id}/duplicate` | Saved sets: `GET /configurations?user_only=true` = your own, otherwise public ones. A private set is visible only to its owner (anonymous callers see public sets only) |
 | `GET /templates`, `POST /templates/{name}/create`, `POST /validate`, `GET /statistics`, `GET /popular` | Templates and helpers. No UI for templates, statistics or popular |
 | `GET /configurations/search?q=` | Name, description or tags (JSON cast to text) contain `q`; own + public |

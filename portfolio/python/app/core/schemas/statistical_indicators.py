@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
+from core.domain.strategies import StrategyId
+
 
 class IndicatorCategory(str, Enum):
     """Categories of technical indicators."""
@@ -684,16 +686,33 @@ class BacktestTradeSchema(BaseModel):
     open: bool = Field(..., description="Still held; valued at the last close")
 
 
-class BacktestResponse(BaseModel):
-    """Past signals replayed long only, without costs or taxes; percent units."""
+class StrategySignalSchema(BaseModel):
+    date: date
+    action: Literal["buy", "sell"]
 
-    symbol: str
-    strategy: Literal["gfs", "macd"]
-    start: date
-    end: date
-    trades: List[BacktestTradeSchema]
+
+class StrategyBacktestSchema(BaseModel):
+    strategy: StrategyId
+    name: str
+    rule: str
+    error: Optional[str] = Field(None, description="Why this rule has no backtest")
+    last_signal: Optional[StrategySignalSchema] = None
+    invested: bool = Field(
+        False, description="The rule holds the stock at the last close"
+    )
+    trades: List[BacktestTradeSchema] = []
     win_rate_pct: Optional[float] = None
     average_return_pct: Optional[float] = None
-    total_return_pct: float
+    total_return_pct: Optional[float] = None
+    vs_holding_pp: Optional[float] = None
+    days_invested_pct: Optional[float] = None
+
+
+class StrategyBacktestsResponse(BaseModel):
+    """Every rule's past signals replayed long only, without costs or taxes; percent units."""
+
+    symbol: str
+    start: date
+    end: date
     buy_and_hold_pct: float
-    days_invested_pct: float
+    strategies: List[StrategyBacktestSchema]

@@ -1,5 +1,6 @@
 import {
   createChart,
+  createSeriesMarkers,
   AreaSeries,
   CandlestickSeries,
   HistogramSeries,
@@ -31,6 +32,10 @@ import {
   formatVolume,
 } from "../../utils/formatters.jsx";
 
+// Each bar's calendar day as the API sent it (not shifted to UTC) → its chart time
+const barTimes = (data) =>
+  new Map(data.map((item) => [String(item.date).slice(0, 10), new Date(item.date).getTime() / 1000]));
+
 const EnhancedChart = ({
   data = [],
   symbol = "",
@@ -55,6 +60,8 @@ const EnhancedChart = ({
   assetId = null,
   showReturns = true,
   indicatorOverlayData = null,
+  // [{date: "YYYY-MM-DD", position, shape, color, text}]; keep the array stable (useMemo)
+  markers = null,
 }) => {
   const chartContainerRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -97,12 +104,14 @@ const EnhancedChart = ({
     if (indicatorOverlayData) {
       const transformedData = {};
       const families = {};
+      const barTime = barTimes(data);
       if (Array.isArray(indicatorOverlayData)) {
         indicatorOverlayData.forEach((series) => {
           if (series.data && Array.isArray(series.data) && !isFlagSeries(series)) {
             const chartData = series.data
               .map((item) => ({
-                time: new Date(item.date).getTime() / 1000,
+                // Indicator dates come without a zone; put each point on its day's price bar
+                time: barTime.get(String(item.date).slice(0, 10)) ?? new Date(item.date).getTime() / 1000,
                 value: item.value,
               }))
               .sort((a, b) => a.time - b.time);
@@ -508,6 +517,18 @@ const EnhancedChart = ({
       volumeSeries.setData(volumeData);
     }
 
+    // After every series is filled, so the markers sit on the final time scale
+    if (priceSeries && markers?.length) {
+      const barTime = barTimes(data);
+      createSeriesMarkers(
+        priceSeries,
+        markers
+          .filter((marker) => barTime.has(marker.date))
+          .map(({ date, ...marker }) => ({ ...marker, time: barTime.get(date) }))
+          .sort((a, b) => a.time - b.time),
+      );
+    }
+
     chart.timeScale().fitContent();
 
     const tooltip = document.createElement("div");
@@ -639,6 +660,8 @@ const EnhancedChart = ({
     showIndicators,
     indicatorData,
     indicatorFamilies,
+    data,
+    markers,
   ]);
 
   const getIndicatorColor = (indicatorName) => {

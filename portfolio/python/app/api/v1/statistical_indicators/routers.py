@@ -4,7 +4,7 @@ Basic API endpoints for user-configurable statistical indicators.
 """
 
 from datetime import date, timedelta
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -17,14 +17,13 @@ from core.auth.dependencies import (
 from core.auth.utils import is_rate_limited
 from core.database.connection import get_db
 from core.database.models.user import User
-from core.domain.strategies import Signal, backtest, gfs, gfs_signals, macd_signals
-from core.errors import NotFoundError, public_message
+from core.domain.strategies import StrategyRun, backtest_all, gfs, macd_signals
+from core.errors import DomainError, NotFoundError, public_message
 from core.schemas.statistical_indicators import (
     AnalysisConfiguration,
     AnalysisConfigurationCreate,
     AnalysisConfigurationListResponse,
     AnalysisConfigurationUpdate,
-    BacktestResponse,
     BacktestTradeSchema,
     GfsReadingSchema,
     GfsStrategyResponse,
@@ -35,6 +34,9 @@ from core.schemas.statistical_indicators import (
     IndicatorValidationError,
     MacdSignalSchema,
     MacdStrategyResponse,
+    StrategyBacktestSchema,
+    StrategyBacktestsResponse,
+    StrategySignalSchema,
 )
 from core.services.analysis_configuration_service import (
     AnalysisConfigurationService,
@@ -267,43 +269,59 @@ async def get_macd_strategy(
     )
 
 
-@router.get("/strategies/backtest", response_model=BacktestResponse)
-async def get_strategy_backtest(
+@router.get("/strategies/backtests", response_model=StrategyBacktestsResponse)
+async def get_strategy_backtests(
     symbol: str = Query(..., min_length=1, max_length=20),
-    strategy: Literal["gfs", "macd"] = Query(...),
     years: int = Query(5, ge=1, le=20),
     _current_user: User = Depends(get_current_user),
-) -> BacktestResponse:
-    """The strategy's signals over the last `years`, traded long only without costs."""
-    closes = await _closes(symbol)
+) -> StrategyBacktestsResponse:
+    """Every strategy's signals over the last `years`, traded long only without costs."""
     start = date.today() - timedelta(days=round(365.25 * years))
-    if strategy == "gfs":
-        signals = gfs_signals(closes, since=start)
-    else:
-        signals = [Signal(s.date, s.action) for s in macd_signals(closes, since=start)]
-    result = backtest(closes, signals, start)
-    return BacktestResponse(
+    runs = backtest_all(await _closes(symbol), start)
+    tested = [run.result for run in runs if run.result]
+    if not tested:
+        raise DomainError("Not enough price history for a backtest")
+    return StrategyBacktestsResponse(
         symbol=symbol.upper(),
-        strategy=strategy,
-        start=result.start,
-        end=result.end,
-        trades=[
-            BacktestTradeSchema(
-                entry_date=t.entry_date,
-                entry_price=t.entry_price,
-                exit_date=t.exit_date,
-                exit_price=t.exit_price,
-                return_pct=t.return_pct,
-                open=t.open,
-            )
-            for t in result.trades
-        ],
-        win_rate_pct=result.win_rate_pct,
-        average_return_pct=result.average_return_pct,
-        total_return_pct=result.total_return_pct,
-        buy_and_hold_pct=result.buy_and_hold_pct,
-        days_invested_pct=result.days_invested_pct,
+        start=tested[0].start,
+        end=tested[0].end,
+        buy_and_hold_pct=tested[0].buy_and_hold_pct,
+        strategies=[_backtest_row(run) for run in runs],
     )
+
+
+def _backtest_row(run: StrategyRun) -> StrategyBacktestSchema:
+    row = StrategyBacktestSchema(
+        strategy=run.strategy.id,
+        name=run.strategy.name,
+        rule=run.strategy.rule,
+        error=run.error,
+    )
+    result = run.result
+    if result is None:
+        return row
+    if run.last_signal:
+        row.last_signal = StrategySignalSchema(
+            date=run.last_signal.date, action=run.last_signal.action
+        )
+    row.invested = bool(result.trades and result.trades[-1].open)
+    row.trades = [
+        BacktestTradeSchema(
+            entry_date=t.entry_date,
+            entry_price=t.entry_price,
+            exit_date=t.exit_date,
+            exit_price=t.exit_price,
+            return_pct=t.return_pct,
+            open=t.open,
+        )
+        for t in result.trades
+    ]
+    row.win_rate_pct = result.win_rate_pct
+    row.average_return_pct = result.average_return_pct
+    row.total_return_pct = result.total_return_pct
+    row.vs_holding_pp = result.vs_holding_pp
+    row.days_invested_pct = result.days_invested_pct
+    return row
 
 
 @router.get("/templates")

@@ -61,7 +61,7 @@ GET /api/v1/statistical-indicators/configurations/{config_id} get_api_v1_statist
 GET /api/v1/statistical-indicators/indicators get_api_v1_statistical_indicators_indicators
 GET /api/v1/statistical-indicators/popular get_api_v1_statistical_indicators_popular
 GET /api/v1/statistical-indicators/statistics get_api_v1_statistical_indicators_statistics
-GET /api/v1/statistical-indicators/strategies/backtest get_api_v1_statistical_indicators_strategies_backtest
+GET /api/v1/statistical-indicators/strategies/backtests get_api_v1_statistical_indicators_strategies_backtests
 GET /api/v1/statistical-indicators/strategies/gfs get_api_v1_statistical_indicators_strategies_gfs
 GET /api/v1/statistical-indicators/strategies/macd get_api_v1_statistical_indicators_strategies_macd
 GET /api/v1/statistical-indicators/templates get_api_v1_statistical_indicators_templates

@@ -527,7 +527,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/statistical-indicators/strategies/backtest": {
+    "/api/v1/statistical-indicators/strategies/backtests": {
         parameters: {
             query?: never;
             header?: never;
@@ -535,10 +535,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Strategy Backtest
-         * @description The strategy's signals over the last `years`, traded long only without costs.
+         * Get Strategy Backtests
+         * @description Every strategy's signals over the last `years`, traded long only without costs.
          */
-        get: operations["get_api_v1_statistical_indicators_strategies_backtest"];
+        get: operations["get_api_v1_statistical_indicators_strategies_backtests"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3165,41 +3165,6 @@ export interface components {
              * @description Available periods
              */
             periods: components["schemas"]["AvailablePeriod"][];
-        };
-        /**
-         * BacktestResponse
-         * @description Past signals replayed long only, without costs or taxes; percent units.
-         */
-        BacktestResponse: {
-            /** Symbol */
-            symbol: string;
-            /**
-             * Strategy
-             * @enum {string}
-             */
-            strategy: "gfs" | "macd";
-            /**
-             * Start
-             * Format: date
-             */
-            start: string;
-            /**
-             * End
-             * Format: date
-             */
-            end: string;
-            /** Trades */
-            trades: components["schemas"]["BacktestTradeSchema"][];
-            /** Win Rate Pct */
-            win_rate_pct?: number | null;
-            /** Average Return Pct */
-            average_return_pct?: number | null;
-            /** Total Return Pct */
-            total_return_pct: number;
-            /** Buy And Hold Pct */
-            buy_and_hold_pct: number;
-            /** Days Invested Pct */
-            days_invested_pct: number;
         };
         /** BacktestTradeSchema */
         BacktestTradeSchema: {
@@ -6386,6 +6351,80 @@ export interface components {
              */
             end_date: string;
         };
+        /** StrategyBacktestSchema */
+        StrategyBacktestSchema: {
+            /**
+             * Strategy
+             * @enum {string}
+             */
+            strategy: "gfs" | "macd" | "golden_cross" | "trend_200" | "rsi_reversion" | "bollinger_reversion" | "breakout";
+            /** Name */
+            name: string;
+            /** Rule */
+            rule: string;
+            /**
+             * Error
+             * @description Why this rule has no backtest
+             */
+            error?: string | null;
+            last_signal?: components["schemas"]["StrategySignalSchema"] | null;
+            /**
+             * Invested
+             * @description The rule holds the stock at the last close
+             * @default false
+             */
+            invested: boolean;
+            /**
+             * Trades
+             * @default []
+             */
+            trades: components["schemas"]["BacktestTradeSchema"][];
+            /** Win Rate Pct */
+            win_rate_pct?: number | null;
+            /** Average Return Pct */
+            average_return_pct?: number | null;
+            /** Total Return Pct */
+            total_return_pct?: number | null;
+            /** Vs Holding Pp */
+            vs_holding_pp?: number | null;
+            /** Days Invested Pct */
+            days_invested_pct?: number | null;
+        };
+        /**
+         * StrategyBacktestsResponse
+         * @description Every rule's past signals replayed long only, without costs or taxes; percent units.
+         */
+        StrategyBacktestsResponse: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Buy And Hold Pct */
+            buy_and_hold_pct: number;
+            /** Strategies */
+            strategies: components["schemas"]["StrategyBacktestSchema"][];
+        };
+        /** StrategySignalSchema */
+        StrategySignalSchema: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "buy" | "sell";
+        };
         /**
          * SupportedFormat
          * @enum {string}
@@ -8229,11 +8268,10 @@ export interface operations {
             };
         };
     };
-    get_api_v1_statistical_indicators_strategies_backtest: {
+    get_api_v1_statistical_indicators_strategies_backtests: {
         parameters: {
             query: {
                 symbol: string;
-                strategy: "gfs" | "macd";
                 years?: number;
             };
             header?: never;
@@ -8248,7 +8286,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BacktestResponse"];
+                    "application/json": components["schemas"]["StrategyBacktestsResponse"];
                 };
             };
             /** @description Validation Error */

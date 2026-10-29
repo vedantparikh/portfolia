@@ -5,11 +5,18 @@ import {
   RefreshCw,
   Settings,
   Target,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useIndicatorCalculation, useIndicatorConfigurations } from "./queries";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useIndicatorCalculation,
+  useIndicatorConfigurations,
+  useStrategyBacktests,
+} from "./queries";
 import EnhancedChart from "../../components/shared/EnhancedChart";
+import StrategyBacktests from "./StrategyBacktests";
 import StrategySignals from "./StrategySignals";
+import { chartPeriodFor, strategyMarkers } from "./strategyMarkers";
 import { seriesLabel } from "../../utils/indicatorLabels";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import { formatRatio } from "../../utils/formatters.jsx";
@@ -22,6 +29,12 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
   const [selectedIndicators, setSelectedIndicators] = useState(DEFAULT_INDICATORS);
   const [activeConfiguration, setActiveConfiguration] = useState(selectedConfiguration);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
+  const [backtestYears, setBacktestYears] = useState(5);
+  const [chartStrategy, setChartStrategy] = useState(null);
+  const chartCard = useRef(null);
+  const backtests = useStrategyBacktests(asset?.symbol, backtestYears);
+  const markedRow = backtests.data?.strategies.find((row) => row.strategy === chartStrategy);
+  const markers = useMemo(() => strategyMarkers(markedRow), [markedRow]);
 
   // A saved configuration is calculated server-side with its own parameters
   const calculation = useIndicatorCalculation({
@@ -67,6 +80,19 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
 
   const handlePeriodChange = (newPeriod) => {
     setPeriod(newPeriod);
+  };
+
+  // Marking a rule widens the chart to its backtest window
+  const showStrategy = (strategy) => {
+    setChartStrategy(strategy);
+    if (!strategy) return;
+    setPeriod(chartPeriodFor(backtestYears));
+    chartCard.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+
+  const changeBacktestYears = (years) => {
+    setBacktestYears(years);
+    if (chartStrategy) setPeriod(chartPeriodFor(years));
   };
 
   // Toggling indicators by hand leaves the saved configuration
@@ -128,7 +154,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
       </div>
 
       {/* Enhanced Chart */}
-      <div className="card p-6">
+      <div ref={chartCard} className="card p-6 scroll-mt-4">
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-gray-100 mb-2 flex items-center">
             <BarChart3 className="w-5 h-5 mr-2 text-primary-400" />
@@ -137,6 +163,26 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
           <p className="text-sm text-gray-400">
             Interactive chart with technical indicators and analysis tools
           </p>
+          {markedRow && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-dark-800 px-3 py-2 text-sm">
+              <span className="text-gray-300">
+                Marked: <span className="font-medium text-gray-100">{markedRow.name}</span>, last{" "}
+                {backtestYears} {backtestYears === 1 ? "year" : "years"}
+              </span>
+              <span className="text-xs text-gray-400">
+                <span className="text-success-400">▲ Buy</span> and <span className="text-danger-400">▼ Sell</span> at
+                the close; a circle is a latest signal the rule did not trade
+              </span>
+              <button
+                type="button"
+                onClick={() => setChartStrategy(null)}
+                aria-label="Remove strategy markers"
+                className="ml-auto text-gray-400 hover:text-gray-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
 
         <EnhancedChart
@@ -153,6 +199,7 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
           defaultIndicators={selectedIndicators}
           onIndicatorsChange={handleIndicatorChange}
           indicatorOverlayData={analysisData?.indicators}
+          markers={markers}
           showReturns={true}
           enableAnalysis={true}
           onRefresh={handleRefresh}
@@ -273,6 +320,14 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
       )}
 
       <StrategySignals symbol={asset?.symbol} currency={asset?.currency} />
+      <StrategyBacktests
+        symbol={asset?.symbol}
+        currency={asset?.currency}
+        years={backtestYears}
+        onYearsChange={changeBacktestYears}
+        shown={chartStrategy}
+        onShow={showStrategy}
+      />
 
       {/* Indicator Configurations */}
       {indicatorConfigurations.length > 0 && (

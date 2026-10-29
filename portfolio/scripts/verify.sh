@@ -83,8 +83,8 @@ def binds_or_builds(data):
             bad.append(f"{name}: build")
         for vol in svc.get("volumes") or []:
             if isinstance(vol, dict) and vol.get("type") == "bind":
-                # The only allowed bind: the read-only Trade Republic export
-                if vol.get("target") == "/pytr" and vol.get("read_only"):
+                # The only allowed bind: the shared Trade Republic folder, writable by api only
+                if vol.get("target") == "/pytr" and (vol.get("read_only") or name == "api"):
                     continue
                 bad.append(f"{name}: bind {vol.get('target')}")
     return bad

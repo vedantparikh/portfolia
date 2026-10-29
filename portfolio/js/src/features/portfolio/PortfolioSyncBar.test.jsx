@@ -28,6 +28,7 @@ describe("PortfolioSyncBar", () => {
       not_imported: {},
     });
     server.use(
+      http.get(`${API}/portfolios/sync/pytr`, () => HttpResponse.json({ available: false })),
       http.get(`${API}/portfolios/7/sync`, () => HttpResponse.json(current)),
       http.post(`${API}/portfolios/7/sync/instruments`, async ({ request }) => {
         mapped = await request.json();

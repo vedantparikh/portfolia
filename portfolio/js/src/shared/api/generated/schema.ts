@@ -839,11 +839,75 @@ export interface paths {
         };
         /**
          * Get Pytr Sync Availability
-         * @description Whether this user may link a portfolio to the Trade Republic export.
+         * @description Whether this user may link a portfolio to the export, the login and the last fetch.
          */
         get: operations["get_api_v1_portfolios_sync_pytr"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/sync/pytr/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Trade Republic Login
+         * @description Phone + PIN start a login; confirm it in the Trade Republic app or with a code.
+         */
+        post: operations["post_api_v1_portfolios_sync_pytr_login"];
+        /**
+         * Delete Trade Republic Login
+         * @description Forget the stored Trade Republic session.
+         */
+        delete: operations["delete_api_v1_portfolios_sync_pytr_login"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/sync/pytr/login/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Trade Republic Login
+         * @description `confirmed: false` while the app has not confirmed yet; poll again.
+         */
+        post: operations["post_api_v1_portfolios_sync_pytr_login_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portfolios/sync/pytr/fetch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch From Trade Republic
+         * @description Download from Trade Republic now, then import into every linked portfolio.
+         */
+        post: operations["post_api_v1_portfolios_sync_pytr_fetch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5966,6 +6030,39 @@ export interface components {
             available: boolean;
             /** File Updated At */
             file_updated_at?: string | null;
+            /**
+             * Connected
+             * @description A Trade Republic session is stored
+             * @default false
+             */
+            connected: boolean;
+            /**
+             * Login Pending
+             * @default false
+             */
+            login_pending: boolean;
+            /**
+             * Session Expired
+             * @default false
+             */
+            session_expired: boolean;
+            /**
+             * Fetch Status
+             * @default idle
+             * @enum {string}
+             */
+            fetch_status: "idle" | "running" | "succeeded" | "failed";
+            /** Fetch Started At */
+            fetch_started_at?: string | null;
+            /** Fetch Finished At */
+            fetch_finished_at?: string | null;
+            /**
+             * Fetch Report
+             * @description events, documents, positions, portfolios[] (created per portfolio), or error
+             */
+            fetch_report?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** RebalancingEventCreate */
         RebalancingEventCreate: {
@@ -6673,6 +6770,39 @@ export interface components {
             name: string;
             /** Suggested Symbol */
             suggested_symbol?: string | null;
+        };
+        /** TradeRepublicLogin */
+        TradeRepublicLogin: {
+            /**
+             * Phone
+             * @description e.g. +4915112345678
+             */
+            phone: string;
+            /** Pin */
+            pin: string;
+        };
+        /** TradeRepublicLoginConfirm */
+        TradeRepublicLoginConfirm: {
+            /** Code */
+            code?: string | null;
+        };
+        /** TradeRepublicLoginResult */
+        TradeRepublicLoginResult: {
+            /** Confirmed */
+            confirmed: boolean;
+        };
+        /** TradeRepublicLoginStarted */
+        TradeRepublicLoginStarted: {
+            /**
+             * Needs Code
+             * @description Type the authenticator code; otherwise confirm in the app
+             */
+            needs_code: boolean;
+            /**
+             * Countdown
+             * @description Seconds the login stays open
+             */
+            countdown: number;
         };
         /** Transaction */
         Transaction: {
@@ -8975,6 +9105,110 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PytrSyncAvailability"];
+                };
+            };
+        };
+    };
+    post_api_v1_portfolios_sync_pytr_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeRepublicLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeRepublicLoginStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_v1_portfolios_sync_pytr_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    post_api_v1_portfolios_sync_pytr_login_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeRepublicLoginConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeRepublicLoginResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_api_v1_portfolios_sync_pytr_fetch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

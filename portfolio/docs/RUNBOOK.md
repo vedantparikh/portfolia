@@ -71,7 +71,7 @@ Rotation:
 
 ## Trade Republic sync
 
-Bachat (`../bachat`) logs in with pytr and writes `/home/bubbly/server/appdata/trade-republic/output/account_transactions.csv` atomically when someone clicks Refresh there. Production mounts that folder read only at `/pytr` on `api` and `worker`; `env/prod.env` sets `PYTR_EXPORT_PATH=/pytr/account_transactions.csv` and `PYTR_SYNC_USERS`. The worker re-imports linked portfolios when the file changes. A portfolio's last report: `GET /api/v1/portfolios/{id}/sync`. Never write into that folder from Portfolia.
+The shared folder `/home/bubbly/server/appdata/trade-republic/output` is written by Bachat (Refresh) and by Portfolia ("Fetch from Trade Republic", ADR 0008); both replace `account_transactions.csv` atomically. Production mounts it at `/pytr`: read-write on `api` (the fetch runs there), read only on `worker`. `env/prod.env` sets `PYTR_EXPORT_PATH=/pytr/account_transactions.csv` and `PYTR_SYNC_USERS`. The worker re-imports linked portfolios when the file changes; a fetch imports at once. A portfolio's last report: `GET /api/v1/portfolios/{id}/sync`; login and last fetch: `GET /api/v1/portfolios/sync/pytr` (`broker_connections` row, session encrypted with a key derived from `SECRET_KEY`). The fetch logs one line per run in `portfolio-api-1` (`Trade Republic fetch for user …`). "The Trade Republic session ended" means log in again in the UI; a login in Bachat or Portfolia can end the other's session.
 
 ## Monitoring
 

@@ -199,6 +199,8 @@ export function usePytrSyncAvailability() {
   return useQuery({
     queryKey: portfolioKeys.pytrAvailability,
     queryFn: portfolioAPI.getPytrSyncAvailability,
+    refetchInterval: (query) =>
+      query.state.data?.fetch_status === "running" ? 2000 : false,
   });
 }
 

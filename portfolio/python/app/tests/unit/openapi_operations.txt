@@ -2,6 +2,7 @@ DELETE /api/v1/analytics/portfolios/{portfolio_id}/allocations/{allocation_id} d
 DELETE /api/v1/analytics/portfolios/{portfolio_id}/performance/{snapshot_id} delete_api_v1_analytics_portfolios_portfolio_id_performance_snapshot_id
 DELETE /api/v1/assets/{asset_id} delete_api_v1_assets_asset_id
 DELETE /api/v1/auth/me delete_api_v1_auth_me
+DELETE /api/v1/portfolios/sync/pytr/login delete_api_v1_portfolios_sync_pytr_login
 DELETE /api/v1/portfolios/{portfolio_id} delete_api_v1_portfolios_portfolio_id
 DELETE /api/v1/portfolios/{portfolio_id}/assets/{asset_id} delete_api_v1_portfolios_portfolio_id_assets_asset_id
 DELETE /api/v1/portfolios/{portfolio_id}/hard delete_api_v1_portfolios_portfolio_id_hard
@@ -103,6 +104,9 @@ POST /api/v1/auth/reset-password post_api_v1_auth_reset_password
 POST /api/v1/auth/verify-email post_api_v1_auth_verify_email
 POST /api/v1/portfolios/ post_api_v1_portfolios
 POST /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance post_api_v1_portfolios_calculations_portfolio_portfolio_id_performance
+POST /api/v1/portfolios/sync/pytr/fetch post_api_v1_portfolios_sync_pytr_fetch
+POST /api/v1/portfolios/sync/pytr/login post_api_v1_portfolios_sync_pytr_login
+POST /api/v1/portfolios/sync/pytr/login/confirm post_api_v1_portfolios_sync_pytr_login_confirm
 POST /api/v1/portfolios/{portfolio_id}/assets post_api_v1_portfolios_portfolio_id_assets
 POST /api/v1/portfolios/{portfolio_id}/assets/legacy post_api_v1_portfolios_portfolio_id_assets_legacy
 POST /api/v1/portfolios/{portfolio_id}/refresh post_api_v1_portfolios_portfolio_id_refresh

@@ -7,6 +7,7 @@ import { apiErrorMessage } from "../../shared/api/client";
 import { formatDateTime } from "../../utils/formatters";
 import { portfolioAPI } from "./api";
 import { portfolioKeys, usePortfolioSync } from "./queries";
+import TradeRepublicFetch from "./TradeRepublicFetch";
 
 function summarize(report) {
   if (!report) return "Not synced yet";
@@ -67,12 +68,13 @@ export default function PortfolioSyncBar({ portfolio }) {
               Details {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
           )}
-          <button type="button" className="btn-primary flex items-center gap-2" onClick={syncNow} disabled={busy}>
+          <button type="button" className="btn-secondary flex items-center gap-2" onClick={syncNow} disabled={busy}>
             <RefreshCw size={16} className={busy ? "animate-spin" : ""} />
-            <span>Sync now</span>
+            <span>Import file</span>
           </button>
         </div>
       </div>
+      <TradeRepublicFetch />
       {open && report && (
         <div className="space-y-3 text-sm">
           {report.trade_priced?.length > 0 && (

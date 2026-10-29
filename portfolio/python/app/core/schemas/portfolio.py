@@ -45,6 +45,38 @@ class PytrSyncAvailability(BaseModel):
         ..., description="This user may link a portfolio to the export"
     )
     file_updated_at: Optional[datetime] = None
+    connected: bool = Field(False, description="A Trade Republic session is stored")
+    login_pending: bool = False
+    session_expired: bool = False
+    fetch_status: Literal["idle", "running", "succeeded", "failed"] = "idle"
+    fetch_started_at: Optional[datetime] = None
+    fetch_finished_at: Optional[datetime] = None
+    fetch_report: Optional[dict] = Field(
+        None,
+        description="events, documents, positions, portfolios[] (created per portfolio), or error",
+    )
+
+
+class TradeRepublicLogin(BaseModel):
+    phone: str = Field(
+        ..., pattern=r"^\+[1-9]\d{6,14}$", description="e.g. +4915112345678"
+    )
+    pin: str = Field(..., pattern=r"^\d{4}$")
+
+
+class TradeRepublicLoginStarted(BaseModel):
+    needs_code: bool = Field(
+        ..., description="Type the authenticator code; otherwise confirm in the app"
+    )
+    countdown: int = Field(..., description="Seconds the login stays open")
+
+
+class TradeRepublicLoginConfirm(BaseModel):
+    code: Optional[str] = Field(None, max_length=10)
+
+
+class TradeRepublicLoginResult(BaseModel):
+    confirmed: bool
 
 
 class PortfolioSyncUpdate(BaseModel):

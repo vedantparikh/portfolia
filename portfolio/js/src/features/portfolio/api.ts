@@ -26,6 +26,12 @@ export const portfolioAPI = {
   mapSyncInstrument: async (id: Id, isin: string, symbol: string) =>
     (await api.post(`/portfolios/${id}/sync/instruments`, { isin, symbol }))
       .data,
+  startTradeRepublicLogin: async (phone: string, pin: string) =>
+    (await api.post("/portfolios/sync/pytr/login", { phone, pin })).data,
+  confirmTradeRepublicLogin: async (code: string | null) =>
+    (await api.post("/portfolios/sync/pytr/login/confirm", { code })).data,
+  fetchFromTradeRepublic: async () =>
+    (await api.post("/portfolios/sync/pytr/fetch")).data,
 };
 
 const calc = (portfolioId: Id) =>

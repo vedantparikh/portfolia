@@ -243,6 +243,15 @@ A Trade Republic PDF does not print withholding tax per dividend, so those divid
 
 Knock-out certificates and warrants often have no Yahoo price. Leave those ISINs out or type a ticker yourself.
 
+### Keep a portfolio in sync with Trade Republic
+
+On a server where Trade Republic sync is set up for your account, create or edit an EUR portfolio and tick **Keep in sync with Trade Republic**. A bar above the portfolio then shows the last import.
+
+- **Fetch from Trade Republic** downloads your latest transactions and imports them into every synced portfolio. The first time, or when the session has ended, it asks for your phone number and PIN. Then confirm the login in the Trade Republic app, or type the code from your authenticator app. Your PIN is not stored. The download runs in the background, and the bar says when it is done and how many transactions were new.
+- **Import file** re-reads the last downloaded file without contacting Trade Republic. The server also does this every 15 minutes when the file changes.
+- Logging in here can end a Trade Republic session in another app on the same server (Bachat), and the other way round. That app then asks you to log in again.
+- Knock-outs and other securities Yahoo has no prices for are valued at their own last trade. Under **Details** you can give one a Yahoo ticker instead.
+
 ## Watchlists
 
 For symbols you do not hold, or hold and still want a price alarm on.

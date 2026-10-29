@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from config import settings
-from core.database.models import Asset, Portfolio, Transaction, User
+from core.database.models import Asset, BrokerConnection, Portfolio, Transaction, User
 from core.database.models.asset import AssetType
 from core.database.models.portfolio import PortfolioAsset
 from core.errors import DomainError
@@ -14,6 +14,15 @@ from core.schemas.account_statements import InstrumentResolution
 from core.services.isin_resolver import IsinResolver
 from core.services.market_data_service import MarketDataService
 from modules.broker_sync import PytrSyncService
+from modules.broker_sync import fetch as fetch_module
+from modules.broker_sync.fetch import TradeRepublicFetchService, run_fetch
+from modules.broker_sync.trade_republic import (
+    LoginCheck,
+    PendingLogin,
+    ReauthRequiredError,
+    Refreshed,
+    override_trade_republic_client,
+)
 from modules.portfolios.service import PortfolioService
 
 HEADER = "Date;Type;Value;Note;ISIN;Shares;Fees;Taxes;ISIN2;Shares2\n"
@@ -267,3 +276,123 @@ async def test_tax_refunds_are_imported_once_and_summed(test_db, book, monkeypat
     assert summary.tax_adjustments == -36.5
     assert summary.net_taxes_paid == 66
     assert summary.realized_after_tax == 542
+
+
+class FakeTradeRepublic:
+    def __init__(self, export, new_rows=""):
+        self.export = export
+        self.new_rows = new_rows
+        self.checks = 0
+        self.expired = False
+
+    def start(self, phone, pin):
+        return PendingLogin(
+            state={"phone": phone, "process_id": "p1"}, needs_code=False, countdown=60
+        )
+
+    def check(self, state, code):
+        self.checks += 1
+        if self.checks == 1:
+            return LoginCheck(confirmed=False)
+        return LoginCheck(confirmed=True, session={"phone": state["phone"], "c": 1})
+
+    def refresh(self, session, folder):
+        if self.expired:
+            raise ReauthRequiredError("The Trade Republic session ended: log in again")
+        assert folder == self.export.parent
+        self.export.write_text(self.export.read_text() + self.new_rows)
+        return Refreshed(
+            session={**session, "c": 2}, events=7, documents=1, positions=2
+        )
+
+
+@pytest.fixture
+def trade_republic(test_db, book, monkeypatch):
+    _, _, _, export = book
+    fake = FakeTradeRepublic(
+        export, "2025-11-03T10:00:00;Buy;-201;Knock-out;DE000HM46ZS7;4;1;;;\n"
+    )
+    override_trade_republic_client(fake)
+
+    class Shared:
+        def __getattr__(self, name):
+            return getattr(test_db, name)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(fetch_module, "SessionLocal", Shared)
+    yield fake
+    override_trade_republic_client(None)
+
+
+@pytest.mark.asyncio
+async def test_login_then_fetch_imports_into_linked_portfolios(
+    test_db, book, trade_republic
+):
+    user, portfolio, _, _ = book
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+    await sync.sync(portfolio)
+    service = TradeRepublicFetchService(test_db)
+
+    started = await service.start_login(user, "+4915112345678", "1234")
+    assert started == {"needs_code": False, "countdown": 60}
+    stored = test_db.query(BrokerConnection).one()
+    assert "4915112345678" not in stored.secret and "1234" not in stored.secret
+    assert await service.confirm_login(user, None) is False
+    assert await service.confirm_login(user, None) is True
+    assert service.status(user)["connected"] is True
+
+    service.begin_fetch(user)
+    with pytest.raises(DomainError):
+        service.begin_fetch(user)
+    test_db.commit()
+    await run_fetch(user.id)
+
+    status = service.status(user)
+    assert status["fetch_status"] == "succeeded"
+    assert status["fetch_report"]["events"] == 7
+    assert status["fetch_report"]["portfolios"] == [
+        {
+            "portfolio_id": portfolio.id,
+            "name": "TR",
+            "created": 1,
+            "tax_entries_created": 0,
+            "failed": 0,
+        }
+    ]
+    knock_out = test_db.query(Asset).filter_by(isin="DE000HM46ZS7").one()
+    holding = (
+        test_db.query(PortfolioAsset)
+        .filter_by(portfolio_id=portfolio.id, asset_id=knock_out.id)
+        .one()
+    )
+    assert holding.quantity == 14
+
+
+@pytest.mark.asyncio
+async def test_an_ended_session_asks_for_a_new_login(test_db, book, trade_republic):
+    user, _, _, _ = book
+    service = TradeRepublicFetchService(test_db)
+    await service.start_login(user, "+4915112345678", "1234")
+    await service.confirm_login(user, None)
+    await service.confirm_login(user, None)
+    trade_republic.expired = True
+
+    service.begin_fetch(user)
+    test_db.commit()
+    await run_fetch(user.id)
+
+    status = service.status(user)
+    assert status["fetch_status"] == "failed"
+    assert status["session_expired"] is True and status["connected"] is False
+    assert "log in again" in status["fetch_report"]["error"]
+    with pytest.raises(DomainError):
+        service.begin_fetch(user)
+
+
+def test_fetch_needs_a_login(test_db, book):
+    user, _, _, _ = book
+    with pytest.raises(DomainError, match="Log in"):
+        TradeRepublicFetchService(test_db).begin_fetch(user)

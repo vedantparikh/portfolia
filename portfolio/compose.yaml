@@ -64,8 +64,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      # Trade Republic export that Bachat refreshes; read only (PYTR_EXPORT_PATH)
-      - ${PORTFOLIO_PYTR_DIR:-../../trade-republic/output}:/pytr:ro
+      # Shared Trade Republic folder (PYTR_EXPORT_PATH): Bachat and "Fetch from Trade Republic" write it
+      - ${PORTFOLIO_PYTR_DIR:-../../trade-republic/output}:/pytr
     networks:
       - portfolio_network
     restart: unless-stopped
@@ -97,7 +97,7 @@ services:
       api:
         condition: service_healthy
     volumes:
-      # Trade Republic export that Bachat refreshes; read only (PYTR_EXPORT_PATH)
+      # Shared Trade Republic folder, read only here (PYTR_EXPORT_PATH)
       - ${PORTFOLIO_PYTR_DIR:-../../trade-republic/output}:/pytr:ro
     networks:
       - portfolio_network

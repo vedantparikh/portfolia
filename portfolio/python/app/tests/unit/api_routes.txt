@@ -2,6 +2,7 @@ DELETE /api/v1/analytics/portfolios/{portfolio_id}/allocations/{allocation_id}
 DELETE /api/v1/analytics/portfolios/{portfolio_id}/performance/{snapshot_id}
 DELETE /api/v1/assets/{asset_id}
 DELETE /api/v1/auth/me
+DELETE /api/v1/portfolios/sync/pytr/login
 DELETE /api/v1/portfolios/{portfolio_id}
 DELETE /api/v1/portfolios/{portfolio_id}/assets/{asset_id}
 DELETE /api/v1/portfolios/{portfolio_id}/hard
@@ -103,6 +104,9 @@ POST /api/v1/auth/reset-password
 POST /api/v1/auth/verify-email
 POST /api/v1/portfolios/
 POST /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance
+POST /api/v1/portfolios/sync/pytr/fetch
+POST /api/v1/portfolios/sync/pytr/login
+POST /api/v1/portfolios/sync/pytr/login/confirm
 POST /api/v1/portfolios/{portfolio_id}/assets
 POST /api/v1/portfolios/{portfolio_id}/assets/legacy
 POST /api/v1/portfolios/{portfolio_id}/refresh

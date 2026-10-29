@@ -13,9 +13,12 @@ services:
       - "127.0.0.1:${PORTFOLIO_API_PORT:-8100}:8000"
     env_file: !override
       - ../env/staging.env
+    # Never the real Trade Republic folder
+    volumes: !reset []
   worker:
     env_file: !override
       - ../env/staging.env
+    volumes: !reset []
   migrate:
     env_file: !override
       - ../env/staging.env

@@ -165,7 +165,7 @@ portfolio/
 | `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS` (`REFRESH_TOKEN_EXPIRE_MINUTES` overrides) | Lifetimes |
 | `REFRESH_COOKIE_SECURE` | Default `true`. Set `false` only when the UI is opened over plain http on a host other than localhost; browsers drop a `Secure` cookie there and a reload signs you out |
 | `WORKER_INTERVAL_SECONDS` | Worker period, default 900 |
-| `PYTR_EXPORT_PATH`, `PYTR_SYNC_USERS` | Trade Republic sync: the pytr CSV Bachat refreshes (prod: `/pytr/account_transactions.csv`, mounted read only from `../../trade-republic/output`, `PORTFOLIO_PYTR_DIR` overrides) and the usernames that may link a portfolio to it. Empty path = off |
+| `PYTR_EXPORT_PATH`, `PYTR_SYNC_USERS` | Trade Republic sync: the pytr CSV in the shared folder Bachat and "Fetch from Trade Republic" write (prod: `/pytr/account_transactions.csv` from `../../trade-republic/output`, read-write on `api`, read only on `worker`; `PORTFOLIO_PYTR_DIR` overrides) and the usernames that may link a portfolio to it and log in to Trade Republic. Empty path = off |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_FROM` | Verification and reset mail |
 | `ALLOWED_ORIGINS` / `FRONTEND_URL` | CORS |
 | `API_URL` | Base URL the seed script calls |

@@ -4,7 +4,7 @@ Portfolio management router with full authentication.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core.auth.dependencies import (
@@ -30,6 +30,10 @@ from core.schemas.portfolio import (
     PortfolioSyncUpdate,
     PortfolioUpdate,
     PytrSyncAvailability,
+    TradeRepublicLogin,
+    TradeRepublicLoginConfirm,
+    TradeRepublicLoginResult,
+    TradeRepublicLoginStarted,
     Transaction,
     TransactionCreate,
 )
@@ -39,6 +43,7 @@ from core.schemas.portfolio_performance import (
     PortfolioSearchResponse,
 )
 from modules.broker_sync import PytrSyncService
+from modules.broker_sync.fetch import TradeRepublicFetchService, run_fetch
 from modules.portfolios.service import PortfolioService
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -125,13 +130,62 @@ def get_pytr_sync_availability(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Whether this user may link a portfolio to the Trade Republic export."""
-    sync = PytrSyncService(db)
-    if not sync.available_for(current_user):
+    """Whether this user may link a portfolio to the export, the login and the last fetch."""
+    fetch = TradeRepublicFetchService(db)
+    if not fetch.sync.available_for(current_user):
         return PytrSyncAvailability(available=False)
-    return PytrSyncAvailability(
-        available=True, file_updated_at=sync.file_info()["updated_at"]
+    return PytrSyncAvailability(**fetch.status(current_user))
+
+
+@router.post("/sync/pytr/login", response_model=TradeRepublicLoginStarted)
+async def start_trade_republic_login(
+    login: TradeRepublicLogin,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Phone + PIN start a login; confirm it in the Trade Republic app or with a code."""
+    return await TradeRepublicFetchService(db).start_login(
+        current_user, login.phone, login.pin
     )
+
+
+@router.post("/sync/pytr/login/confirm", response_model=TradeRepublicLoginResult)
+async def confirm_trade_republic_login(
+    confirm: TradeRepublicLoginConfirm,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """`confirmed: false` while the app has not confirmed yet; poll again."""
+    confirmed = await TradeRepublicFetchService(db).confirm_login(
+        current_user, confirm.code
+    )
+    return TradeRepublicLoginResult(confirmed=confirmed)
+
+
+@router.delete("/sync/pytr/login", status_code=status.HTTP_204_NO_CONTENT)
+def delete_trade_republic_login(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Forget the stored Trade Republic session."""
+    TradeRepublicFetchService(db).disconnect(current_user)
+
+
+@router.post(
+    "/sync/pytr/fetch",
+    response_model=PytrSyncAvailability,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def fetch_from_trade_republic(
+    background: BackgroundTasks,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Download from Trade Republic now, then import into every linked portfolio."""
+    fetch = TradeRepublicFetchService(db)
+    fetch.begin_fetch(current_user)
+    background.add_task(run_fetch, current_user.id)
+    return PytrSyncAvailability(**fetch.status(current_user))
 
 
 def _sync_status(

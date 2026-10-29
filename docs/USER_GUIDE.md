@@ -293,7 +293,7 @@ Reorder by dragging.
 
 **Add Asset** looks the ticker up on Yahoo and saves it. **Bulk Entry** takes several tickers. The eight tiles (top gainer, dividend, P/E, volume, and so on) are computed by the server over all your assets, not over the whole market. **Filters** narrow the list by type, price, market cap and 24-hour change (up or down by at least 0.5 %, or within that), and sort it; the header shows "Showing N of total". Price and market-cap bounds are in each listing's own currency.
 
-Open a symbol for a price chart. The chart starts with RSI and MACD over 30 days, with extra history loaded so the averages are warmed up. **Manage Configurations** saves a named set of indicators and their parameters, and offers templates and popular public sets to copy. Applying a set recalculates the chart from that set. Ticking an indicator by hand leaves the saved set. A private set is visible only to you.
+Open a symbol and its **Chart** tab for a price chart; **Indicators** on the chart picks which ones to draw. It starts with RSI and MACD over 30 days, with extra history loaded so the averages are warmed up. **Open analysis** in the symbol's header (or **⋮ → Analytics** on an asset card) opens the full analysis: the same chart, an indicator summary, saved indicator sets and the strategy signals. **Manage Configurations** saves a named set of indicators and their parameters, and offers templates and popular public sets to copy. Applying a set recalculates the chart from that set. Ticking an indicator by hand leaves the saved set. A private set is visible only to you.
 
 Indicators, all checked against the `ta` library:
 

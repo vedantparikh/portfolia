@@ -39,13 +39,13 @@ The old `utils/trading_strategies` were removed (2026-10-29): GFS took daily RSI
 
 ## Frontend
 No route of its own; it lives inside `/assets`:
-- An asset card's analytics button in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
+- The asset modal's chart tab uses `features/analytics/IndicatorChart.jsx` (same calculation and indicator picker, no saved sets). An asset card's ⋮ menu → Analytics, or "Open analysis" in the asset modal, in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
 - `features/analytics/StrategySignals.jsx` (in `AssetAnalyticsView`): GFS action and the three RSIs, and the last 12 months of MACD signals, labelled as rule output, not advice; under each, a 5-year backtest (`useStrategyBacktest`) next to buy-and-hold.
 - `features/analytics/IndicatorConfigurationManager.jsx` sits in a `Modal` rendered by `Assets.jsx`, opened from "Manage Configurations" in the analytics view, to create, edit, duplicate and select sets. The selected set is passed to `AssetAnalyticsView` as `selectedConfiguration` and calculated by `configuration_id`; the view also lists your saved sets with Apply. Toggling an indicator by hand leaves the set.
 - API wrapper: `statisticalIndicatorsAPI` in `js/src/shared/api/indicators.ts` (also used by `EnhancedChart` and `Chart`). Query hooks `useIndicatorConfigurations`, `useAvailableIndicators`, `useIndicatorCalculation` in `features/analytics/queries.ts`, keyed under `["indicators", …]`.
 
 ## Workflow
-Assets → an asset card's analytics button → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
+Assets → a symbol → Chart tab (pick indicators), or Open analysis / the card's ⋮ → Analytics → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
 
 ## Known gaps
 - The backtest has no costs, taxes, slippage or position sizing, and buys at the same close that produced the signal.

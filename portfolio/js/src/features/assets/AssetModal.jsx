@@ -1,7 +1,6 @@
-import { BarChart3, Edit, Save, X } from "lucide-react";
+import { Activity, BarChart3, Edit, Save, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { assetAPI } from "./api";
 import {
   formatMarketCap,
   formatPercentage,
@@ -11,14 +10,12 @@ import {
   getChangeColor,
   getChangeIcon,
 } from "../../utils/formatters.jsx";
-import { Chart, SymbolSearch } from "../../components/shared";
+import { SymbolSearch } from "../../components/shared";
+import IndicatorChart from "../analytics/IndicatorChart";
 import { Modal } from "../../shared/ui";
 
-const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = [] }) => {
-  const [priceHistory, setPriceHistory] = useState([]);
-  const [loading, setLoading] = useState(false);
+const AssetModal = ({ asset, mode = "view", onClose, onSave, onOpenAnalytics, existingAssets = [] }) => {
   const [activeTab, setActiveTab] = useState("overview");
-  const [chartPeriod, setChartPeriod] = useState("30d");
   const [formData, setFormData] = useState({
     symbol: "",
     name: "",
@@ -31,7 +28,6 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
     is_active: true,
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [isChartFullscreen, setIsChartFullscreen] = useState(false);
   const [duplicateError, setDuplicateError] = useState("");
 
   // Initialize form data when asset changes
@@ -62,49 +58,6 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
       });
     }
   }, [asset]);
-
-  // Load price history when asset changes
-  useEffect(() => {
-    if (asset && asset.symbol) {
-      loadPriceHistory();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when asset or period changes
-  }, [asset, chartPeriod]);
-
-  const loadPriceHistory = async () => {
-    if (!asset?.symbol) return;
-
-    try {
-      setLoading(true);
-
-      let interval = "1d";
-      if (chartPeriod === "1d" || chartPeriod === "5d") {
-        interval = "1m";
-      } else if (chartPeriod === "30d" || chartPeriod === "3mo") {
-        interval = "1d";
-      } else if (chartPeriod === "6mo" || chartPeriod === "ytd") {
-        interval = "1d";
-      } else if (
-        chartPeriod === "1y" ||
-        chartPeriod === "2y" ||
-        chartPeriod === "5y" ||
-        chartPeriod === "max"
-      ) {
-        interval = "1d";
-      }
-
-      const response = await assetAPI.getAssetPrices(asset.id, {
-        period: chartPeriod,
-        interval: interval,
-      });
-      setPriceHistory(response.data || []);
-    } catch (error) {
-      console.error("Failed to load price history:", error);
-      toast.error("Failed to load price history");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -176,22 +129,13 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
     onClose();
   };
 
-  const handlePeriodChange = (period) => {
-    setChartPeriod(period);
-  };
-
-  const handleChartFullscreenToggle = () => {
-    setIsChartFullscreen(!isChartFullscreen);
-  };
-
   const isCreateMode = mode === "create";
   const isViewMode = mode === "view";
 
   return (
     <Modal onClose={onClose}>
       <div
-        className={`bg-dark-900 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col ${isChartFullscreen ? "max-w-full max-h-full" : ""
-          }`}
+        className={`bg-dark-900 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-dark-700">
@@ -216,12 +160,25 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-dark-800 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-gray-400" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isViewMode && onOpenAnalytics && (
+              <button
+                type="button"
+                onClick={onOpenAnalytics}
+                className="btn-outline text-sm flex items-center gap-2"
+              >
+                <Activity size={16} />
+                <span>Open analysis</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="p-2 hover:bg-dark-800 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
@@ -919,24 +876,7 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
 
                 {activeTab === "chart" && (
                   <div className="card p-6 relative">
-                    <Chart
-                      data={priceHistory}
-                      symbol={asset?.symbol}
-                      currency={asset?.currency}
-                      period={chartPeriod}
-                      onPeriodChange={handlePeriodChange}
-                      height={500}
-                      showVolume={true}
-                      loading={loading}
-                      onRefresh={() => loadPriceHistory()}
-                      showControls={true}
-                      showPeriodSelector={true}
-                      chartType="candlestick"
-                      theme="dark"
-                      enableFullscreen={true}
-                      onFullscreenToggle={handleChartFullscreenToggle}
-                      isFullscreen={isChartFullscreen}
-                    />
+                    <IndicatorChart asset={asset} height={500} enableFullscreen />
                   </div>
                 )}
 
@@ -964,41 +904,6 @@ const AssetModal = ({ asset, mode = "view", onClose, onSave, existingAssets = []
         </div>
       </div>
 
-      {isChartFullscreen && (
-        <Modal onClose={() => setIsChartFullscreen(false)} overlayClassName="fixed inset-0 z-60 bg-dark-950 flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-dark-700">
-            <h3 className="text-2xl font-semibold text-gray-100">
-              {asset?.symbol} - Price Chart
-            </h3>
-            <button
-              onClick={() => setIsChartFullscreen(false)}
-              className="p-2 text-gray-400 hover:text-gray-100 hover:bg-dark-700 rounded-sm transition-colors"
-              title="Exit fullscreen"
-            >
-              <X size={24} />
-            </button>
-          </div>
-          <div className="flex-1 p-4">
-            <Chart
-              data={priceHistory}
-              symbol={asset?.symbol}
-              currency={asset?.currency}
-              period={chartPeriod}
-              onPeriodChange={handlePeriodChange}
-              height={window.innerHeight - 120}
-              showVolume={true}
-              loading={loading}
-              onRefresh={() => loadPriceHistory()}
-              showControls={true}
-              showPeriodSelector={true}
-              chartType="candlestick"
-              theme="dark"
-              enableFullscreen={true}
-              onFullscreenToggle={handleChartFullscreenToggle}
-            />
-          </div>
-        </Modal>
-      )}
     </Modal>
   );
 };

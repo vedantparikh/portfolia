@@ -27,6 +27,10 @@ RUN apt-get update \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin portfolia
 
 COPY --from=build /usr/local /usr/local
+# pip is not used at runtime (uv installed the dependencies) and vendors its own
+# msgpack, urllib3 and setuptools, which carry CVEs the app never loads
+RUN python -m pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.14/ensurepip
 
 WORKDIR /app
 COPY --chown=portfolia:portfolia \

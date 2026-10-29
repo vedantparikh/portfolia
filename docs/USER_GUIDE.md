@@ -258,7 +258,7 @@ For symbols you do not hold, or hold and still want a price alarm on.
 
 ![Watchlists and open alerts](images/04-watchlist.png)
 
-**New Watchlist** creates a named list. Lists can be marked public; there is no browser for other people's public lists yet.
+**New Watchlist** creates a named list. Lists can be marked public. **Public watchlists → Browse**, under your own lists, shows other people's public lists; opening one shows its symbols read only.
 
 Open **Demo watchlist**:
 
@@ -273,14 +273,17 @@ Open **Demo watchlist**:
 - a percent move since the added price
 - alerts on or off
 - a note
+- a rating (1 to 5 stars), tags and an investment thesis. Stars and tags show under the name; the thesis shows when you hover the name.
 
 The demo alerts were set around the price on the day the account was created, so the panel has something to show. AAPL's low is above the live price, and MSFT's high is below it. They are examples, not recommendations. **Mark read** acknowledges an alert. It fires again only after the condition stops being true and then becomes true again, or you change the threshold.
 
 The worker checks about every 15 minutes (`WORKER_INTERVAL_SECONDS`, default 900). **Refresh** on the page fetches prices immediately but the alert decision still belongs to the worker. Nothing is emailed. The dashboard link and the bell are the whole notification.
 
-Prices on this page are shown with a `$` even when that is just the quote currency. Watchlist rows do not store a currency yet.
+Prices are shown in each symbol's quote currency. A London listing quoted in pence shows as, for example, `152.40 GBp`. Rows added before 2026-10-29 get their currency on the worker's next pass.
 
-Reorder by dragging. Rating, thesis, and tags exist on the item and have no fields in the UI.
+**Price history** in a row's menu shows the daily price the worker has recorded since you added it, with the low and high.
+
+Reorder by dragging.
 
 ## Assets and indicators
 

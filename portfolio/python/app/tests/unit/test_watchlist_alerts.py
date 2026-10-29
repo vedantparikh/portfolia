@@ -294,3 +294,48 @@ async def test_adding_an_item_records_its_first_price(test_db, watch):
         .all()
     )
     assert [p.price for p in history] == [D("42")]
+
+
+@pytest.mark.asyncio
+async def test_items_get_their_quote_currency(test_db, watch):
+    user, item, service = watch
+
+    async def infos(symbols):
+        return [{"symbol": s.upper(), "currency": "GBp"} for s in symbols]
+
+    async def price(symbol):
+        return D("10")
+
+    service.market_data_service.get_symbols_info = infos
+    service.market_data_service.get_current_price = price
+    added = await service.add_item_to_watchlist(
+        item.watchlist_id, user.id, WatchlistItemCreate(symbol="vod.l")
+    )
+    assert added.currency == "GBp"
+
+    assert item.currency is None
+    await _step(service, "90")
+    assert item.currency == "GBp"
+
+
+@pytest.mark.asyncio
+async def test_price_history_and_public_lists_via_the_api(client, test_db, watch):
+    user, item, service = watch
+    await _step(service, "90")
+    other = User(email="peek@example.com", username="peek", password_hash="x")
+    test_db.add(other)
+    test_db.commit()
+    history_url = f"/api/v1/watchlists/{item.watchlist_id}/items/{item.id}/history"
+    public_url = f"/api/v1/watchlists/public/{item.watchlist_id}"
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    assert [(p["price"]) for p in client.get(history_url).json()] == ["90.00000000"]
+
+    app.dependency_overrides[get_current_user] = lambda: other
+    assert client.get(history_url).status_code == 404
+    assert client.get(public_url).status_code == 404
+
+    item.watchlist.is_public = True
+    test_db.commit()
+    body = client.get(public_url).json()
+    assert (body["name"], [i["symbol"] for i in body["items"]]) == ("Tech", ["ACME"])

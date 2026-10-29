@@ -2,7 +2,7 @@
 
 **Purpose:** track symbols outside your portfolios, with the price when added, change since, notes and alert levels.
 
-**State (2026-10-28):** ✅ lists, items, reorder, refresh prices; ✅ price alerts (worker + in-app). ⚠️ rating/thesis/tags have no UI; `/stats` has no gain/loss totals.
+**State (2026-10-28):** ✅ lists, items, reorder, refresh prices; ✅ price alerts (worker + in-app); ✅ quote currency, rating/thesis/tags, daily price history, browsing public lists. ⚠️ `/stats` has no gain/loss totals.
 
 ## Backend — `router.py` (prefix `/api/v1/watchlists`), `core/services/watchlist_service.py`
 | Endpoint | Behaviour |
@@ -10,9 +10,11 @@
 | `POST /`, `GET /`, `GET /{id}?include_real_time_data`, `PUT/DELETE /{id}` | Lists (name, colour, public, default). Real-time refresh writes current price/change to the DB |
 | `POST /{id}/items`, `POST /{id}/items/bulk` (no UI caller), `PUT/DELETE /{id}/items/{item_id}`, `POST /{id}/reorder` | Items: `added_price` captured on add; notes, `personal_rating`, `investment_thesis`, `tags`; alert thresholds `alert_price_high`, `alert_price_low`, `alert_price_change_percent` (> 0, `null` clears) and `alerts_enabled` |
 | `GET /alerts?unread_only=&limit=`, `POST /alerts/acknowledge {alert_ids?}` | Triggered alerts (newest first) with `unread_count`; acknowledge given ids or all unread. Declared before `/{watchlist_id}` |
+| `GET /{id}/items/{item_id}/history` | The item's `WatchlistPerformance` rows (one price per day, written by the worker) as `[{date, price}]`, oldest first; owner only |
+| `GET /public/{id}` | A public list with its items, read only (any signed-in user; 404 when not public) |
 | `GET /public`, `GET /stats` | Public lists; per-user counts, most-watched symbols, recent additions, `active_alerts`. `total_gain_loss*` are null (items have no quantity). No UI caller |
 
-Models: `Watchlist`, `WatchlistItem`, `WatchlistAlert`, `WatchlistPerformance` (`core/database/models/watchlist.py`).
+Models: `Watchlist`, `WatchlistItem` (`currency` = Yahoo's quote currency as given, e.g. `GBp`; set on add, filled by the worker for older rows; migration `b3f8c2d14e67`; the UI formats with `formatQuote`, which shows a minor unit as the number plus the code), `WatchlistAlert`, `WatchlistPerformance` (`core/database/models/watchlist.py`).
 
 ## Alerts
 - **Rules** (`core/domain/alerts.py` `check_alerts`, pure): high fires at price ≥ threshold, low at ≤, percent when |change since added| ≥ threshold.
@@ -28,7 +30,9 @@ Route `/watchlist` → `Watchlist.jsx` (grid of lists, or one opened list). How 
 | `Watchlist.jsx` | Page: list of watchlists, or one opened list (auto-refresh every 30 s while open) |
 | `WatchlistAlerts` | Recent alerts, unread, mark read (polls every 60 s) |
 | `WatchlistContent` | Symbol table, drag to reorder; `min-w-[960px]`, scrolls horizontally on a phone; bell on items whose alert holds |
-| `AddSymbolModal`, `EditSymbolModal` | Search (`/stock/symbols`) and add; notes, high/low/% thresholds, alerts on/off |
+| `AddSymbolModal`, `EditSymbolModal` | Search (`/stock/symbols`) and add; notes, rating (1–5), tags (comma separated, `tags.js` `parseTags`), thesis, high/low/% thresholds, alerts on/off |
+| `PriceHistoryModal` | Row menu → Price history: `Sparkline` of the daily prices, first/last/low/high |
+| `PublicWatchlists` | Under the grid: Browse other users' public lists; opens one in `WatchlistContent readOnly` (no drag, no menu) |
 | `CreateWatchlistModal`, `EditWatchlistModal` | The list itself |
 
 HTTP goes through `watchlistAPI` in `js/src/features/watchlist/api.ts`; query hooks in `features/watchlist/queries.ts` (`["watchlists", …]`; the dashboard's unread count is `["watchlists","alerts","unread"]`). Alerts are evaluated by the `worker`, not by the page; Refresh updates prices on screen.
@@ -37,9 +41,8 @@ HTTP goes through `watchlistAPI` in `js/src/features/watchlist/api.ts`; query ho
 Create list → add symbols (search) → see price, change since added, notes → edit alert high/low → reorder → Refresh pulls live prices.
 
 ## Known gaps
-- Watchlist items have no currency: the table formats prices as USD (the `formatPrice` default) and alerts show plain numbers.
-- `WatchlistPerformance` (daily price per item, written by the worker) has no chart yet.
-- No UI for rating/thesis/tags or browsing public lists.
+- A public list shows the owner's notes, thesis and alert thresholds too.
+- Alert events in the alerts panel still show plain numbers (no currency).
 
 ## Planned
-Batch 4 UI (agreed earlier): show change since added, days held, rating, tags, a thesis tooltip and alert thresholds in the table.
+Show the alert thresholds themselves in the table (the rest of batch 4 — change since added, days held, rating, tags, thesis tooltip — is done).

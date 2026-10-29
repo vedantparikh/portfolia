@@ -227,6 +227,9 @@ class WatchlistService:
                 watchlist_id=watchlist_id,
                 symbol=item_data.symbol.upper(),
                 company_name=item_data.company_name,
+                currency=(await self._currencies([item_data.symbol])).get(
+                    item_data.symbol.upper()
+                ),
                 notes=item_data.notes,
                 personal_rating=item_data.personal_rating,
                 investment_thesis=item_data.investment_thesis,
@@ -383,9 +386,14 @@ class WatchlistService:
         )
         symbols = sorted({item.symbol.upper() for item in items})
         prices = await self.market_data_service.get_current_prices(symbols)
+        currencies = await self._currencies(
+            [item.symbol for item in items if not item.currency]
+        )
         now = datetime.now(timezone.utc)
         updated = triggered = 0
         for item in items:
+            if not item.currency and currencies.get(item.symbol.upper()):
+                item.currency = currencies[item.symbol.upper()]
             price = prices.get(item.symbol.upper())
             if price is None:
                 continue
@@ -408,6 +416,51 @@ class WatchlistService:
             "updated": updated,
             "triggered": triggered,
         }
+
+    async def _currencies(self, symbols: List[str]) -> Dict[str, str]:
+        if not symbols:
+            return {}
+        try:
+            infos = await self.market_data_service.get_symbols_info(symbols)
+        except Exception:
+            logger.warning("No quote currency for %s", ", ".join(symbols))
+            return {}
+        return {
+            info["symbol"].upper(): info["currency"][:3]
+            for info in infos
+            if info.get("symbol") and info.get("currency")
+        }
+
+    def get_item_price_history(
+        self, watchlist_id: int, item_id: int, user_id: int
+    ) -> Optional[List[WatchlistPerformance]]:
+        """One price per day since the item was added (the worker's rows), oldest first."""
+        item = (
+            self.db.query(WatchlistItem)
+            .join(Watchlist)
+            .filter(
+                WatchlistItem.id == item_id,
+                WatchlistItem.watchlist_id == watchlist_id,
+                Watchlist.user_id == user_id,
+            )
+            .first()
+        )
+        if item is None:
+            return None
+        return (
+            self.db.query(WatchlistPerformance)
+            .filter(WatchlistPerformance.watchlist_item_id == item.id)
+            .order_by(WatchlistPerformance.date)
+            .all()
+        )
+
+    def get_public_watchlist(self, watchlist_id: int) -> Optional[Watchlist]:
+        return (
+            self.db.query(Watchlist)
+            .filter(Watchlist.id == watchlist_id, Watchlist.is_public.is_(True))
+            .options(joinedload(Watchlist.items))
+            .first()
+        )
 
     def _record_daily_price(self, item_id: int, price: Decimal, now: datetime) -> None:
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)

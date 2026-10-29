@@ -105,6 +105,11 @@ class WatchlistItemUpdate(BaseModel):
     alerts_enabled: Optional[bool] = None
 
 
+class WatchlistPricePoint(BaseModel):
+    date: datetime
+    price: Decimal
+
+
 class WatchlistItemResponse(WatchlistItemBase):
     """Schema for watchlist item response."""
 
@@ -113,6 +118,10 @@ class WatchlistItemResponse(WatchlistItemBase):
     sort_order: int
     added_date: datetime
     updated_at: datetime
+
+    currency: Optional[str] = Field(
+        None, description="Quote currency (Yahoo's, e.g. GBp)"
+    )
 
     # Performance data (from database)
     added_price: Optional[Decimal] = None

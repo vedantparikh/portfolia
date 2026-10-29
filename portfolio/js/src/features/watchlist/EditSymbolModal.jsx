@@ -1,6 +1,7 @@
 import { AlertTriangle, Bell, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Modal } from '../../shared/ui';
+import { parseTags } from './tags';
 
 const asAlertInput = (value) => {
     if (value == null || value === '') return '';
@@ -11,6 +12,9 @@ const asAlertInput = (value) => {
 const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
     const [formData, setFormData] = useState({
         notes: '',
+        personal_rating: '',
+        investment_thesis: '',
+        tags: '',
         alert_price_high: '',
         alert_price_low: '',
         alert_price_change_percent: '',
@@ -22,6 +26,9 @@ const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
         if (symbol) {
             setFormData({
                 notes: symbol.notes || '',
+                personal_rating: symbol.personal_rating ? String(symbol.personal_rating) : '',
+                investment_thesis: symbol.investment_thesis || '',
+                tags: (symbol.tags || []).join(', '),
                 alert_price_high: asAlertInput(symbol.alert_price_high),
                 alert_price_low: asAlertInput(symbol.alert_price_low),
                 alert_price_change_percent: asAlertInput(symbol.alert_price_change_percent),
@@ -37,6 +44,13 @@ const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
         try {
             const updateData = {};
             if (formData.notes !== (symbol?.notes || '')) updateData.notes = formData.notes;
+            const rating = formData.personal_rating ? Number(formData.personal_rating) : null;
+            if (rating !== (symbol?.personal_rating ?? null)) updateData.personal_rating = rating;
+            if (formData.investment_thesis !== (symbol?.investment_thesis || '')) {
+                updateData.investment_thesis = formData.investment_thesis || null;
+            }
+            const tags = parseTags(formData.tags);
+            if (tags.join(',') !== (symbol?.tags || []).join(',')) updateData.tags = tags;
             for (const field of ['alert_price_high', 'alert_price_low', 'alert_price_change_percent']) {
                 const value = asAlertInput(formData[field]);
                 if (value !== asAlertInput(symbol?.[field])) {
@@ -102,6 +116,52 @@ const EditSymbolModal = ({ isOpen, onClose, symbol, onUpdate }) => {
                                 </p>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label htmlFor="watch-rating" className="block text-sm font-medium text-gray-300 mb-2">
+                                Rating
+                            </label>
+                            <select
+                                id="watch-rating"
+                                value={formData.personal_rating}
+                                onChange={(e) => setFormData(prev => ({ ...prev, personal_rating: e.target.value }))}
+                                className="input-field w-full"
+                            >
+                                <option value="">None</option>
+                                {[1, 2, 3, 4, 5].map((n) => (
+                                    <option key={n} value={n}>{'★'.repeat(n)}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="watch-tags" className="block text-sm font-medium text-gray-300 mb-2">
+                                Tags
+                            </label>
+                            <input
+                                id="watch-tags"
+                                value={formData.tags}
+                                onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                                className="input-field w-full"
+                                placeholder="dividend, long term"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="watch-thesis" className="block text-sm font-medium text-gray-300 mb-2">
+                            Investment thesis
+                        </label>
+                        <textarea
+                            id="watch-thesis"
+                            value={formData.investment_thesis}
+                            onChange={(e) => setFormData(prev => ({ ...prev, investment_thesis: e.target.value }))}
+                            className="input-field w-full resize-none"
+                            placeholder="Why you are watching it"
+                            maxLength={2000}
+                            rows={3}
+                        />
                     </div>
 
                     {/* Notes */}

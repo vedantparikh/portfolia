@@ -1675,6 +1675,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/watchlists/public/{watchlist_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Public Watchlist
+         * @description A public watchlist with its items, read only.
+         */
+        get: operations["get_api_v1_watchlists_public_watchlist_id"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/watchlists/stats": {
         parameters: {
             query?: never;
@@ -1822,6 +1842,26 @@ export interface paths {
          * @description Remove a stock symbol from a watchlist.
          */
         delete: operations["delete_api_v1_watchlists_watchlist_id_items_item_id"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/watchlists/{watchlist_id}/items/{item_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Watchlist Item History
+         * @description Daily prices since the item was added, oldest first.
+         */
+        get: operations["get_api_v1_watchlists_watchlist_id_items_item_id_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6845,6 +6885,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Currency
+             * @description Quote currency (Yahoo's, e.g. GBp)
+             */
+            currency?: string | null;
             /** Added Price */
             added_price?: string | null;
             /** Current Price */
@@ -6901,6 +6946,16 @@ export interface components {
             alert_price_change_percent?: number | string | null;
             /** Alerts Enabled */
             alerts_enabled?: boolean | null;
+        };
+        /** WatchlistPricePoint */
+        WatchlistPricePoint: {
+            /**
+             * Date
+             * Format: date-time
+             */
+            date: string;
+            /** Price */
+            price: string;
         };
         /**
          * WatchlistReorderRequest
@@ -10218,6 +10273,37 @@ export interface operations {
             };
         };
     };
+    get_api_v1_watchlists_public_watchlist_id: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                watchlist_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistWithItemsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_api_v1_watchlists_stats: {
         parameters: {
             query?: never;
@@ -10528,6 +10614,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WatchlistItemDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_watchlists_watchlist_id_items_item_id_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                watchlist_id: number;
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchlistPricePoint"][];
                 };
             };
             /** @description Validation Error */

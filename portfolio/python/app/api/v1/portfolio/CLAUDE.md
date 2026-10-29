@@ -2,14 +2,14 @@
 
 **Purpose:** a user's portfolios, the positions in them and their live value / P&L.
 
-**State (2026-10-28):** ✅ core flows work and agree with each other. A portfolio may hold listings in other currencies; prices and cash are converted (see FX in `core/domain/CLAUDE.md`). Numbers come from `core/domain` (see `core/domain/CLAUDE.md`).
+**State (2026-10-29):** ✅ core flows work and agree with each other. A portfolio may hold listings in other currencies; prices and cash are converted (see FX in `core/domain/CLAUDE.md`). Numbers come from `core/domain` (see `core/domain/CLAUDE.md`).
 
 ## Backend — `router.py` (prefix `/api/v1/portfolios`), `modules/portfolios/service.py`
 | Endpoint | Behaviour |
 |---|---|
 | `POST/GET /`, `GET/PUT/DELETE /{id}`, `DELETE /{id}/hard` | CRUD; delete is soft (is_active) unless `/hard` |
 | `GET /{id}/holdings` | Live holdings from the price cache the worker fills (`get_current_prices(fetch=False)`, no Yahoo call): quantity (today's share units), cost basis (FIFO+fees), `current_price`, `current_value`, unrealized, today's P&L (`day_change`), realized, `weight_percent`. No price → value fields null. Includes fully sold assets (qty 0) for realized P&L |
-| `GET /{id}/summary` | Sum of the same holding rows (open positions only): value, cost, unrealized (priced positions only), today's P&L / % on start-of-day value + cash invested today, `total_realized_pnl`, `missing_prices` |
+| `GET /{id}/summary` | Sum of the same holding rows (open positions only): value, cost, unrealized (priced positions only), today's P&L / % on start-of-day value + cash invested today, `total_realized_pnl` (sales, before tax), `missing_prices`. Tax view: `total_dividends` (before tax), `taxes_withheld` (`transactions.taxes` on sales and dividends), `tax_adjustments` (`tax_entries`: refunds negative), `net_taxes_paid` = withheld + adjustments, `realized_after_tax` = realized + dividends − net taxes. All converted to the portfolio currency |
 | `GET /statistics/overview` | Same rows across active portfolios, summed **per currency** in `totals[]` (value, holdings, today's P&L/%); `total_value`/`currency`/`today_pnl` only when all portfolios share one currency; missing prices. Dashboard "Total Value" tile |
 | `POST /{id}/refresh` | Rebuilds every position from transactions (picks up new splits) and re-prices |
 | `POST/GET /{id}/assets`, `GET /{id}/assets/details`, `DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | `POST` and legacy `POST` add a holding by creating a buy. `DELETE` removes the holding and its transactions. There is no update: quantity and P&L are not writable |
@@ -27,12 +27,13 @@ Bachat logs in to Trade Republic with pytr and keeps `trade-republic/output/acco
 - The pytr parser reads every row; bulk-create skips rows whose `source_key` is stored, so a run only adds new rows. Splits and swaps are skipped; the listing's Yahoo split ratios restate the older trades (Beyond Meat 1:30, Lucid 1:10).
 - ISIN → asset: the user's asset with that ISIN; else the same name as a mapped ISIN in the file (an ISIN that changed in a swap, e.g. Lucid's sell after its reverse split); else a resolver match of status existing/matched. Anything else (knock-outs, warrants) becomes an asset with `price_source="trades"`: symbol = ISIN, valued from its own fills (`core/services/trade_prices.py`; the last fill is carried forward and flagged stale after 5 sessions), listed in `sync_report.trade_priced`.
 - Knock-out redemptions: pytr writes a "Tilgung" as a Dividend row for the whole position. When the ISIN is absent from Trade Republic's current positions (`portfolio.csv` beside the export) and that row's shares equal the open quantity, the sync books a sale of all shares at the redeemed amount (often a few cents or 0) instead, so the loss is realised that day (`sync_report.redeemed`). Without `portfolio.csv` nothing is treated as redeemed.
+- Tax rows: Trade Republic withholds tax per sale and later refunds part of it when losses are offset ("Tax Refund" / Steuerkorrektur, account level, no ISIN); Vorabpauschale comes as "Taxes" rows. Both become `tax_entries` (amount positive = paid, negative = refunded; source key per row, migration `f1c4d7a92b36`), counted in `sync_report.tax_entries_created`. Tax on cash interest is not imported (interest is not in the portfolio), so a refund that offsets interest tax makes net taxes slightly low.
 - `portfolios.sync_source`, `synced_at`, `sync_digest`, `sync_report` (migration `e5b2c8d40a17`). A failed batch is rolled back and retried next pass.
 
 ## Frontend — `js/src/features/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):
   1. **Overview** — `PortfolioCard` + recent transactions.
-  2. **Holdings Detail** — `PortfolioDetail.jsx`: KPI strip (summary), sortable holdings table (footer = summary totals), `AllocationDonut` (allocation analysis), `ValueVsInvestedChart`; tabs Analytics / Allocations / Rebalancing / Benchmarks (see `api/v1/analytics/CLAUDE.md`).
+  2. **Holdings Detail** — `PortfolioDetail.jsx`: KPI strips (summary: value/invested/unrealized/today; realized before tax/dividends/taxes paid/realized after tax), sortable holdings table (footer = summary totals), `AllocationDonut` (allocation analysis), `ValueVsInvestedChart`; tabs Analytics / Allocations / Rebalancing / Benchmarks (see `api/v1/analytics/CLAUDE.md`).
   3. **Portfolio Assets** — `PortfolioAssets.jsx` cards (`PortfolioAssetCard`), highlights (`StatCard`), filters; enriched with `/assets?include_detail` for sector/market cap/24h.
   4. **Performance Chart** — `PortfolioChart.jsx` (see `api/v1/portfolio_calculations/CLAUDE.md`).
   5. **Performance Metrics** — `PortfolioPerformanceMetrics.jsx`.

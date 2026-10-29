@@ -1,7 +1,7 @@
 from .analysis_configuration import AnalysisConfiguration
 from .asset import Asset, MarketIndex
 from .base import Base
-from .portfolio import Portfolio, PortfolioAsset
+from .portfolio import Portfolio, PortfolioAsset, TaxEntry
 from .portfolio_analytics import (
     PortfolioAllocation,
     PortfolioBenchmark,
@@ -21,6 +21,7 @@ __all__ = [
     "UserSession",
     "Portfolio",
     "PortfolioAsset",
+    "TaxEntry",
     "Asset",
     "MarketIndex",
     "Transaction",

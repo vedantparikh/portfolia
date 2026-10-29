@@ -14,6 +14,7 @@ from core.schemas.account_statements import InstrumentResolution
 from core.services.isin_resolver import IsinResolver
 from core.services.market_data_service import MarketDataService
 from modules.broker_sync import PytrSyncService
+from modules.portfolios.service import PortfolioService
 
 HEADER = "Date;Type;Value;Note;ISIN;Shares;Fees;Taxes;ISIN2;Shares2\n"
 ROWS = [
@@ -229,3 +230,40 @@ async def test_series_prices_a_trade_priced_asset_from_its_fills(test_db, book):
 
     assert closes[knock_out.id].to_dict() == {pd.Timestamp("2025-03-01"): 50.0}
     assert splits[knock_out.id] == []
+
+
+@pytest.mark.asyncio
+async def test_tax_refunds_are_imported_once_and_summed(test_db, book, monkeypatch):
+    user, portfolio, _, export = book
+    export.write_text(
+        HEADER
+        + "".join(ROWS)
+        + "2025-04-01T10:00:00;Dividend;7.5;Knock-out;DE000HM46ZS7;10;;2.5;;\n"
+        + "2025-10-02T23:00:00;Tax Refund;40;Steuerkorrektur;;;;;;\n"
+        + "2026-01-05T10:00:00;Taxes;-3.5;ETF;IE00B4ND3602;;;3.5;;\n"
+        + "2025-11-01T10:00:00;Interest;7.37;Zinsen;;;;2.63;;\n"
+    )
+
+    async def no_prices(self, symbols, fetch=True):
+        return {}
+
+    monkeypatch.setattr(MarketDataService, "get_current_prices", no_prices)
+    monkeypatch.setattr(MarketDataService, "get_yesterdays_closes", no_prices)
+    sync = PytrSyncService(test_db)
+    sync.link(portfolio, user, True)
+    report = await sync.sync(portfolio, force=True)
+    again = await sync.sync(portfolio, force=True)
+
+    assert (report["tax_entries_created"], again["tax_entries_created"]) == (2, 0)
+    assert (
+        "Account-level tax refund: not linked to a trade" not in report["not_imported"]
+    )
+    summary = await PortfolioService(test_db).get_portfolio_summary(
+        portfolio.id, user.id
+    )
+    assert summary.total_realized_pnl == 598
+    assert summary.total_dividends == 10
+    assert summary.taxes_withheld == 102.5
+    assert summary.tax_adjustments == -36.5
+    assert summary.net_taxes_paid == 66
+    assert summary.realized_after_tax == 542

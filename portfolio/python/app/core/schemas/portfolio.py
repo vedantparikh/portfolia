@@ -381,7 +381,24 @@ class PortfolioSummary(BaseModel):
     recent_transactions: int
     is_active: bool
     is_public: bool
-    total_realized_pnl: float = 0.0
+    total_realized_pnl: float = Field(
+        default=0.0, description="Realized gains and losses on sales, before tax"
+    )
+    total_dividends: float = Field(default=0.0, description="Dividends before tax")
+    taxes_withheld: float = Field(
+        default=0.0, description="Tax withheld on sales and dividends"
+    )
+    tax_adjustments: float = Field(
+        default=0.0,
+        description="Account-level tax entries: charges positive, refunds negative",
+    )
+    net_taxes_paid: float = Field(
+        default=0.0, description="taxes_withheld + tax_adjustments"
+    )
+    realized_after_tax: float = Field(
+        default=0.0,
+        description="total_realized_pnl + total_dividends - net_taxes_paid",
+    )
     missing_prices: List[str] = Field(
         default_factory=list,
         description="Open positions without a live price, left out of value and P&L",

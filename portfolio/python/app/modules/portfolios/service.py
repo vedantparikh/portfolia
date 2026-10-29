@@ -13,6 +13,7 @@ from core.database.models import (
     Asset,
     Portfolio,
     PortfolioAsset,
+    TaxEntry,
     Transaction,
     TransactionStatus,
     TransactionType,
@@ -490,6 +491,7 @@ class PortfolioService:
             )
 
         all_rows = await self._holding_rows(portfolio_id)
+        taxes = await self._tax_totals(portfolio)
         rows = [r for r in all_rows if r[0].quantity > 0]
         priced = [r for r in rows if r[0].current_value is not None]
         total_cost_basis_f = sum(h.cost_basis_total for h, _, _ in rows)
@@ -505,6 +507,9 @@ class PortfolioService:
         total_today_pnl_percent = (
             total_today_pnl / today_base * 100 if today_base > 0 else 0
         )
+
+        total_realized = float(sum(h.realized_pnl or 0 for h, _, _ in all_rows))
+        net_taxes = taxes["withheld"] + taxes["adjustments"]
 
         # 6. Fetch recent transactions
         recent_transactions_count = (
@@ -529,11 +534,66 @@ class PortfolioService:
             recent_transactions=recent_transactions_count,
             is_active=portfolio.is_active,
             is_public=portfolio.is_public,
-            total_realized_pnl=round(
-                sum(h.realized_pnl or 0 for h, _, _ in all_rows), 2
+            total_realized_pnl=round(total_realized, 2),
+            total_dividends=round(taxes["dividends"], 2),
+            taxes_withheld=round(taxes["withheld"], 2),
+            tax_adjustments=round(taxes["adjustments"], 2),
+            net_taxes_paid=round(net_taxes, 2),
+            realized_after_tax=round(
+                total_realized + taxes["dividends"] - net_taxes, 2
             ),
             missing_prices=[h.symbol for h, _, _ in rows if h.current_value is None],
         )
+
+    async def _tax_totals(self, portfolio: Portfolio) -> Dict[str, float]:
+        """
+        Gross dividends, tax withheld on trades and dividends, and account-level
+        tax entries (refunds negative), in the portfolio currency.
+        """
+        transactions = (
+            self.db.query(Transaction)
+            .filter(
+                Transaction.portfolio_id == portfolio.id,
+                Transaction.status == TransactionStatus.COMPLETED,
+            )
+            .all()
+        )
+        entries = (
+            self.db.query(TaxEntry).filter(TaxEntry.portfolio_id == portfolio.id).all()
+        )
+        rates = await load_rates(
+            self.market_data_service,
+            portfolio.currency,
+            [t.currency for t in transactions] + [e.currency for e in entries],
+            strict=False,
+        )
+
+        def converted(amount, currency, when) -> Decimal:
+            value = self._converted(
+                Decimal(amount or 0),
+                currency or portfolio.currency,
+                portfolio.currency,
+                when.date(),
+                rates,
+            )
+            return value if value is not None else Decimal(0)
+
+        dividends = withheld = adjustments = Decimal(0)
+        for t in transactions:
+            withheld += converted(t.taxes, t.currency, t.transaction_date)
+            if t.transaction_type == TransactionType.DIVIDEND:
+                dividends += converted(
+                    Decimal(t.total_amount) + Decimal(t.taxes or 0),
+                    t.currency,
+                    t.transaction_date,
+                )
+        for e in entries:
+            adjustments += converted(e.amount, e.currency, e.entry_date)
+        return {
+            "dividends": float(dividends),
+            "withheld": float(withheld),
+            "adjustments": float(adjustments),
+        }
 
     def _converted(self, amount, currency, portfolio_currency, day, rates):
         if amount is None:

@@ -85,6 +85,9 @@ class Portfolio(Base):
     benchmarks: Mapped[list[PortfolioBenchmark]] = relationship(
         "PortfolioBenchmark", back_populates="portfolio", cascade="all, delete-orphan"
     )
+    tax_entries: Mapped[list[TaxEntry]] = relationship(
+        "TaxEntry", back_populates="portfolio", cascade="all, delete-orphan"
+    )
 
     # Indexes for performance
     __table_args__ = (
@@ -178,3 +181,39 @@ class PortfolioAsset(Base):
         if self.unrealized_pnl_percent is not None:
             return float(self.unrealized_pnl_percent)
         return 0.0
+
+
+class TaxEntry(Base):
+    """Tax booked on the account rather than on a trade: refunds and charges."""
+
+    __tablename__ = "tax_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False
+    )
+    entry_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    # Positive = tax paid, negative = refunded
+    amount: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    isin: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    source_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    portfolio: Mapped[Portfolio] = relationship(
+        "Portfolio", back_populates="tax_entries"
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_tax_entries_portfolio_source_key",
+            "portfolio_id",
+            "source_key",
+            unique=True,
+        ),
+    )

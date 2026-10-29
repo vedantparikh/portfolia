@@ -89,7 +89,7 @@ Recent transactions on the right are only this portfolio's.
 
 ![Holdings](images/05-holdings.png)
 
-The strip across the top is the same summary as the overview card: value, cost, unrealized P&L, today.
+The strip across the top is the same summary as the overview card: value, cost, unrealized P&L, today. The second row is the tax view: realized P&L on sales before tax (Trade Republic shows the same per-sale gains), dividends before tax, taxes paid (withheld on sales and dividends, minus the refunds Trade Republic books when a loss is offset), and what is left after tax. Tax on cash interest is not included.
 
 The table is one row per position. Quantity is in today's shares (a past split does not leave you with the old count). Avg Price is the FIFO cost per share. Value is blank when Yahoo has no price, and that row is excluded from the total rather than priced at cost. The footer matches the strip.
 

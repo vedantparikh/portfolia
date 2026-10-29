@@ -5839,9 +5839,40 @@ export interface components {
             is_public: boolean;
             /**
              * Total Realized Pnl
+             * @description Realized gains and losses on sales, before tax
              * @default 0
              */
             total_realized_pnl: number;
+            /**
+             * Total Dividends
+             * @description Dividends before tax
+             * @default 0
+             */
+            total_dividends: number;
+            /**
+             * Taxes Withheld
+             * @description Tax withheld on sales and dividends
+             * @default 0
+             */
+            taxes_withheld: number;
+            /**
+             * Tax Adjustments
+             * @description Account-level tax entries: charges positive, refunds negative
+             * @default 0
+             */
+            tax_adjustments: number;
+            /**
+             * Net Taxes Paid
+             * @description taxes_withheld + tax_adjustments
+             * @default 0
+             */
+            net_taxes_paid: number;
+            /**
+             * Realized After Tax
+             * @description total_realized_pnl + total_dividends - net_taxes_paid
+             * @default 0
+             */
+            realized_after_tax: number;
             /**
              * Missing Prices
              * @description Open positions without a live price, left out of value and P&L

@@ -172,6 +172,37 @@ const PortfolioDetail = ({ portfolio }) => {
             />
           </div>
 
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Realized P&L"
+              value={summary ? signed(summary.total_realized_pnl) : "—"}
+              valueClassName={getChangeColor(summary?.total_realized_pnl)}
+              sub="Sales, before tax"
+            />
+            <StatCard
+              label="Dividends"
+              value={summary ? money(summary.total_dividends) : "—"}
+              sub="Before tax"
+            />
+            <StatCard
+              label="Taxes paid"
+              value={summary ? money(summary.net_taxes_paid) : "—"}
+              sub={
+                summary
+                  ? summary.tax_adjustments
+                    ? `${money(summary.taxes_withheld)} withheld, ${signed(summary.tax_adjustments)} adjusted`
+                    : "Withheld on sales and dividends"
+                  : null
+              }
+            />
+            <StatCard
+              label="Realized after tax"
+              value={summary ? signed(summary.realized_after_tax) : "—"}
+              valueClassName={getChangeColor(summary?.realized_after_tax)}
+              sub="Realized + dividends − taxes"
+            />
+          </div>
+
           {/* Holdings Overview */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-6">

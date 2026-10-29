@@ -11,6 +11,10 @@ priced from their own fills. pytr writes a knock-out's redemption ("Tilgung") as
 a Dividend row for the whole position; when the security is no longer among
 Trade Republic's current positions (portfolio.csv), that row is booked as a sale
 of every share at the redeemed amount, so the loss is realised on that day.
+
+Account-level tax rows (Taxes, Tax Refund) become tax entries, so the portfolio
+can show tax withheld net of what Trade Republic refunded after loss offsetting.
+Tax on cash interest is left out: interest is not part of the portfolio.
 """
 
 import base64
@@ -19,7 +23,7 @@ import hashlib
 import io
 import logging
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -27,7 +31,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from config import settings
-from core.database.models import Asset, Portfolio, TransactionType, User
+from core.database.models import Asset, Portfolio, TaxEntry, TransactionType, User
 from core.database.models.asset import AssetType
 from core.errors import DomainError
 from core.schemas.account_statements import BulkTransactionItem
@@ -41,6 +45,12 @@ logger = logging.getLogger(__name__)
 
 SOURCE = "pytr"
 _CONFIDENT = ("existing", "matched")
+_TAX_TYPES = {
+    "taxes": "Tax",
+    "steuern": "Tax",
+    "tax refund": "Tax refund",
+    "steuerrückerstattung": "Tax refund",
+}
 
 
 def _name_key(name: str) -> str:
@@ -178,14 +188,18 @@ class PytrSyncService:
         _, summary = await self.statements.create_bulk_transactions(
             portfolio.id, items, portfolio.user_id
         )
+        taxes_created = self._import_tax_entries(portfolio, content)
         skipped_reasons: Dict[str, int] = {}
         for row in parsed.skipped:
+            if row.kind.strip().lower() in _TAX_TYPES:
+                continue
             skipped_reasons[row.reason] = skipped_reasons.get(row.reason, 0) + 1
         report = {
             "file_updated_at": self.file_info()["updated_at"].isoformat(),
             "created": summary.total_created,
             "already_imported": summary.total_skipped,
             "failed": summary.total_failed,
+            "tax_entries_created": taxes_created,
             "errors": summary.errors[:20],
             "trade_priced": trade_priced,
             "redeemed": [
@@ -272,6 +286,57 @@ class PytrSyncService:
                     }
                 )
         return mapped, trade_priced
+
+    def _import_tax_entries(self, portfolio: Portfolio, content: bytes) -> int:
+        stored = {
+            key
+            for (key,) in self.db.query(TaxEntry.source_key).filter(
+                TaxEntry.portfolio_id == portfolio.id
+            )
+        }
+        created = 0
+        for entry in self._tax_entries(content):
+            if entry["source_key"] in stored:
+                continue
+            stored.add(entry["source_key"])
+            self.db.add(TaxEntry(portfolio_id=portfolio.id, currency="EUR", **entry))
+            created += 1
+        return created
+
+    @staticmethod
+    def _tax_entries(content: bytes) -> List[Dict[str, Any]]:
+        """Taxes and Tax Refund rows: positive amount = paid, negative = refunded."""
+        rows = list(
+            csv.reader(io.StringIO(content.decode("utf-8-sig")), delimiter=";")
+        )[1:]
+        entries = []
+        seen: Dict[str, int] = defaultdict(int)
+        for r in sorted((r for r in rows if len(r) >= 8), key=lambda r: r[0]):
+            label = _TAX_TYPES.get(r[1].strip().lower())
+            if label is None:
+                continue
+            try:
+                value = parse_number(r[2]) or Decimal(0)
+                day = date.fromisoformat(r[0].strip()[:10])
+            except ValueError:
+                continue
+            if not value:
+                continue
+            identity = f"pytr-tax|{r[0].strip()}|{r[1].strip()}|{value}"
+            seen[identity] += 1
+            note = r[3].strip()
+            entries.append(
+                {
+                    "entry_date": datetime.combine(day, time.min, tzinfo=timezone.utc),
+                    "amount": -value,
+                    "description": f"{label}: {note}" if note else label,
+                    "isin": r[4].strip() or None,
+                    "source_key": hashlib.sha256(
+                        f"{identity}|{seen[identity]}".encode()
+                    ).hexdigest(),
+                }
+            )
+        return entries
 
     def _current_isins(self) -> Optional[set]:
         """ISINs Trade Republic still holds (pytr's portfolio.csv next to the export)."""

@@ -3,10 +3,10 @@ Assets management router with authentication.
 """
 
 import time
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from core.auth.dependencies import (
@@ -33,7 +33,17 @@ from core.schemas.portfolio import (
 )
 from core.services.asset_factory import asset_from_ticker_info
 from core.services.market_data_service import market_data_service
-from modules.assets.repository import AssetRepository
+from modules.assets.repository import SORT_COLUMNS, AssetRepository
+
+AssetSort = Literal[
+    "symbol",
+    "name",
+    "created_at",
+    "current_price",
+    "market_cap",
+    "volume_24h",
+    "price_change_percentage_24h",
+]
 
 logger = get_logger(__name__)
 
@@ -163,59 +173,77 @@ async def create_assets_bulk(
 
 @router.get("/", response_model=List[AssetSchema])
 async def get_assets(
+    response: Response,
     skip: int = Query(0, ge=0, description="Number of assets to skip"),
     limit: int = Query(
         100, ge=1, le=1000, description="Maximum number of assets to return"
     ),
     symbol: Optional[str] = Query(None, description="Filter by symbol"),
     asset_type: Optional[str] = Query(None, description="Filter by asset type"),
+    sort_by: AssetSort = Query("symbol", description="Sort field"),
+    sort_order: Literal["asc", "desc"] = Query("asc", description="Sort order"),
     include_detail: bool = Query(
         default=False, description="Include asset detail in response"
     ),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Get list of financial assets for the authenticated user with optional filtering."""
-    assets = AssetRepository(db).list_active(
+    """List the user's assets; the total before paging is in `X-Total-Count`."""
+    repository = AssetRepository(db)
+    descending = sort_order == "desc"
+    by_market_data = sort_by not in SORT_COLUMNS
+    assets = repository.list_active(
         current_user.id,
         symbol=symbol,
         asset_type=asset_type,
-        skip=skip,
-        limit=limit,
+        order_by="symbol" if by_market_data else sort_by,
+        skip=0 if by_market_data else skip,
+        limit=None if by_market_data else limit,
+        descending=descending,
     )
+    response.headers["X-Total-Count"] = str(
+        len(assets)
+        if by_market_data
+        else repository.count_active(
+            current_user.id, symbol=symbol, asset_type=asset_type
+        )
+    )
+    if not (include_detail or by_market_data):
+        return assets
 
-    if include_detail:
-        asset_details = []
-        symbols = [asset.symbol for asset in assets]
-        ticker_detail_list = await market_data_service.get_symbols_info(symbols)
-        ticker_detail_map = {item["symbol"]: item for item in ticker_detail_list}
-        for asset in assets:
-            asset_detail = AssetSchema(
-                id=asset.id,
-                created_at=asset.created_at,
-                updated_at=asset.updated_at,
-                symbol=asset.symbol,
-                name=asset.name,
-                asset_type=asset.asset_type,
-                exchange=asset.exchange,
-                isin=asset.isin,
-                currency=asset.currency,
-                cusip=asset.cusip,
-                sector=asset.sector,
-                industry=asset.industry,
-                country=asset.country,
-                description=asset.description,
-                is_active=asset.is_active,
-            )
-            if ticker_detail_map.get(asset.symbol):
-                asset_detail.detail = AssetDetailSchema(
-                    **ticker_detail_map[asset.symbol]
-                )
-            else:
-                asset_detail.detail = {}
-            asset_details.append(asset_detail)
-        return asset_details
-    return assets
+    ticker_detail_list = await market_data_service.get_symbols_info(
+        [asset.symbol for asset in assets]
+    )
+    ticker_detail_map = {item["symbol"]: item for item in ticker_detail_list}
+    asset_details = []
+    for asset in assets:
+        asset_detail = AssetSchema.model_validate(asset)
+        info = ticker_detail_map.get(asset.symbol)
+        asset_detail.detail = AssetDetailSchema(**info) if info else {}
+        asset_details.append(asset_detail)
+
+    if by_market_data:
+        asset_details = _sorted_by_detail(asset_details, sort_by, descending)
+        asset_details = asset_details[skip : skip + limit]
+        if not include_detail:
+            for asset_detail in asset_details:
+                asset_detail.detail = None
+    return asset_details
+
+
+def _sorted_by_detail(
+    assets: List[AssetSchema], field: str, descending: bool
+) -> List[AssetSchema]:
+    """Sort by a quote field; assets without that value go last either way."""
+
+    def value(asset: AssetSchema):
+        detail = asset.detail
+        return getattr(detail, field, None) if detail else None
+
+    known = [a for a in assets if value(a) is not None]
+    unknown = [a for a in assets if value(a) is None]
+    known.sort(key=value, reverse=descending)
+    return known + unknown
 
 
 @router.get("/{asset_id}", response_model=AssetSchema)

@@ -364,6 +364,7 @@ Answered:
 | 2026-10-28 | `master` | `812caac` | Realized P&L before the tax withheld at sale; `python -m portfolia recalc` fixed. Trade Republic sync: reads Bachat's pytr export (read-only `/pytr`), knock-outs priced from their fills and redemptions booked as sales. Deployed: migration `e5b2c8d40a17`, 82 holdings recalculated, portfolio 11 renamed "Trade Republic (old import)", new synced "Trade Republic" (id 16, 948 rows) reconciles with pytr: all 20 open positions, realized 14,359.65 EUR before tax incl. -10,112.28 EUR on 16 knock-outs |
 | 2026-10-29 | `master` | `44da284` | Tax view: summary adds dividends before tax, tax withheld, tax entries (Trade Republic refunds after loss offsetting, Vorabpauschale; migration `f1c4d7a92b36`), net taxes paid and realized after tax. A Yahoo quote older than 4 days gives way to a newer daily close (82W.SG was frozen at 18.705 since 2024-07-23). Checked before deploy: an independent FIFO replay of the pytr export matched every ISIN of portfolio 16; holdings, summary, overview, allocation, series cost basis and analytics agree on every portfolio. Deployed: 41 tax entries; portfolio 16 withheld 10,192.76, adjustments -5,023.20, net taxes 5,169.56, realized after tax 9,397.14 EUR. Rollback images `:pre-taxes` |
 | 2026-10-29 | `master` | `65f3f48` | Fetch from Trade Republic on demand (ADR 0008): pytr 0.4.10 web login from the portfolio page, session Fernet-encrypted in `broker_connections` (migration `a7d3e9c51f28`), download into the shared pytr folder, then import into linked portfolios. Deployed: `api` mounts `/pytr` read-write, `worker` read only; API reaches api.traderepublic.com. Not yet run against a real login. Rollback images `:pre-trfetch` |
+| 2026-10-29 | `chore/plan-gaps` | — | Open gaps from §6b: US market status from an NYSE calendar (holidays, early closes, next open and close on the dashboard tile); `GET /assets/` sorts server-side (columns in SQL, quote fields from the cached quotes) and returns `X-Total-Count`, so the Assets sort and "of N" work and the dashboard's top assets are by market cap; dead code removed (`models/auth.py`, `generate_two_factor_code`, `Chart` portfolio branches, `WatchlistSidebar`) |
 
 ## 6b. Findings and to-do (2026-10-16)
 
@@ -387,11 +388,11 @@ Answered:
 | Security | ✅ Fixed: `asset_search_service` was not scoped by user: `/assets/search/{id}` returned any user's asset, and popular/suggestions/breakdowns aggregated all users | `asset_search_service.py` |
 | Watchlists | Alerts are never evaluated (the only caller is unused); `WatchlistPerformance` is only written on add; rating, thesis and tags have no UI | `watchlist_service.py` |
 | Indicators | Selecting a saved configuration doesn't change the chart; the saved list never renders; performance metrics are hard-coded to 0; mixed `app.core` and `core` imports | `AssetAnalyticsView.jsx`, indicator services |
-| Assets | The search box, sorting and "of N" count don't work (parameter and response mismatch); the dashboard's "Top Market Assets" are the user's own unsorted assets | `Assets.jsx`, `assets/router.py`, `Dashboard.jsx` |
+| Assets | ✅ Search, sorting and the "of N" count work; the dashboard's "Top Market Assets" are the user's own assets by market cap | `Assets.jsx`, `assets/router.py`, `Dashboard.jsx` |
 | Auth | No settings or profile page (change password, edit or delete account unused); `models/auth.py` duplicates the user tables | `api/v1/auth`, `core/database/models/auth.py` |
 | Dead code | `transactionAPI.bulkCreateTransactions` (endpoint doesn't exist); `Chart.jsx` `isPortfolioChart` branches; the `api/v1/dashboard/` stale `__pycache__`; legacy calc helpers (`_calculate_xirr`, `get_current_portfolio_value`, …) | various |
 | Ops | SQLAlchemy echoes every SQL statement to the API log; a failed router import only logs a warning and the route silently disappears | `core/database/connection.py`, `main.py` |
-| UX | Bulk-import success toast fires on 0 rows; the market-status tile ignores US holidays | `Transactions.jsx`, `market_data_service.py` |
+| UX | Bulk-import success toast fires on 0 rows; ✅ the market-status tile follows the NYSE calendar | `Transactions.jsx`, `market_data_service.py` |
 
 ### Next up
 The plan is finished. What is left is in §6c.

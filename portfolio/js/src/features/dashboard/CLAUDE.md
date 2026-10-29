@@ -12,7 +12,7 @@
 | Your Portfolios: value, today's P&L, total P&L, 3-month sparkline | `getPortfolios` + `getPortfolioSummary` per portfolio + `portfolioCalculationsAPI.getPerformanceSeries(id, "3m")` |
 | Recent Transactions (5) | `useRecentTransactions(5)` → `GET /transactions/?limit=5` (the backend returns newest first; the `order` params are ignored) |
 | Today's Movers: top 3 / bottom 3 held symbols by today's % | `getPortfolioHoldings` per portfolio, de-duplicated by symbol. The browser only sorts |
-| Top Market Assets (10) | `useTopAssets()` → `assetAPI.getAssets({limit: 10, sort: market_cap, include_detail})` |
+| Top Market Assets (10) | `useTopAssets()` → `assetAPI.getAssets({limit: 10, sort_by: market_cap, sort_order: desc, include_detail})` |
 | Unread alerts link | `useUnreadAlertCount()` (`GET /watchlists/alerts?unread_only=true&limit=1`) |
 | Quick Actions | Links |
 
@@ -20,7 +20,7 @@ Each section is its own query (`queries.ts`, plus `useRecentTransactions`, `useT
 
 ## Known gaps
 - No combined unrealized P&L across portfolios (the backend overview could add it).
-- Top Market Assets are the user's own assets (`/assets/`), and the `sort=market_cap` param is ignored by the backend, so neither "top" nor "market" holds.
+- Top Market Assets are the user's own assets (`/assets/`) by market cap, not the market's.
 
 ## Planned
 Nothing scheduled.

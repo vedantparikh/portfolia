@@ -119,7 +119,7 @@ def create_app() -> FastAPI:
         allow_credentials="*" not in settings.ALLOWED_ORIGINS,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=[REQUEST_ID_HEADER],
+        expose_headers=[REQUEST_ID_HEADER, "X-Total-Count"],
     )
     # Added last so it runs first: the id exists before handlers and CORS.
     application.add_middleware(RequestContextMiddleware)

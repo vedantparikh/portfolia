@@ -1188,7 +1188,7 @@ export interface paths {
         };
         /**
          * Get Assets
-         * @description Get list of financial assets for the authenticated user with optional filtering.
+         * @description List the user's assets; the total before paging is in `X-Total-Count`.
          */
         get: operations["get_api_v1_assets"];
         put?: never;
@@ -9811,6 +9811,10 @@ export interface operations {
                 symbol?: string | null;
                 /** @description Filter by asset type */
                 asset_type?: string | null;
+                /** @description Sort field */
+                sort_by?: "symbol" | "name" | "created_at" | "current_price" | "market_cap" | "volume_24h" | "price_change_percentage_24h";
+                /** @description Sort order */
+                sort_order?: "asc" | "desc";
                 /** @description Include asset detail in response */
                 include_detail?: boolean;
             };

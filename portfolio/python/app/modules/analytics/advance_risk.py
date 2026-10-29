@@ -91,7 +91,14 @@ class PortfolioAdvanceRiskMetricsService:
 
             # 1b. Get Current Holdings and Weights using PortfolioService
             # This is the basis for concentration and diversification metrics
-            holdings = await self.portfolio_service.get_portfolio_holdings(portfolio_id)
+            # Closed positions (quantity 0) carry no weight and may have no prices
+            holdings = [
+                h
+                for h in await self.portfolio_service.get_portfolio_holdings(
+                    portfolio_id
+                )
+                if h.quantity and h.quantity > 0 and h.current_value is not None
+            ]
             if not holdings:
                 return self._empty_result(
                     portfolio_id, "Portfolio has no current holdings.", period
@@ -107,11 +114,7 @@ class PortfolioAdvanceRiskMetricsService:
 
             asset_symbols = [h.symbol for h in holdings]
             asset_weights = pd.Series(
-                {
-                    h.symbol: h.current_value / total_portfolio_value
-                    for h in holdings
-                    if h.current_value is not None
-                }
+                {h.symbol: h.current_value / total_portfolio_value for h in holdings}
             )
 
             # 1c. Get Historical Price Data for all assets and the benchmark
@@ -123,15 +126,18 @@ class PortfolioAdvanceRiskMetricsService:
                     symbol
                 )
 
-            # Combine individual asset prices into a single DataFrame
-            asset_prices = pd.concat(
-                {
-                    s: df["Close"]
-                    for s, df in price_data_dict.items()
-                    if s in asset_symbols and df is not None
-                },
-                axis=1,
-            )
+            # Combine individual asset prices into a single DataFrame; a holding
+            # priced from its own trades (no Yahoo history) is left out of it
+            closes = {
+                s: df["Close"]
+                for s, df in price_data_dict.items()
+                if s in asset_symbols and df is not None and "Close" in df.columns
+            }
+            if not closes:
+                return self._empty_result(
+                    portfolio_id, "No price history for the current holdings.", period
+                )
+            asset_prices = pd.concat(closes, axis=1)
             asset_prices.sort_index(inplace=True)
             asset_prices = asset_prices.truncate(
                 before=start_date.date(), after=end_date.date()
@@ -139,7 +145,7 @@ class PortfolioAdvanceRiskMetricsService:
             asset_returns = asset_prices.ffill().pct_change().dropna()
 
             benchmark_prices = price_data_dict.get(benchmark_symbol)
-            if benchmark_prices is None:
+            if benchmark_prices is None or "Close" not in benchmark_prices.columns:
                 logger.warning(f"Could not fetch benchmark data for {benchmark_symbol}")
                 benchmark_prices = pd.DataFrame()  # Empty frame to avoid errors
             else:

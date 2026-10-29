@@ -199,7 +199,7 @@ async def get_assets(
         order_by="symbol" if by_market_data else sort_by,
         skip=0 if by_market_data else skip,
         limit=None if by_market_data else limit,
-        descending=descending,
+        descending=descending and not by_market_data,
     )
     response.headers["X-Total-Count"] = str(
         len(assets)

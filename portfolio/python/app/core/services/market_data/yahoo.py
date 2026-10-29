@@ -93,10 +93,9 @@ class YahooMarketDataProvider:
         their daily closes stay current. Then the last close is the price.
         """
         prices: Dict[str, Decimal] = {}
-        tickers = yf.Tickers(" ".join(symbols))
-        for ticker in tickers.tickers.values():
-            symbol = ticker.ticker
+        for symbol in symbols:
             try:
+                ticker = yf.Ticker(symbol)
                 info = ticker.info
                 price = (
                     info.get("regularMarketPrice")
@@ -233,10 +232,9 @@ class YahooMarketDataProvider:
 
     def _infos(self, symbols: List[str]) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
-        tickers = yf.Tickers(" ".join(symbols))
         for symbol in symbols:
             try:
-                info = tickers.tickers[symbol].info
+                info = yf.Ticker(symbol).info
                 if info and info.get("symbol"):
                     results.append(_ticker_information(info))
                 else:

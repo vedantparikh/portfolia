@@ -288,25 +288,42 @@ def test_a_frozen_quote_gives_way_to_the_last_daily_close(monkeypatch):
         {"Close": [25.02, 26.04]}, index=[now - pd.Timedelta(days=2), now]
     )
 
+    quoted = {"82W.SG": 1721764800, "SAP.F": int(now.timestamp()) + 3600}
+
     class Ticker:
-        def __init__(self, symbol, quoted_at):
-            self.ticker = symbol
-            self.info = {"regularMarketPrice": 18.705, "regularMarketTime": quoted_at}
+        def __init__(self, symbol):
+            self.info = {
+                "regularMarketPrice": 18.705,
+                "regularMarketTime": quoted[symbol],
+            }
 
         def history(self, **kwargs):
             return bars
 
-    class Tickers:
-        def __init__(self, symbols):
-            fresh = int(now.timestamp()) + 3600
-            self.tickers = {
-                "82W.SG": Ticker("82W.SG", 1721764800),
-                "SAP.F": Ticker("SAP.F", fresh),
-            }
-
-    monkeypatch.setattr(yahoo.yf, "Tickers", Tickers)
+    monkeypatch.setattr(yahoo.yf, "Ticker", Ticker)
     prices = asyncio.run(
         YahooMarketDataProvider(attempts=1).current_prices(["82W.SG", "SAP.F"])
     )
 
     assert prices == {"82W.SG": Decimal("26.04"), "SAP.F": Decimal("18.705")}
+
+
+def test_a_symbol_yahoo_rejects_does_not_empty_the_batch(monkeypatch):
+    class Ticker:
+        def __init__(self, symbol):
+            if symbol.startswith("DE000"):
+                raise ValueError(f"Invalid ISIN number: {symbol}")
+            self.info = {"symbol": symbol, "marketCap": 100, "regularMarketPrice": 5}
+
+        def history(self, **kwargs):
+            return pd.DataFrame()
+
+    monkeypatch.setattr(yahoo.yf, "Ticker", Ticker)
+    provider = YahooMarketDataProvider(attempts=1)
+
+    infos = asyncio.run(provider.infos(["AAPL", "DE000HS61HL6", "SAP.F"]))
+    assert [i["symbol"] for i in infos] == ["AAPL", "SAP.F"]
+    assert infos[0]["market_cap"] == 100
+
+    prices = asyncio.run(provider.current_prices(["AAPL", "DE000HS61HL6"]))
+    assert prices == {"AAPL": Decimal("5")}

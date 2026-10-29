@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Dict, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 from dateutil.relativedelta import relativedelta
 
@@ -28,25 +28,26 @@ class PeriodType:
             base_date = datetime.now(timezone.utc)
 
         if period == cls.LAST_1_MONTH:
-            return base_date - relativedelta(months=1)
+            start: Optional[datetime] = base_date - relativedelta(months=1)
         elif period == cls.LAST_3_MONTHS:
-            return base_date - relativedelta(months=3)
+            start = base_date - relativedelta(months=3)
         elif period == cls.LAST_6_MONTHS:
-            return base_date - relativedelta(months=6)
+            start = base_date - relativedelta(months=6)
         elif period == cls.LAST_1_YEAR:
-            return base_date - relativedelta(years=1)
+            start = base_date - relativedelta(years=1)
         elif period == cls.LAST_2_YEARS:
-            return base_date - relativedelta(years=2)
+            start = base_date - relativedelta(years=2)
         elif period == cls.LAST_3_YEARS:
-            return base_date - relativedelta(years=3)
+            start = base_date - relativedelta(years=3)
         elif period == cls.LAST_5_YEARS:
-            return base_date - relativedelta(years=5)
+            start = base_date - relativedelta(years=5)
         elif period == cls.YTD:
-            return datetime(base_date.year, 1, 1, tzinfo=timezone.utc)
+            start = datetime(base_date.year, 1, 1, tzinfo=timezone.utc)
         elif period == cls.INCEPTION:
-            return None  # No start date filter
+            start = None  # No start date filter
         else:
             raise DomainError(f"Unknown period type: {period}")
+        return start
 
 
 class CashFlow(NamedTuple):
@@ -56,7 +57,7 @@ class CashFlow(NamedTuple):
     amount: float  # Positive for inflows, negative for outflows
 
 
-def get_major_indices() -> Dict[str, str]:
+def get_major_indices() -> List[Dict[str, str]]:
     us_indexes = [
         {"name": "S&P 500", "symbol": "^GSPC"},
         {"name": "Dow Jones Industrial Average", "symbol": "^DJI"},

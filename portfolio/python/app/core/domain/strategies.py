@@ -27,6 +27,7 @@ MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
 TREND_EMA = 200
 
 Action = Literal["buy", "sell", "hold"]
+Timeframe = Literal["monthly", "weekly", "daily"]
 
 
 def rsi(closes: pd.Series, window: int = RSI_WINDOW) -> pd.Series:
@@ -47,7 +48,7 @@ def _last_per(closes: pd.Series, rule: str) -> pd.Series:
 
 @dataclass(frozen=True)
 class GfsReading:
-    timeframe: Literal["monthly", "weekly", "daily"]
+    timeframe: Timeframe
     rsi: float
     as_of: date
 
@@ -62,11 +63,12 @@ def gfs(closes: pd.Series) -> GfsResult:
     """`closes` indexed by date, oldest first. Needs 15 months of history."""
     closes = closes.dropna().sort_index()
     readings = []
-    for timeframe, series in (
+    timeframes: tuple[tuple[Timeframe, pd.Series], ...] = (
         ("monthly", _last_per(closes, "M")),
         ("weekly", _last_per(closes, "W")),
         ("daily", closes),
-    ):
+    )
+    for timeframe, series in timeframes:
         values = rsi(series).dropna()
         if values.empty:
             raise DomainError(

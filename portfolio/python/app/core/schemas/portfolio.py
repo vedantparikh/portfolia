@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -232,7 +232,7 @@ class Asset(AssetBase):
 
     @field_validator("detail", mode="before")
     @classmethod
-    def validate_detail(cls, v):
+    def validate_detail(cls, v: Any) -> Any:
         # This validator runs before Pydantic's own validation.
         # If the incoming value 'v' is a dict, it creates an AssetDetail instance from it.
         # If 'v' is already None or an AssetDetail instance, it passes it through unchanged.
@@ -359,10 +359,10 @@ class TransactionBase(BaseModel):
 
 class TransactionCreate(TransactionBase):
     # Computed server-side from quantity, price, fees and taxes; any value sent is ignored
-    total_amount: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None  # type: ignore[assignment]
 
     @model_validator(mode="after")
-    def _numbers(self):
+    def _numbers(self) -> Self:
         check_transaction_numbers(self.transaction_type, self.quantity, self.price)
         return self
 
@@ -382,7 +382,7 @@ class TransactionUpdate(BaseModel):
     status: Optional[TransactionStatus] = None
 
     @model_validator(mode="after")
-    def _numbers(self):
+    def _numbers(self) -> Self:
         check_transaction_numbers(
             self.transaction_type,
             self.quantity,

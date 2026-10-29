@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Protocol
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 
 class MarketDataProvider(Protocol):

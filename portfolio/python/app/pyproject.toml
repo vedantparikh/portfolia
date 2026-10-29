@@ -46,6 +46,7 @@ package = false
 
 [tool.mypy]
 python_version = "3.14"
+plugins = ["pydantic.mypy"]
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -60,7 +61,7 @@ warn_unreachable = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["pandas", "numpy"]
+module = ["pandas", "numpy", "pytz", "dateutil", "dateutil.*", "reportlab", "reportlab.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

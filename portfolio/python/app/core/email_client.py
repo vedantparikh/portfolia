@@ -7,7 +7,7 @@ from core.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def _send_email(recipient_email: str, subject: str, html_content: str):
+def _send_email(recipient_email: str, subject: str, html_content: str) -> bool:
     """
     A single, reusable function to handle sending emails via Brevo using Port 587.
     """
@@ -37,7 +37,7 @@ def _send_email(recipient_email: str, subject: str, html_content: str):
         return False
 
 
-def send_forgot_password_email(recipient_email: str, reset_url: str):
+def send_forgot_password_email(recipient_email: str, reset_url: str) -> None:
     """
     Prepares and sends a password reset email.
     """
@@ -59,7 +59,7 @@ def send_forgot_password_email(recipient_email: str, reset_url: str):
         logger.error(f"An error occurred in send_forgot_password_email: {e}")
 
 
-def send_verification_email(recipient_email: str, verification_url: str):
+def send_verification_email(recipient_email: str, verification_url: str) -> None:
     """
     Prepares and sends an email verification email.
     """

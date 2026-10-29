@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -33,7 +33,7 @@ def error_response(
     request: Request | None = None,
 ) -> JSONResponse:
     code = _CODES.get(status_code, f"http_{status_code}")
-    error = {"code": code, "message": message}
+    error: dict[str, object] = {"code": code, "message": message}
     if details is not None:
         error["details"] = details
     body: dict = {"error": error}
@@ -90,8 +90,8 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
     return error_response(500, "Something went wrong", request=request)
 
 
-def install_error_handlers(application) -> None:
-    application.add_exception_handler(DomainError, domain_error_handler)
-    application.add_exception_handler(RequestValidationError, validation_error_handler)
-    application.add_exception_handler(StarletteHTTPException, http_exception_handler)
-    application.add_exception_handler(Exception, unhandled_error_handler)
+def install_error_handlers(application: FastAPI) -> None:
+    application.exception_handler(DomainError)(domain_error_handler)
+    application.exception_handler(RequestValidationError)(validation_error_handler)
+    application.exception_handler(StarletteHTTPException)(http_exception_handler)
+    application.exception_handler(Exception)(unhandled_error_handler)

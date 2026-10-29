@@ -6,7 +6,7 @@ import io
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import pypdf
 
@@ -129,7 +129,7 @@ class PortfoliaParser(PDFParser):
         data_tokens = data_text.strip().split()
 
         transaction_groups = []
-        current_group = []
+        current_group: List[str] = []
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
         for token in data_tokens:
@@ -162,7 +162,7 @@ class PortfoliaParser(PDFParser):
 
     def _parse_transaction_row(
         self, parts: List[str], transaction_id: int, warnings: List[str]
-    ) -> ParsedTransaction:
+    ) -> Optional[ParsedTransaction]:
         """Parse a single transaction from a list of its parts."""
         if len(parts) < 8:
             warnings.append(f"Could not parse row, too few columns: {parts}")
@@ -209,7 +209,7 @@ class PortfoliaParser(PDFParser):
             # This exception is for developers, so we raise it to be caught by the outer try/except
             raise ValueError(f"Failed parsing row parts '{parts}': {str(e)}")
 
-    def _map_transaction_type(self, type_str: str) -> str:
+    def _map_transaction_type(self, type_str: str) -> TransactionType:
         """Map parsed transaction type string to TransactionType enum values."""
         type_mapping = {
             "buy": TransactionType.BUY,

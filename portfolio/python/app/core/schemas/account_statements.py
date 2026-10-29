@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -157,7 +157,7 @@ class BulkTransactionItem(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _numbers(self):
+    def _numbers(self) -> Self:
         check_transaction_numbers(self.transaction_type, self.quantity, self.price)
         return self
 

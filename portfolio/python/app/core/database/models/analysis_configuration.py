@@ -60,7 +60,7 @@ class AnalysisConfiguration(Base):
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="analysis_configurations")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<AnalysisConfiguration(id={self.id}, name='{self.name}', user_id={self.user_id})>"
 
     def to_dict(self) -> Dict[str, Any]:

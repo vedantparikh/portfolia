@@ -13,7 +13,7 @@ Git root is the parent dir (`../`: `.github/workflows/{ci,release}.yml`, `.pre-c
 ## Quick commands (cwd `portfolio/`)
 ```
 scripts/setup.sh             # first run on a host: env files with generated secrets, shared network
-scripts/verify.sh            # the gate: gitleaks, script tests, compose config, ruff/eslint/tsc, uv.lock, API types, pytest+mypy, migrations, vitest, vite build, prod images (~6 min)
+scripts/verify.sh            # the gate: gitleaks, script tests, compose config, ruff/eslint/tsc, uv.lock, API types, pytest+mypy (strict, all of `core/`, with the pydantic plugin), migrations, vitest, vite build, prod images (~6 min)
 scripts/check_migrations.sh  # throwaway Postgres: upgrade from empty, `alembic check` (drift), downgrade base, upgrade
 scripts/verify.sh --stack    # + dev project portfolio-dev on :3200/:8200 and the Playwright e2e (does not touch the live portfolio project)
 docker compose -f compose.dev.yaml up -d --wait  # dev → UI :3200, API 127.0.0.1:8200

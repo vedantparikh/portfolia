@@ -4,7 +4,7 @@ Service for managing user analysis configurations and templates.
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import String, and_, cast, or_
 from sqlalchemy.orm import Session
@@ -293,7 +293,7 @@ class AnalysisConfigurationService:
 
         return self.create_configuration(user_id, config_data)
 
-    def get_configuration_statistics(self, user_id: int) -> Dict[str, any]:
+    def get_configuration_statistics(self, user_id: int) -> Dict[str, Any]:
         """Get statistics about user's configurations."""
         user_configs = (
             self.db.query(AnalysisConfigurationModel)
@@ -306,13 +306,13 @@ class AnalysisConfigurationService:
         private_configs = total_configs - public_configs
 
         # Count by tags
-        tag_counts = {}
+        tag_counts: Dict[str, int] = {}
         for config in user_configs:
             for tag in config.tags:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
         # Most used indicators
-        indicator_counts = {}
+        indicator_counts: Dict[str, int] = {}
         for config in user_configs:
             for indicator in config.indicators:
                 indicator_name = indicator.indicator_name

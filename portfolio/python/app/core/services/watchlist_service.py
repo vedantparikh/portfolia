@@ -89,7 +89,7 @@ class WatchlistService:
 
             # Add item count for each watchlist
             for watchlist in watchlists:
-                watchlist.item_count = len(watchlist.items)
+                setattr(watchlist, "item_count", len(watchlist.items))
 
             return watchlists
 
@@ -549,7 +549,7 @@ class WatchlistService:
                     WatchlistItem.watchlist
                 )
             )
-            .order_by(desc(WatchlistAlert.triggered_at))
+            .order_by(WatchlistAlert.triggered_at.desc())
             .limit(limit)
             .all()
         )
@@ -803,14 +803,14 @@ class WatchlistService:
             watchlists = (
                 self.db.query(Watchlist)
                 .filter(Watchlist.is_public == True)
-                .order_by(desc(Watchlist.updated_at))
+                .order_by(Watchlist.updated_at.desc())
                 .limit(limit)
                 .all()
             )
 
             # Add item count for each watchlist
             for watchlist in watchlists:
-                watchlist.item_count = len(watchlist.items)
+                setattr(watchlist, "item_count", len(watchlist.items))
 
             return watchlists
 
@@ -858,7 +858,7 @@ class WatchlistService:
                 self.db.query(WatchlistItem)
                 .join(Watchlist)
                 .filter(Watchlist.user_id == user_id)
-                .order_by(desc(WatchlistItem.added_date))
+                .order_by(WatchlistItem.added_date.desc())
                 .limit(10)
                 .all()
             )

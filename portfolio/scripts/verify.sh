@@ -173,7 +173,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   "$PROJECT-api" sh -c '
     python -c "import main; assert len(main.app.openapi()[\"paths\"]) >= 85" &&
     python -m pytest tests -q -p no:cacheprovider &&
-    python -m mypy --explicit-package-bases core/domain'
+    python -m mypy --explicit-package-bases core'
 
 step "migrations: upgrade, drift check, downgrade (throwaway Postgres)"
 scripts/check_migrations.sh

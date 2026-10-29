@@ -4,9 +4,9 @@ import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, cast
 
-import pandas as pd  # type: ignore
+import pandas as pd
 import yfinance as yf  # type: ignore
 
 from core.services.market_data.sessions import previous_session_close
@@ -32,7 +32,9 @@ class YahooMarketDataProvider:
         self.attempts = attempts
         self.base_delay = base_delay
 
-    async def run(self, func, /, *args, **kwargs):
+    async def run[**P, R](
+        self, func: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs
+    ) -> R:
         """Run a blocking Yahoo call with the shared limit and exponential backoff."""
         delay = self.base_delay
         for attempt in range(self.attempts):
@@ -50,6 +52,7 @@ class YahooMarketDataProvider:
                 )
                 await asyncio.sleep(delay)
                 delay *= 2
+        raise ValueError(f"attempts must be at least 1, got {self.attempts}")
 
     async def current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
         return await self.run(self._current_prices, symbols)
@@ -112,7 +115,7 @@ class YahooMarketDataProvider:
                     bars = ticker.history(
                         period="10d", interval="1d", auto_adjust=False
                     )
-                    closes = bars["Close"].dropna() if "Close" in bars else []
+                    closes: Any = bars["Close"].dropna() if "Close" in bars else []
                     if len(closes) and closes.index[-1].timestamp() > quoted_at:
                         price = closes.iloc[-1]
                 if price:
@@ -121,7 +124,9 @@ class YahooMarketDataProvider:
                 logger.warning("Could not retrieve price for %s", symbol)
         return prices
 
-    def _previous_closes(self, symbols: List[str], now=None) -> Dict[str, Decimal]:
+    def _previous_closes(
+        self, symbols: List[str], now: Optional[datetime] = None
+    ) -> Dict[str, Decimal]:
         """Last completed session, not the older of two downloaded rows."""
         if not symbols:
             return {}
@@ -273,7 +278,7 @@ def _close_series(data: pd.DataFrame, symbol: str) -> pd.Series:
     return frame["Close"]
 
 
-def _first(raw: Dict[str, Any], *keys: str):
+def _first(raw: Dict[str, Any], *keys: str) -> Any:
     for key in keys:
         value = raw.get(key)
         if value:
@@ -303,7 +308,7 @@ def _quote(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 def _ticker_information(ticker_info: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        "symbol": ticker_info.get("symbol").upper(),
+        "symbol": cast(str, ticker_info.get("symbol")).upper(),
         "long_name": ticker_info.get("longName"),
         "short_name": ticker_info.get("shortName"),
         "sector": ticker_info.get("sector"),

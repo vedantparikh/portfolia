@@ -9,10 +9,10 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-import pandas as pd  # type: ignore
+import pandas as pd
 
 from config import settings
-from core.database.redis_client import get_redis
+from core.database.redis_client import RedisClient, get_redis
 from core.domain.fx import MissingFxError, canonical_currency
 from core.domain.market_calendar import market_status
 from core.services.market_data.provider import MarketDataProvider
@@ -29,7 +29,7 @@ class MarketDataService:
     def __init__(
         self,
         provider: Optional[MarketDataProvider] = None,
-        redis_client=None,
+        redis_client: Optional[RedisClient] = None,
     ) -> None:
         self.provider = provider or YahooMarketDataProvider()
         self.redis_client = redis_client if redis_client is not None else get_redis()
@@ -270,7 +270,9 @@ class MarketDataService:
     async def search_quotes(self, query: str) -> List[Dict[str, Any]]:
         """Every Yahoo match for a name, ticker or ISIN. Cached for 7 days."""
         key = f"yfinance:search:{query.strip().lower()}"
-        cached = await asyncio.to_thread(self.redis_client.get, key)
+        cached: Optional[List[Dict[str, Any]]] = await asyncio.to_thread(
+            self.redis_client.get, key
+        )
         if cached is not None:
             return cached
         try:

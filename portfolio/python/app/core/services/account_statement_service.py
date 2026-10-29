@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Iterable, List, Tuple
+from typing import Any, Iterable, List, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -34,13 +34,13 @@ from modules.portfolios.service import PortfolioService
 logger = logging.getLogger(__name__)
 
 
-def _number(value) -> str:
+def _number(value: Any) -> str:
     return f"{Decimal(value).normalize():f}"
 
 
 def assign_source_keys(result: ParsedData) -> None:
     """Hash each row's identity (parser-given or date/type/symbol/amounts), numbering repeats."""
-    seen = defaultdict(int)
+    seen: defaultdict[str, int] = defaultdict(int)
     for t in result.transactions:
         base = t.source_key or "|".join(
             [
@@ -57,7 +57,7 @@ def assign_source_keys(result: ParsedData) -> None:
         ).hexdigest()
 
 
-def _content(row, isin: str | None) -> tuple:
+def _content(row: Any, isin: str | None) -> tuple:
     day = row.transaction_date
     if isinstance(day, datetime):
         day = (day.astimezone(timezone.utc) if day.tzinfo else day).date().isoformat()
@@ -182,8 +182,8 @@ class AccountStatementService:
         symbol: str,
         isin: str | None,
         user_id: int,
-        assets_by_symbol: dict,
-        unavailable_symbols: set,
+        assets_by_symbol: dict[str, Asset],
+        unavailable_symbols: set[str],
     ) -> Asset:
         """The user's asset for a Yahoo ticker, created (unsaved until commit) if missing."""
         if symbol in assets_by_symbol:
@@ -237,7 +237,7 @@ class AccountStatementService:
         owned = self.db.query(Asset).filter(Asset.user_id == user_id).all()
         assets_by_id = {a.id: a for a in owned}
         assets_by_symbol = {a.symbol.upper(): a for a in owned}
-        unavailable_symbols = set()
+        unavailable_symbols: set[str] = set()
 
         # 2. Prepare all transaction models and add them to the session
         for i, item in enumerate(transactions_data):

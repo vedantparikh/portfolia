@@ -6,7 +6,7 @@ Service for calculating indicators with user configurations and chart data gener
 import logging
 import re
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import polars as pl
 from sqlalchemy.orm import Session
@@ -94,14 +94,16 @@ class EnhancedStatisticalService:
                 indicator_configs = config.indicators
                 configuration_name = config.name
             else:
-                indicator_configs = request.indicators
+                indicator_configs = cast(
+                    List[IndicatorConfiguration], request.indicators
+                )
                 configuration_name = "Custom Configuration"
 
             # Validate all indicator configurations
             validation_errors = []
-            for config in indicator_configs:
+            for indicator_config in indicator_configs:
                 errors = self.indicator_registry.validate_indicator_configuration(
-                    config
+                    indicator_config
                 )
                 validation_errors.extend(errors)
 
@@ -354,12 +356,12 @@ class EnhancedStatisticalService:
             "period": period,
             "interval": interval,
             "start_date": (
-                df["date"].min().isoformat()
+                cast(date, df["date"].min()).isoformat()
                 if "date" in df.columns
                 else datetime.now().isoformat()
             ),
             "end_date": (
-                df["date"].max().isoformat()
+                cast(date, df["date"].max()).isoformat()
                 if "date" in df.columns
                 else datetime.now().isoformat()
             ),

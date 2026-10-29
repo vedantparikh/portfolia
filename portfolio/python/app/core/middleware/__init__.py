@@ -5,7 +5,7 @@ import re
 import time
 import uuid
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -23,7 +23,9 @@ def request_id_from(header: str | None) -> str:
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         request_id = request_id_from(request.headers.get(REQUEST_ID_HEADER))
         request.state.request_id = request_id
         started = time.perf_counter()

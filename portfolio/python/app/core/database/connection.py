@@ -1,15 +1,14 @@
 import logging
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from typing import Optional
 
-import redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from config import settings
-from core.database.redis_client import get_redis
+from core.database.redis_client import RedisClient, get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Redis client
-redis_client: Optional[redis.Redis] = get_redis()
+redis_client: Optional[RedisClient] = get_redis()
 
 
 def unit_of_work(db: Session) -> Iterator[Session]:
@@ -48,7 +47,7 @@ def get_db() -> Iterator[Session]:
     yield from unit_of_work(SessionLocal())
 
 
-async def init_db():
+async def init_db() -> bool:
     """Initialize database connection."""
     try:
         # Test database connection
@@ -94,7 +93,7 @@ async def get_db_health() -> dict:
     }
 
 
-def close_db():
+def close_db() -> None:
     """Close database connections."""
     try:
         engine.dispose()
@@ -103,12 +102,12 @@ def close_db():
         logger.error(f"Error closing database connections: {e}")
 
 
-def close_redis():
+def close_redis() -> None:
     """Close Redis connection."""
     global redis_client
     if redis_client:
         try:
-            redis_client.close()
+            redis_client.close()  # type: ignore[attr-defined]
             redis_client = None
             logger.info("Redis connection closed")
         except Exception as e:
@@ -117,7 +116,7 @@ def close_redis():
 
 # Context manager for database sessions
 @asynccontextmanager
-async def get_db_session():
+async def get_db_session() -> AsyncIterator[Session]:
     """Get database session with automatic cleanup."""
     db = SessionLocal()
     try:

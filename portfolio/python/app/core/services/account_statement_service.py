@@ -320,9 +320,9 @@ class AccountStatementService:
                 self.db.flush()
                 for asset_id in affected_asset_ids:
                     await self.portfolio_service.recalculate_asset_state(
-                        portfolio_id, asset_id, commit=False
+                        portfolio_id, asset_id
                     )
-                self.db.commit()
+                self.db.flush()
         except Exception:
             self.db.rollback()
             logger.exception("Bulk import failed for portfolio %s", portfolio_id)

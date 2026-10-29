@@ -57,7 +57,7 @@ class WatchlistService:
             )
 
             self.db.add(watchlist)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(watchlist)
 
             logger.info(f"Created watchlist '{watchlist.name}' for user {user_id}")
@@ -131,7 +131,7 @@ class WatchlistService:
                 setattr(watchlist, field, value)
 
             watchlist.updated_at = datetime.now(timezone.utc)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(watchlist)
 
             logger.info(f"Updated watchlist '{watchlist.name}' for user {user_id}")
@@ -164,7 +164,7 @@ class WatchlistService:
 
             watchlist_name = watchlist.name
             self.db.delete(watchlist)
-            self.db.commit()
+            self.db.flush()
 
             logger.info(f"Deleted watchlist '{watchlist_name}' for user {user_id}")
             return True
@@ -242,7 +242,7 @@ class WatchlistService:
                 self._record_daily_price(
                     item.id, current_price, datetime.now(timezone.utc)
                 )
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(item)
 
             logger.info(
@@ -286,7 +286,7 @@ class WatchlistService:
                 "alerts_enabled",
             }.intersection(fields):
                 self._apply_alerts(item, item.current_price, item.updated_at)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(item)
 
             logger.info(f"Updated watchlist item {item.symbol} for user {user_id}")
@@ -315,7 +315,7 @@ class WatchlistService:
             watchlist_name = item.watchlist.name
 
             self.db.delete(item)
-            self.db.commit()
+            self.db.flush()
 
             logger.info(
                 f"Removed {symbol} from watchlist '{watchlist_name}' for user {user_id}"
@@ -358,7 +358,7 @@ class WatchlistService:
                 if item:
                     item.sort_order = index + 1
 
-            self.db.commit()
+            self.db.flush()
 
             logger.info(
                 f"Reordered items in watchlist '{watchlist.name}' for user {user_id}"
@@ -400,7 +400,7 @@ class WatchlistService:
                 self._record_daily_price(item.id, price, now)
                 updated += 1
             triggered += self._apply_alerts(item, price, now)
-        self.db.commit()
+        self.db.flush()
         return {
             "items": len(items),
             "symbols": len(symbols),
@@ -536,7 +536,7 @@ class WatchlistService:
             {WatchlistAlert.acknowledged_at: datetime.now(timezone.utc)},
             synchronize_session=False,
         )
-        self.db.commit()
+        self.db.flush()
         return count
 
     def create_price_alert(
@@ -568,7 +568,7 @@ class WatchlistService:
             )
 
             self.db.add(alert)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(alert)
 
             logger.info(f"Created {alert.alert_type} alert for {item.symbol}")
@@ -730,7 +730,7 @@ class WatchlistService:
                     logger.info(
                         f"Updated watchlist item {item.symbol} with real-time data"
                     )
-            self.db.commit()
+            self.db.flush()
 
             # Refresh the watchlist to get updated data
             self.db.refresh(watchlist)

@@ -412,7 +412,6 @@ The plan is finished. What is left is in §6c.
 | E2E against release images in staging before promotion | Needs staging running | After timers |
 | Prettier, husky/lint-staged, knip, jsx-a11y; hypothesis, testcontainers, schemathesis, pytest-socket; coverage targets | New dependencies not approved in this pass | Ask first |
 | mypy strict on the rest of `core/` (264 errors) | Gradual, per module | Ongoing |
-| Services still call `db.commit()` (29 places, e.g. `remove_asset_from_portfolio`); the request unit of work makes them harmless but not atomic | The worker relies on some of them; needs a per-call review | Backlog |
 | ESLint does not lint `.ts` files | Needs `typescript-eslint`, a new dependency | Ask first |
 | Unused routes with no UI caller (`/portfolios/search`, `/public/discover`, `/{id}/assets/details`, `/transactions/{id}/summary`, most `/market-data` and `/stock`), unused `WatchlistSidebar` | Removing endpoints is an API change; listed in the feature docs | Backlog |
 | Postgres on the official image | Recreates the live container; needs a planned window and a dump | Planned window |

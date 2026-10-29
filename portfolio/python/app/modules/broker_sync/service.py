@@ -111,7 +111,7 @@ class PytrSyncService:
             priced.currency = (info.get("currency") or priced.currency)[:3]
             self.db.flush()
             await PortfolioService(self.db).recalculate_asset_state(
-                portfolio.id, priced.id, commit=False
+                portfolio.id, priced.id
             )
             portfolio.sync_digest = None
             return priced
@@ -217,7 +217,7 @@ class PytrSyncService:
         portfolio.sync_digest = digest if not summary.errors else None
         portfolio.sync_report = report
         portfolio.synced_at = datetime.now(timezone.utc)
-        self.db.commit()
+        self.db.flush()
         logger.info("pytr sync for portfolio %s: %s", portfolio.id, report)
         return report
 

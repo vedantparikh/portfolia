@@ -127,9 +127,12 @@ async def _write_due_snapshots(
             continue
         try:
             await analytics.create_performance_snapshot(portfolio_id, now)
+            db.commit()
             written += 1
         except DomainError:
+            db.rollback()
             logger.info("Portfolio %s has nothing to snapshot", portfolio_id)
         except Exception:
+            db.rollback()
             logger.exception("Snapshot failed for portfolio %s", portfolio_id)
     return written

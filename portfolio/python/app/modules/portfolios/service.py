@@ -78,7 +78,7 @@ class PortfolioService:
             is_public=portfolio_data.is_public,
         )
         self.db.add(portfolio)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(portfolio)
         return portfolio
 
@@ -128,7 +128,7 @@ class PortfolioService:
         if portfolio:
             for field, value in portfolio_data.dict(exclude_unset=True).items():
                 setattr(portfolio, field, value)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(portfolio)
         return portfolio
 
@@ -137,7 +137,7 @@ class PortfolioService:
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if portfolio:
             portfolio.is_active = False
-            self.db.commit()
+            self.db.flush()
             return True
         return False
 
@@ -146,7 +146,7 @@ class PortfolioService:
         portfolio = self.get_portfolio(portfolio_id, user_id)
         if portfolio:
             self.db.delete(portfolio)
-            self.db.commit()
+            self.db.flush()
             return True
         return False
 
@@ -210,7 +210,7 @@ class PortfolioService:
             PortfolioAsset.asset_id == asset_id,
         ).delete(synchronize_session=False)
 
-        self.db.commit()
+        self.db.flush()
         return True
 
     def get_portfolio_assets(
@@ -350,10 +350,8 @@ class PortfolioService:
         try:
             self.db.add(transaction)
             self.db.flush()
-            await self.recalculate_asset_state(
-                portfolio_id, transaction.asset_id, commit=False
-            )
-            self.db.commit()
+            await self.recalculate_asset_state(portfolio_id, transaction.asset_id)
+            self.db.flush()
         except Exception:
             self.db.rollback()
             raise
@@ -388,9 +386,9 @@ class PortfolioService:
             )
             self.db.flush()
             await self.recalculate_asset_state(
-                transaction.portfolio_id, transaction.asset_id, commit=False
+                transaction.portfolio_id, transaction.asset_id
             )
-            self.db.commit()
+            self.db.flush()
         except DomainError:
             self.db.rollback()
             raise
@@ -416,8 +414,8 @@ class PortfolioService:
         try:
             self.db.delete(transaction)
             self.db.flush()
-            await self.recalculate_asset_state(portfolio_id, asset_id, commit=False)
-            self.db.commit()
+            await self.recalculate_asset_state(portfolio_id, asset_id)
+            self.db.flush()
         except Exception:
             self.db.rollback()
             raise
@@ -839,8 +837,8 @@ class PortfolioService:
 
         # Rebuild from transactions so splits since the last trade are applied
         for asset_id in asset_ids:
-            await self.recalculate_asset_state(portfolio_id, asset_id, commit=False)
-        self.db.commit()
+            await self.recalculate_asset_state(portfolio_id, asset_id)
+        self.db.flush()
         return True
 
     def get_public_portfolios(
@@ -865,7 +863,7 @@ class PortfolioService:
         return await self.get_portfolio_holdings(portfolio_id)
 
     async def recalculate_asset_state(
-        self, portfolio_id: int, asset_id: int, commit: bool = True
+        self, portfolio_id: int, asset_id: int
     ) -> Optional[PortfolioAsset]:
         """
         Recalculates an asset's complete state from its transaction history.
@@ -963,8 +961,7 @@ class PortfolioService:
         if not transactions:
             if portfolio_asset:
                 self.db.delete(portfolio_asset)
-                if commit:
-                    self.db.commit()
+                self.db.flush()
             return None
 
         if not portfolio_asset:
@@ -1012,7 +1009,5 @@ class PortfolioService:
             portfolio_asset.unrealized_pnl = Decimal("0")
             portfolio_asset.unrealized_pnl_percent = Decimal("0")
 
-        if commit:
-            self.db.commit()
-            self.db.refresh(portfolio_asset)
+        self.db.flush()
         return portfolio_asset

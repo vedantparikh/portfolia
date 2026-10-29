@@ -545,7 +545,7 @@ class PortfolioCalculationService:
                     if asset.current_value is not None:
                         total_portfolio_value += float(asset.current_value)
 
-            self.db.commit()
+            self.db.flush()
 
             return total_portfolio_value, errors
 

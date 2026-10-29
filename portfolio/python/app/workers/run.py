@@ -38,6 +38,7 @@ async def sync_linked_portfolios(db) -> int:
     for portfolio in linked:
         try:
             created += (await sync.sync(portfolio)).get("created", 0)
+            db.commit()
         except Exception:
             db.rollback()
             logger.exception(
@@ -50,13 +51,16 @@ async def run_once() -> dict:
     db = SessionLocal()
     try:
         result = await WatchlistService(db).refresh_prices_and_alerts()
+        db.commit()
         try:
             result["synced_rows"] = await sync_linked_portfolios(db)
         except Exception:
             logger.exception("Trade Republic sync failed")
         try:
             result.update(await refresh_book(db))
+            db.commit()
         except Exception:
+            db.rollback()
             logger.exception("Holding refresh failed")
         return result
     finally:

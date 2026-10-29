@@ -43,7 +43,7 @@ class AnalysisConfigurationService:
         )
 
         self.db.add(db_config)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(db_config)
 
         return self._db_to_schema(db_config)
@@ -156,7 +156,7 @@ class AnalysisConfigurationService:
 
         db_config.updated_at = datetime.utcnow()
 
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(db_config)
 
         return self._db_to_schema(db_config)
@@ -178,7 +178,7 @@ class AnalysisConfigurationService:
             return False
 
         self.db.delete(db_config)
-        self.db.commit()
+        self.db.flush()
 
         return True
 
@@ -212,7 +212,7 @@ class AnalysisConfigurationService:
 
         if db_config:
             db_config.usage_count += 1
-            self.db.commit()
+            self.db.flush()
 
     def get_popular_configurations(
         self, limit: int = 10

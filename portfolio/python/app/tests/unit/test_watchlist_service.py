@@ -154,7 +154,7 @@ class TestWatchlistService:
             0  # No existing watchlists
         )
         mock_db.add = Mock()
-        mock_db.commit = Mock()
+        mock_db.flush = Mock()
         mock_db.refresh = Mock()
 
         # Execute
@@ -172,7 +172,8 @@ class TestWatchlistService:
         assert result.color == sample_watchlist_data.color
 
         mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
         mock_db.refresh.assert_called_once()
 
     def test_create_watchlist_not_first(
@@ -184,7 +185,7 @@ class TestWatchlistService:
             2  # User has existing watchlists
         )
         mock_db.add = Mock()
-        mock_db.commit = Mock()
+        mock_db.flush = Mock()
         mock_db.refresh = Mock()
 
         # Execute
@@ -202,7 +203,7 @@ class TestWatchlistService:
         # Setup
         mock_db.query.return_value.filter.return_value.count.return_value = 0
         mock_db.add = Mock()
-        mock_db.commit.side_effect = IntegrityError("Database error", None, None)
+        mock_db.flush.side_effect = IntegrityError("Database error", None, None)
 
         # Execute & Verify
         with pytest.raises(IntegrityError):

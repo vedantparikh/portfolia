@@ -43,6 +43,7 @@ def main(argv: list[str] | None = None) -> None:
     try:
         if args.command == "recalc":
             asyncio.run(recalc(db))
+            db.commit()
     finally:
         db.close()
 

@@ -11,6 +11,7 @@ import {
 import { useRebalancingRecommendations } from './queries';
 import { formatPercentage, formatQuantity, formatRatio } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../shared/ui/Spinner';
+import InfoTip from '../../shared/ui/InfoTip';
 import { EmptyState, ErrorState } from "../../shared/ui";
 
 // "allocation_drift_exceeds_threshold_11.2%" -> "Allocation drift exceeds threshold 11.2%"
@@ -92,6 +93,7 @@ const RebalancingRecommendations = ({ portfolioId }) => {
                 <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
                     <Target className="w-5 h-5 mr-2 text-primary-400" />
                     Recommendation Summary
+                    <InfoTip id="rebalancing" className="ml-1.5" />
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">

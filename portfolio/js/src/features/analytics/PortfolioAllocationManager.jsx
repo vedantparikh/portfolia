@@ -13,6 +13,7 @@ import { analyticsAPI } from './api';
 import { invalidateAnalytics, useAllocations } from './queries';
 import { formatPercentage } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../shared/ui/Spinner';
+import InfoTip from '../../shared/ui/InfoTip';
 import { ErrorState, Modal } from "../../shared/ui";
 
 const PortfolioAllocationManager = ({ portfolioId }) => {
@@ -108,6 +109,7 @@ const PortfolioAllocationManager = ({ portfolioId }) => {
                     <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center">
                         <Target className="w-5 h-5 mr-2 text-primary-400" />
                         Allocation Analysis
+                        <InfoTip id="allocation_drift" className="ml-1.5" />
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">

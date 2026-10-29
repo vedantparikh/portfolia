@@ -148,18 +148,18 @@ const PortfolioDetail = ({ portfolio }) => {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Value"
+              label="Value" info="value"
               className="col-span-2 lg:col-span-1"
               value={summary ? money(summary.total_current_value) : "—"}
               sub={summary ? `${summary.total_assets} holdings` : null}
             />
             <StatCard
-              label="Invested"
+              label="Invested" info="cost_basis"
               value={summary ? money(summary.total_cost_basis) : "—"}
               sub="Cost basis"
             />
             <StatCard
-              label="Unrealized P&L"
+              label="Unrealized P&L" info="unrealized_pnl"
               value={summary ? signed(summary.total_unrealized_pnl) : "—"}
               valueClassName={getChangeColor(summary?.total_unrealized_pnl)}
               sub={
@@ -169,7 +169,7 @@ const PortfolioDetail = ({ portfolio }) => {
               }
             />
             <StatCard
-              label="Today"
+              label="Today" info="today_pnl"
               value={summary ? signed(summary.today_pnl) : "—"}
               valueClassName={getChangeColor(summary?.today_pnl)}
               sub={
@@ -182,18 +182,18 @@ const PortfolioDetail = ({ portfolio }) => {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-              label="Realized P&L"
+              label="Realized P&L" info="realized_pnl"
               value={summary ? signed(summary.total_realized_pnl) : "—"}
               valueClassName={getChangeColor(summary?.total_realized_pnl)}
               sub="Sales, before tax"
             />
             <StatCard
-              label="Dividends"
+              label="Dividends" info="dividends"
               value={summary ? money(summary.total_dividends) : "—"}
               sub="Before tax"
             />
             <StatCard
-              label="Taxes paid"
+              label="Taxes paid" info="taxes_paid"
               value={summary ? money(summary.net_taxes_paid) : "—"}
               sub={
                 summary
@@ -204,7 +204,7 @@ const PortfolioDetail = ({ portfolio }) => {
               }
             />
             <StatCard
-              label="Realized after tax"
+              label="Realized after tax" info="realized_after_tax"
               value={summary ? signed(summary.realized_after_tax) : "—"}
               valueClassName={getChangeColor(summary?.realized_after_tax)}
               sub="Realized + dividends − taxes"

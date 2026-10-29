@@ -1,3 +1,5 @@
+import InfoTip from '../../shared/ui/InfoTip';
+
 const toneClasses = {
     primary: 'bg-primary-600/15 text-primary-400',
     success: 'bg-success-600/15 text-success-400',
@@ -8,6 +10,7 @@ const toneClasses = {
 
 const StatCard = ({
     label,
+    info,
     value,
     valueTitle,
     valueClassName = 'text-gray-100',
@@ -20,7 +23,10 @@ const StatCard = ({
 }) => (
     <div className={`card p-5 min-w-0 ${className}`}>
         <div className="flex items-start justify-between gap-3">
-            <p className="text-sm text-gray-400">{label}</p>
+            <p className="text-sm text-gray-400">
+                {label}
+                {info && <InfoTip id={info} className="ml-1.5" />}
+            </p>
             {Icon && (
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${toneClasses[tone]}`}>
                     <Icon size={18} />

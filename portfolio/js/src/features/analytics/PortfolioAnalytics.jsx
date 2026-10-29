@@ -10,6 +10,7 @@ import {
 import { useState } from 'react';
 import { useCalculationPeriods } from '../portfolio/queries';
 import { useRiskMetrics } from './queries';
+import InfoTip from '../../shared/ui/InfoTip';
 import { formatPercentage, formatRatio } from '../../utils/formatters.jsx';
 import LoadingSpinner from '../../shared/ui/Spinner';
 import { EmptyState, ErrorState, Modal } from '../../shared/ui';
@@ -17,10 +18,13 @@ import { EmptyState, ErrorState, Modal } from '../../shared/ui';
 const pct = (value, showSign = true) =>
     value === null || value === undefined ? 'N/A' : formatPercentage(value, { showSign });
 
-const MetricRow = ({ label, hint, value }) => (
+const MetricRow = ({ label, info, hint, value }) => (
     <div className="flex items-center justify-between gap-4">
         <div>
-            <p className="text-sm text-gray-300">{label}</p>
+            <p className="text-sm text-gray-300">
+                {label}
+                <InfoTip id={info} className="ml-1.5" />
+            </p>
             <p className="text-xs text-gray-500">{hint}</p>
         </div>
         <span className="text-sm font-medium text-gray-100 shrink-0">{value}</span>
@@ -149,16 +153,16 @@ const PortfolioAnalytics = ({ portfolioId }) => {
                                     </span>
                                 </div>
                                 {[
-                                    ['Volatility', 'Annualized swing in value', pct(riskMetrics.metrics?.annualized_volatility_pct, false)],
-                                    ['VaR (95%)', '1-in-20 bad day loses at least', pct(riskMetrics.metrics?.value_at_risk_95_pct)],
-                                    ['VaR (99%)', '1-in-100 bad day loses at least', pct(riskMetrics.metrics?.value_at_risk_99_pct)],
-                                    ['CVaR (95%)', 'Average loss on those bad days', pct(riskMetrics.metrics?.cvar_95)],
-                                    ['Max Drawdown', 'Worst fall from a peak', pct(riskMetrics.metrics?.max_drawdown)],
-                                    ['Sharpe Ratio', 'Return per unit of risk', formatRatio(riskMetrics.metrics?.sharpe_ratio)],
-                                    ['Sortino Ratio', 'Return per unit of downside risk', formatRatio(riskMetrics.metrics?.sortino_ratio)],
-                                    ['Calmar Ratio', 'Return relative to max drawdown', formatRatio(riskMetrics.metrics?.calmar_ratio)],
-                                ].map(([label, hint, value]) => (
-                                    <MetricRow key={label} label={label} hint={hint} value={value} />
+                                    ['Volatility', 'volatility', 'Annualized swing in value', pct(riskMetrics.metrics?.annualized_volatility_pct, false)],
+                                    ['VaR (95%)', 'var', '1-in-20 bad day loses at least', pct(riskMetrics.metrics?.value_at_risk_95_pct)],
+                                    ['VaR (99%)', 'var', '1-in-100 bad day loses at least', pct(riskMetrics.metrics?.value_at_risk_99_pct)],
+                                    ['CVaR (95%)', 'cvar', 'Average loss on those bad days', pct(riskMetrics.metrics?.cvar_95)],
+                                    ['Max Drawdown', 'max_drawdown', 'Worst fall from a peak', pct(riskMetrics.metrics?.max_drawdown)],
+                                    ['Sharpe Ratio', 'sharpe', 'Return per unit of risk', formatRatio(riskMetrics.metrics?.sharpe_ratio)],
+                                    ['Sortino Ratio', 'sortino', 'Return per unit of downside risk', formatRatio(riskMetrics.metrics?.sortino_ratio)],
+                                    ['Calmar Ratio', 'calmar', 'Return relative to max drawdown', formatRatio(riskMetrics.metrics?.calmar_ratio)],
+                                ].map(([label, info, hint, value]) => (
+                                    <MetricRow key={label} label={label} info={info} hint={hint} value={value} />
                                 ))}
                             </div>
                         </div>
@@ -179,13 +183,13 @@ const PortfolioAnalytics = ({ portfolioId }) => {
                             </h3>
                             <div className="space-y-3">
                                 {[
-                                    ['Beta', 'Moves vs. the market (1 = in line)', formatRatio(advanceRiskMetrics.metrics?.beta)],
-                                    ['Alpha', 'Return beyond what beta explains', pct(advanceRiskMetrics.metrics?.jensens_alpha_pct)],
-                                    ['Concentration (HHI)', '0 = spread out, 1 = a single holding', formatRatio(advanceRiskMetrics.metrics?.concentration_risk_hhi)],
-                                    ['Diversification Ratio', 'Above 1 means holdings offset each other', formatRatio(advanceRiskMetrics.metrics?.diversification_ratio)],
-                                    ['Effective Holdings', 'Equal-weight positions this behaves like', formatRatio(advanceRiskMetrics.metrics?.effective_number_of_assets, 1)],
-                                ].map(([label, hint, value]) => (
-                                    <MetricRow key={label} label={label} hint={hint} value={value} />
+                                    ['Beta', 'beta', 'Moves vs. the market (1 = in line)', formatRatio(advanceRiskMetrics.metrics?.beta)],
+                                    ['Alpha', 'alpha', 'Return beyond what beta explains', pct(advanceRiskMetrics.metrics?.jensens_alpha_pct)],
+                                    ['Concentration (HHI)', 'concentration', '0 = spread out, 1 = a single holding', formatRatio(advanceRiskMetrics.metrics?.concentration_risk_hhi)],
+                                    ['Diversification Ratio', 'diversification_ratio', 'Above 1 means holdings offset each other', formatRatio(advanceRiskMetrics.metrics?.diversification_ratio)],
+                                    ['Effective Holdings', 'effective_holdings', 'Equal-weight positions this behaves like', formatRatio(advanceRiskMetrics.metrics?.effective_number_of_assets, 1)],
+                                ].map(([label, info, hint, value]) => (
+                                    <MetricRow key={label} label={label} info={info} hint={hint} value={value} />
                                 ))}
                             </div>
                         </div>

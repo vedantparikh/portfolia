@@ -1,5 +1,6 @@
 import { Signal } from "lucide-react";
 
+import InfoTip from "../../shared/ui/InfoTip";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import {
   formatDate,
@@ -31,6 +32,7 @@ const BacktestLine = ({ symbol, strategy }) => {
     <div className="mt-3 pt-3 border-t border-dark-700 text-sm">
       <p className="text-xs text-gray-500 mb-1">
         Backtest since {day(data.start)}: bought and sold at the close on each signal, no costs or taxes
+        <InfoTip id="backtest" className="ml-1.5" />
       </p>
       {data.trades.length === 0 ? (
         <p className="text-gray-300">
@@ -49,7 +51,10 @@ const BacktestLine = ({ symbol, strategy }) => {
           <dd className={`text-right ${getChangeColor(data.buy_and_hold_pct)}`}>
             {formatPercentage(data.buy_and_hold_pct)}
           </dd>
-          <dt className="text-gray-400">Trades (won)</dt>
+          <dt className="text-gray-400">
+            Trades (won)
+            <InfoTip id="win_rate" className="ml-1.5" />
+          </dt>
           <dd className="text-right text-gray-300">
             {data.trades.length} ({formatPercentage(data.win_rate_pct, { showSign: false, precision: 0 })})
           </dd>
@@ -81,7 +86,10 @@ const StrategySignals = ({ symbol, currency }) => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <section>
-            <h4 className="font-medium text-gray-100">Grandfather-father-son RSI</h4>
+            <h4 className="font-medium text-gray-100">
+              Grandfather-father-son RSI
+              <InfoTip id="gfs" className="ml-1.5" />
+            </h4>
             <p className="text-xs text-gray-500 mb-2">
               RSI(14) of monthly, weekly and daily closes: all below 30 = buy, all above 70 = sell.
             </p>
@@ -108,7 +116,10 @@ const StrategySignals = ({ symbol, currency }) => {
             <BacktestLine symbol={symbol} strategy="gfs" />
           </section>
           <section>
-            <h4 className="font-medium text-gray-100">MACD with 200-day trend</h4>
+            <h4 className="font-medium text-gray-100">
+              MACD with 200-day trend
+              <InfoTip id="macd_strategy" className="ml-1.5" />
+            </h4>
             <p className="text-xs text-gray-500 mb-2">
               MACD crossing its signal below zero above the 200-day EMA = buy; above zero below it = sell. Last 12 months.
             </p>

@@ -14,6 +14,7 @@ import {
 } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import StatCard from "../../components/shared/StatCard";
+import InfoTip from "../../shared/ui/InfoTip";
 import BenchmarkCard from "./BenchmarkCard";
 import PerformanceSeriesChart from "./PerformanceSeriesChart";
 
@@ -30,10 +31,13 @@ const PERIODS = [
 
 const day = (d) => formatDate(`${d}T12:00:00`);
 
-const Row = ({ label, hint, value, className = "text-gray-100" }) => (
+const Row = ({ label, info, hint, value, className = "text-gray-100" }) => (
   <div className="flex items-center justify-between gap-4 py-1.5">
     <div>
-      <p className="text-sm text-gray-300">{label}</p>
+      <p className="text-sm text-gray-300">
+        {label}
+        {info && <InfoTip id={info} className="ml-1.5" />}
+      </p>
       {hint && <p className="text-xs text-gray-500">{hint}</p>}
     </div>
     <span className={`text-sm font-medium shrink-0 ${className}`}>{value}</span>
@@ -113,12 +117,12 @@ const PortfolioChart = ({ portfolio }) => {
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <StatCard
-                label="Value"
+                label="Value" info="value"
                 value={money(s.end_value)}
                 sub={s.start_value ? `from ${money(s.start_value)}` : "Since the first trade"}
               />
               <StatCard
-                label="Profit"
+                label="Profit" info="profit"
                 value={signed(s.profit)}
                 valueClassName={getChangeColor(s.profit)}
                 sub={
@@ -128,7 +132,7 @@ const PortfolioChart = ({ portfolio }) => {
                 }
               />
               <StatCard
-                label="Return (TWR)"
+                label="Return (TWR)" info="twr"
                 value={formatPercentage(s.twr_pct)}
                 valueClassName={getChangeColor(s.twr_pct)}
                 sub={
@@ -138,7 +142,7 @@ const PortfolioChart = ({ portfolio }) => {
                 }
               />
               <StatCard
-                label="Return (money-weighted)"
+                label="Return (money-weighted)" info="mwr"
                 value={formatPercentage(s.mwr_pct)}
                 valueClassName={getChangeColor(s.mwr_pct)}
                 sub={
@@ -216,19 +220,19 @@ const PortfolioChart = ({ portfolio }) => {
           <div className="card p-6">
             <h4 className="font-semibold text-gray-100 mb-2">Risk</h4>
             <Row
-              label="Max drawdown"
+              label="Max drawdown" info="max_drawdown"
               hint="Worst fall from a peak in this period"
               value={formatPercentage(s.max_drawdown_pct)}
             />
             <Row
-              label="Volatility"
+              label="Volatility" info="volatility"
               hint="Annualised swing of daily returns"
               value={formatPercentage(s.volatility_pct, { showSign: false })}
             />
-            <Row label="Sharpe ratio" hint="Return per unit of risk (3% risk-free)" value={formatRatio(s.sharpe_ratio)} />
+            <Row label="Sharpe ratio" info="sharpe" hint="Return per unit of risk (3% risk-free)" value={formatRatio(s.sharpe_ratio)} />
             {s.best_day && (
               <Row
-                label="Best day"
+                label="Best day" info="best_worst_day"
                 hint={day(s.best_day.date)}
                 value={formatPercentage(s.best_day.return_pct)}
                 className={getChangeColor(s.best_day.return_pct)}
@@ -236,7 +240,7 @@ const PortfolioChart = ({ portfolio }) => {
             )}
             {s.worst_day && (
               <Row
-                label="Worst day"
+                label="Worst day" info="best_worst_day"
                 hint={day(s.worst_day.date)}
                 value={formatPercentage(s.worst_day.return_pct)}
                 className={getChangeColor(s.worst_day.return_pct)}
@@ -247,11 +251,11 @@ const PortfolioChart = ({ portfolio }) => {
             <h4 className="font-semibold text-gray-100 mb-2">Money in and out</h4>
             <Row label="Period" value={`${day(s.start_date)} – ${day(s.end_date)}`} hint={`${s.trading_days} trading days`} />
             <Row label="Value at start" value={money(s.start_value)} />
-            <Row label="Deposits" hint="Buys, including fees" value={money(s.deposits)} />
-            <Row label="Withdrawals" hint="Sale proceeds and dividends" value={money(s.withdrawals)} />
+            <Row label="Deposits" info="net_contributions" hint="Buys, including fees" value={money(s.deposits)} />
+            <Row label="Withdrawals" info="net_contributions" hint="Sale proceeds and dividends" value={money(s.withdrawals)} />
             <Row label="Value at end" value={money(s.end_value)} />
             <Row
-              label="Profit"
+              label="Profit" info="profit"
               hint="End − start − net deposits"
               value={signed(s.profit)}
               className={getChangeColor(s.profit)}

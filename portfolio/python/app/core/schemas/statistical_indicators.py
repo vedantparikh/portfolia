@@ -163,7 +163,9 @@ class IndicatorCalculationRequest(BaseModel):
     end_date: Optional[datetime] = Field(None, description="End date for data")
 
     @validator("indicators", always=True)
-    def validate_indicators(cls, v, values):
+    def validate_indicators(
+        cls, v: Optional[List[IndicatorConfiguration]], values: Dict[str, Any]
+    ) -> Optional[List[IndicatorConfiguration]]:
         """Validate that either configuration_id or indicators is provided."""
         if not values.get("configuration_id") and not v:
             raise ValueError("Either configuration_id or indicators must be provided")
@@ -340,8 +342,8 @@ class IndicatorValidationError(BaseModel):
     indicator_name: str = Field(..., description="Indicator name")
     parameter_name: str = Field(..., description="Parameter name")
     error_message: str = Field(..., description="Error message")
-    provided_value: Any = Field(..., description="Provided value")
-    expected_type: str = Field(..., description="Expected type")
+    provided_value: Any = Field(None, description="Provided value")
+    expected_type: Optional[str] = Field(None, description="Expected type")
 
 
 class IndicatorCalculationError(BaseModel):

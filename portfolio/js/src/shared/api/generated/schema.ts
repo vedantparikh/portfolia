@@ -4171,12 +4171,12 @@ export interface components {
              * Provided Value
              * @description Provided value
              */
-            provided_value: unknown;
+            provided_value?: unknown;
             /**
              * Expected Type
              * @description Expected type
              */
-            expected_type: string;
+            expected_type?: string | null;
         };
         /** InstrumentMapping */
         InstrumentMapping: {

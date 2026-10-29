@@ -169,25 +169,25 @@ const PortfolioPerformanceMetrics = ({ portfolio }) => {
       {performanceData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
-            label="CAGR"
+            label="CAGR" info="cagr"
             value={formatMetricValue(performanceData.metrics?.cagr, true)}
             valueClassName={getMetricColor(performanceData.metrics?.cagr)}
             sub="Time-weighted, per year"
           />
           <StatCard
-            label="XIRR"
+            label="XIRR" info="xirr"
             value={formatMetricValue(performanceData.metrics?.xirr, true)}
             valueClassName={getMetricColor(performanceData.metrics?.xirr)}
             sub="Money-weighted, per year"
           />
           <StatCard
-            label="TWR"
+            label="TWR" info="twr"
             value={formatMetricValue(performanceData.metrics?.twr, true)}
             valueClassName={getMetricColor(performanceData.metrics?.twr)}
             sub="Time-weighted, this period"
           />
           <StatCard
-            label="MWR"
+            label="MWR" info="mwr"
             value={formatMetricValue(performanceData.metrics?.mwr, true)}
             valueClassName={getMetricColor(performanceData.metrics?.mwr)}
             sub="Money-weighted, this period"

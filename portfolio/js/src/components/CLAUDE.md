@@ -25,7 +25,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 ## Shared components (`shared/`, barrel `index.js`)
 | Component | Notes |
 |---|---|
-| `StatCard` | KPI tile: label, value, valueClassName, sub, detail, icon, tone (primary/success/danger/warning/gray), className. Green/red only for gains/losses (`getChangeColor`) |
+| `StatCard` | KPI tile: label, info (a `metricGuide` id → ⓘ tip), value, valueClassName, sub, detail, icon, tone (primary/success/danger/warning/gray), className. Green/red only for gains/losses (`getChangeColor`) |
 | `Sparkline` | Plain-SVG line (no dependency) |
 | `LoadingSpinner` | Re-export of `shared/ui/Spinner` |
 | `EnhancedChart` | lightweight-charts v5 price + indicator panes (imported directly, not via the barrel) |
@@ -41,6 +41,7 @@ Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Inves
 | `Button` | `btn-primary` / `btn-secondary` / `btn-outline` by `variant`, `type="button"` by default |
 | `Card` | `card` utility plus `className` (default `p-6`) |
 | `EmptyState`, `ErrorState` | Centered icon, title, message; `ErrorState` adds a "Try Again" button for `onRetry`. Used by the analytics tabs |
+| `InfoTip` | ⓘ button next to a metric (`id` = a `shared/metricGuide.js` entry): portal popover with what it is, how to read it, good, watch out, what it implies, and a link to `/concepts#id`. Esc, outside click or scroll closes it |
 | `tooltipDom.js` | Text-only chart tooltips, `chartMoney`, `barChange` |
 
 There is no `Table` primitive: the tables share no structure beyond Tailwind classes. `SymbolSearch` and `ClientSideAssetSearch` search different sources, so they were not merged. Every price chart is `EnhancedChart` (the older `Chart` was removed 2026-10-29).
@@ -62,8 +63,8 @@ There is no `Table` primitive: the tables share no structure beyond Tailwind cla
 - API types: `npm run generate:api` writes `shared/api/generated/schema.ts` from the OpenAPI document; `shared/api/schema.ts` exposes `Schemas` (e.g. `assetAPI` returns `Schemas["Asset"]`).
 - Tests: `npm test` = Vitest (jsdom, `src/**/*.test.*`, MSW handlers in `src/test/msw/`, `renderWithProviders`); files: `utils/formatters.test.js`, `shared/auth/tokenStore.test.ts`, `contexts/AuthContext.test.jsx`. `npm run test:e2e` = Playwright `e2e/smoke.spec.ts` (sign in, reload keeps the session, create a portfolio, sign out).
 
-## Financial Concepts (`FinancialConcepts.jsx`, `/concepts`)
-A static glossary of about 30 concepts in categories: returns (TWR, MWR, XIRR, CAGR, Modified Dietz), risk (Sharpe, Sortino, VaR, beta, drawdown), allocation, transactions and technical (RSI, MACD, MA). It has search, a category filter, sort and expandable cards, and makes no API calls. Keep its definitions consistent with `python/app/core/domain/CLAUDE.md` (e.g. MWR is shown per period, XIRR per year).
+## Metric guide and Financial Concepts (`/concepts`)
+`shared/metricGuide.js` is the one explanation per number the app shows (id, name, category, short, what, formula as this app computes it, example, read, good, bad, implies, optional caveat). The ⓘ tips (`InfoTip`, `StatCard info=`, the `info` prop on the chart's `Row`, `BenchmarkCard`'s `Versus` and the analytics `MetricRow`) and `components/FinancialConcepts.jsx` both read it, so they cannot drift apart. The page filters by category and search, sorts by topic or name, and `/concepts#<id>` scrolls to and opens that entry. Keep the formulas consistent with `python/app/core/domain/CLAUDE.md`; good/bad bands are rules of thumb and the page says so. `shared/metricGuide.test.js` fails when a screen points at an id the guide does not have.
 
 ## Planned
 Plan Phase 4:

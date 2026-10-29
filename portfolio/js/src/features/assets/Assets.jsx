@@ -311,14 +311,14 @@ const Assets = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <HighlightCard label="Top Gainer (24h)" icon={Award} tone="success" pick={highlights?.top_gainer} detail={(v) => formatPercentage(v)} changeColor />
-                        <HighlightCard label="Highest Dividend Yield" icon={Landmark} pick={highlights?.highest_dividend_yield} detail={(v) => `${formatPercentage(v, { showSign: false })} Yield`} />
-                        <HighlightCard label="Best Value (Lowest P/E)" icon={Gem} tone="gray" pick={highlights?.lowest_pe} detail={(v) => `${formatRatio(v)} P/E Ratio`} />
-                        <HighlightCard label="Most Traded (24h)" icon={Zap} tone="warning" pick={highlights?.most_traded} detail={(v) => `${formatVolume(v)} Volume`} />
-                        <HighlightCard label="Most Stable" icon={Shield} tone="success" pick={highlights?.lowest_beta} detail={(v) => `${formatRatio(v)} Beta`} />
-                        <HighlightCard label="Highest Growth" icon={TrendingUp} pick={highlights?.highest_revenue_growth} detail={(v) => `${formatPercentage(v)} Revenue`} />
-                        <HighlightCard label="Strongest Momentum" icon={ChevronsUp} tone="gray" pick={highlights?.closest_to_52w_high} detail={(v) => `${formatPercentage(v, { showSign: false, precision: 1 })} of 52-Wk High`} />
-                        <HighlightCard label="Top Loser (24h)" icon={AlertTriangle} tone="danger" pick={highlights?.top_loser} detail={(v) => formatPercentage(v)} changeColor />
+                        <HighlightCard label="Top Gainer (24h)" info="day_change_pct" icon={Award} tone="success" pick={highlights?.top_gainer} detail={(v) => formatPercentage(v)} changeColor />
+                        <HighlightCard label="Highest Dividend Yield" info="dividend_yield" icon={Landmark} pick={highlights?.highest_dividend_yield} detail={(v) => `${formatPercentage(v, { showSign: false })} Yield`} />
+                        <HighlightCard label="Best Value (Lowest P/E)" info="pe" icon={Gem} tone="gray" pick={highlights?.lowest_pe} detail={(v) => `${formatRatio(v)} P/E Ratio`} />
+                        <HighlightCard label="Most Traded (24h)" info="volume" icon={Zap} tone="warning" pick={highlights?.most_traded} detail={(v) => `${formatVolume(v)} Volume`} />
+                        <HighlightCard label="Most Stable" info="asset_beta" icon={Shield} tone="success" pick={highlights?.lowest_beta} detail={(v) => `${formatRatio(v)} Beta`} />
+                        <HighlightCard label="Highest Growth" info="revenue_growth" icon={TrendingUp} pick={highlights?.highest_revenue_growth} detail={(v) => `${formatPercentage(v)} Revenue`} />
+                        <HighlightCard label="Strongest Momentum" info="momentum_52w" icon={ChevronsUp} tone="gray" pick={highlights?.closest_to_52w_high} detail={(v) => `${formatPercentage(v, { showSign: false, precision: 1 })} of 52-Wk High`} />
+                        <HighlightCard label="Top Loser (24h)" info="day_change_pct" icon={AlertTriangle} tone="danger" pick={highlights?.top_loser} detail={(v) => formatPercentage(v)} changeColor />
                     </div>
 
                     {showFilters && (

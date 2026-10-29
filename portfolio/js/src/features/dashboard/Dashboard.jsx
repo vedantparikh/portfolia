@@ -191,7 +191,7 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <StatCard
-                label="Total Value"
+                label="Total Value" info="value"
                 icon={Wallet}
                 className="col-span-2 lg:col-span-1"
                 value={

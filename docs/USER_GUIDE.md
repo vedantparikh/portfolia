@@ -313,7 +313,9 @@ Under each rule, a **backtest** replays its signals over the last five years: bu
 
 ## Financial Concepts
 
-A glossary, with no API behind it. Search, filter by category, and open a card. The definitions match the engine: MWR is the period return, XIRR is the annual one, TWR ignores the size of deposits.
+An explanation of every number the app shows, with no API behind it. Search, filter by category (returns, risk, portfolio construction, income and taxes, stock fundamentals, indicators and strategies, transactions), and open a card. Each card says what the number is, how this app calculates it, an example, how to read it, what is good, what to watch out for, and what it implies for your portfolio. The good and bad ranges are rules of thumb, not advice.
+
+The same explanations appear in the app: click the **ⓘ** next to a number (portfolio cards, performance and risk metrics, the benchmark comparison, asset highlights, strategy signals) for the short version, and follow its link to the full card here.
 
 ![Financial Concepts](images/06-concepts.png)
 

@@ -5,7 +5,6 @@ Authentication utilities for password hashing, JWT tokens, and security.
 import hashlib
 import hmac
 import secrets
-import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Union
 
@@ -155,11 +154,6 @@ def generate_verification_token() -> str:
 def generate_reset_token() -> str:
     """Generate a random password reset token."""
     return secrets.token_urlsafe(32)
-
-
-def generate_two_factor_code() -> str:
-    """Generate a 6-digit two-factor authentication code."""
-    return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
 def generate_session_id() -> str:

@@ -39,10 +39,6 @@ const Chart = ({
   showReturns = false,
   showIndicators = false,
   selectedIndicators = [],
-  isPortfolioChart = false,
-  portfolioData = null,
-  showComparisonLine = false,
-  comparisonLineName = "Comparison",
 }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
@@ -130,48 +126,9 @@ const Chart = ({
     });
   }, [data]);
 
-  const { candlestickData, portfolioLineData, comparisonLineData } =
-    useMemo(() => {
-      if (isPortfolioChart && portfolioData) {
-        const sortedData = [...portfolioData].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-
-        const uniqueDataMap = new Map();
-        sortedData.forEach((item) => {
-          uniqueDataMap.set(new Date(item.date).getTime(), item);
-        });
-        const uniqueSortedData = Array.from(uniqueDataMap.values());
-
-        const processedPortfolioData = uniqueSortedData
-          .map((item) => ({
-            time: new Date(item.date).getTime() / 1000,
-            value: Number(item.value) || 0,
-          }))
-          .filter((item) => !isNaN(item.value));
-
-        const processedComparisonData = showComparisonLine
-          ? uniqueSortedData
-              .map((item) => ({
-                time: new Date(item.date).getTime() / 1000,
-                value: Number(item.cost_basis) || 0,
-              }))
-              .filter((item) => !isNaN(item.value))
-          : [];
-
-        return {
-          candlestickData: [],
-          portfolioLineData: processedPortfolioData,
-          comparisonLineData: processedComparisonData,
-        };
-      }
-
+  const candlestickData = useMemo(() => {
       if (!data || data.length === 0) {
-        return {
-          candlestickData: [],
-          portfolioLineData: [],
-          comparisonLineData: [],
-        };
+        return [];
       }
       const sortedData = [...data].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -203,12 +160,8 @@ const Chart = ({
         })
         .filter(Boolean);
 
-      return {
-        candlestickData: cData,
-        portfolioLineData: [],
-        comparisonLineData: [],
-      };
-    }, [data, isPortfolioChart, portfolioData, showComparisonLine]);
+      return cData;
+    }, [data]);
 
   useEffect(() => {
     if (showReturns && data && data.length > 0) {
@@ -234,14 +187,10 @@ const Chart = ({
   }, [selectedIndicators, symbol, data, showIndicators, loadIndicatorData]);
 
   useEffect(() => {
-    const hasData = isPortfolioChart
-      ? portfolioLineData.length > 0
-      : candlestickData.length > 0;
-
     if (
       !chartContainerRef.current ||
       chartContainerRef.current.clientWidth === 0 ||
-      !hasData
+      candlestickData.length === 0
     ) {
       return;
     }
@@ -294,26 +243,7 @@ const Chart = ({
     }
 
     let priceSeries;
-    let comparisonSeries = null;
 
-    if (isPortfolioChart) {
-      priceSeries = chart.addSeries(LineSeries, {
-        color: "#0ea5e9",
-        lineWidth: 2,
-        title: "Portfolio Value",
-      });
-      priceSeries.setData(portfolioLineData);
-
-      if (showComparisonLine && comparisonLineData.length > 0) {
-        comparisonSeries = chart.addSeries(LineSeries, {
-          color: "#6b7280",
-          lineWidth: 2,
-          lineStyle: 2,
-          title: comparisonLineName,
-        });
-        comparisonSeries.setData(comparisonLineData);
-      }
-    } else {
       if (chartType === "candlestick") {
         priceSeries = chart.addSeries(CandlestickSeries, {
           upColor: "#22c55e",
@@ -344,7 +274,6 @@ const Chart = ({
         }
         priceSeries.setData(lineData);
       }
-    }
 
     if (
       showIndicators &&
@@ -413,38 +342,7 @@ const Chart = ({
       let title = "";
       let rows = [];
 
-      if (isPortfolioChart) {
-        const portfolioValue = data.value;
-        const comparisonValue = comparisonSeries
-          ? param.seriesData.get(comparisonSeries)?.value
-          : null;
-        title = `Portfolio Performance - ${date}`;
-        rows = [
-          { label: "Time:", value: time, className: "text-gray-200" },
-          {
-            label: "Portfolio Value:",
-            value: chartMoney(portfolioValue, currency),
-            className: "text-primary-400",
-          },
-        ];
-        if (comparisonValue !== null && comparisonValue !== undefined) {
-          rows.push(
-            {
-              label: `${comparisonLineName}:`,
-              value: chartMoney(comparisonValue, currency),
-              className: "text-gray-300",
-            },
-            {
-              label: "Unrealized P/L:",
-              value: chartMoney(portfolioValue - comparisonValue, currency),
-              className:
-                portfolioValue >= comparisonValue
-                  ? "text-success-400"
-                  : "text-danger-400",
-            }
-          );
-        }
-      } else if (chartType === "candlestick") {
+      if (chartType === "candlestick") {
         title = `${symbol || "Asset"} - ${date}`;
         rows = [
           { label: "Open:", value: chartMoney(data.open, currency), className: "text-gray-200" },
@@ -535,8 +433,6 @@ const Chart = ({
     };
   }, [
     candlestickData,
-    portfolioLineData,
-    comparisonLineData,
     theme,
     height,
     chartType,
@@ -544,9 +440,6 @@ const Chart = ({
     currency,
     showIndicators,
     indicatorData,
-    isPortfolioChart,
-    showComparisonLine,
-    comparisonLineName,
   ]);
 
   const getIndicatorColor = (indicatorName) => {
@@ -689,8 +582,7 @@ const Chart = ({
         className="bg-dark-950 rounded-lg border border-dark-700 overflow-hidden"
       />
 
-      {((!isPortfolioChart && (!data || data.length === 0)) ||
-        (isPortfolioChart && (!portfolioData || portfolioData.length === 0))) &&
+      {(!data || data.length === 0) &&
         !loading && (
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -699,9 +591,7 @@ const Chart = ({
             <div className="flex flex-col items-center space-y-2">
               <BarChart3 className="w-8 h-8 text-gray-500" />
               <p className="text-gray-500">
-                {isPortfolioChart
-                  ? "No portfolio data available for this period."
-                  : "No chart data available for this period."}
+                No chart data available for this period.
               </p>
             </div>
           </div>

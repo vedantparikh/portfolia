@@ -12,7 +12,6 @@ __all__ = [
     "create_tokens",
     "generate_verification_token",
     "generate_reset_token",
-    "generate_two_factor_code",
     "is_password_strong",
     "sanitize_username",
     "store_verification_token",

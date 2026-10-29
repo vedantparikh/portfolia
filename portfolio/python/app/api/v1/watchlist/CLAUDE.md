@@ -40,7 +40,6 @@ Create list → add symbols (search) → see price, change since added, notes �
 - Watchlist items have no currency: the table formats prices as USD (the `formatPrice` default) and alerts show plain numbers.
 - `WatchlistPerformance` (daily price per item, written by the worker) has no chart yet.
 - No UI for rating/thesis/tags or browsing public lists.
-- `WatchlistSidebar.jsx` is exported from the barrel but rendered nowhere.
 
 ## Planned
 Batch 4 UI (agreed earlier): show change since added, days held, rating, tags, a thesis tooltip and alert thresholds in the table.

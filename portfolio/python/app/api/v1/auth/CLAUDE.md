@@ -25,7 +25,6 @@ Register → email link → `/verify-email` → login (cookie set) → protected
 
 ## Known gaps
 - No profile/settings page: `changePassword`, `PUT /me`, `DELETE /me` unused by the UI.
-- `core/database/models/auth.py` is a dead duplicate of the user tables; `generate_two_factor_code` unused (no 2FA).
 
 ## Planned
 A settings page (profile, password, delete account).

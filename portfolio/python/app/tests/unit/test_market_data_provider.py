@@ -280,3 +280,33 @@ def test_ranges_request_unadjusted_bars(monkeypatch):
     assert result["currency"] == "EUR"
     assert result["ranges"]["2024-01-02"] == [1.0, 2.0]
     assert result["splits"]["2024-06-01"] == 2.0
+
+
+def test_a_frozen_quote_gives_way_to_the_last_daily_close(monkeypatch):
+    now = pd.Timestamp.now(tz="UTC").floor("D")
+    bars = pd.DataFrame(
+        {"Close": [25.02, 26.04]}, index=[now - pd.Timedelta(days=2), now]
+    )
+
+    class Ticker:
+        def __init__(self, symbol, quoted_at):
+            self.ticker = symbol
+            self.info = {"regularMarketPrice": 18.705, "regularMarketTime": quoted_at}
+
+        def history(self, **kwargs):
+            return bars
+
+    class Tickers:
+        def __init__(self, symbols):
+            fresh = int(now.timestamp()) + 3600
+            self.tickers = {
+                "82W.SG": Ticker("82W.SG", 1721764800),
+                "SAP.F": Ticker("SAP.F", fresh),
+            }
+
+    monkeypatch.setattr(yahoo.yf, "Tickers", Tickers)
+    prices = asyncio.run(
+        YahooMarketDataProvider(attempts=1).current_prices(["82W.SG", "SAP.F"])
+    )
+
+    assert prices == {"82W.SG": Decimal("26.04"), "SAP.F": Decimal("18.705")}

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 YAHOO_CONCURRENCY = 4
 YAHOO_ATTEMPTS = 3
 YAHOO_BASE_DELAY = 0.5
+QUOTE_MAX_AGE = timedelta(days=4)
 
 
 class YahooMarketDataProvider:
@@ -86,16 +87,35 @@ class YahooMarketDataProvider:
         return await self.run(self._search, query)
 
     def _current_prices(self, symbols: List[str]) -> Dict[str, Decimal]:
+        """
+        Yahoo's quote, unless the quote is older than the listing's last daily bar:
+        some venues (e.g. Stuttgart 82W.SG) keep a quote frozen for years while
+        their daily closes stay current. Then the last close is the price.
+        """
         prices: Dict[str, Decimal] = {}
         tickers = yf.Tickers(" ".join(symbols))
         for ticker in tickers.tickers.values():
             symbol = ticker.ticker
             try:
+                info = ticker.info
                 price = (
-                    ticker.info.get("regularMarketPrice")
-                    or ticker.info.get("currentPrice")
-                    or ticker.info.get("previousClose")
+                    info.get("regularMarketPrice")
+                    or info.get("currentPrice")
+                    or info.get("previousClose")
                 )
+                quoted_at = info.get("regularMarketTime")
+                if (
+                    quoted_at
+                    and datetime.now(timezone.utc)
+                    - datetime.fromtimestamp(quoted_at, timezone.utc)
+                    > QUOTE_MAX_AGE
+                ):
+                    bars = ticker.history(
+                        period="10d", interval="1d", auto_adjust=False
+                    )
+                    closes = bars["Close"].dropna() if "Close" in bars else []
+                    if len(closes) and closes.index[-1].timestamp() > quoted_at:
+                        price = closes.iloc[-1]
                 if price:
                     prices[symbol.upper()] = Decimal(str(price))
             except Exception:

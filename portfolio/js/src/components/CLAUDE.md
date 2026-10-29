@@ -6,7 +6,7 @@
 
 ## Routes (`js/src/app/router.jsx`)
 - Public auth pages live in `features/auth/`: `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email`.
-- Protected routes render inside `app/ProtectedLayout.jsx`: `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`. Their pages live in `features/`, except the concepts page, which stays in this folder.
+- Protected routes render inside `app/ProtectedLayout.jsx`: `/dashboard`, `/portfolio`, `/assets`, `/transactions`, `/watchlist`, `/concepts`, `/settings` (`features/settings/Settings.jsx`: profile, password change, close account with the password). Their pages live in `features/`, except the concepts page, which stays in this folder.
 - `/` redirects to `/dashboard`. Unknown paths render `app/NotFound.jsx`.
 - Each route is `React.lazy`. `app/ErrorBoundary.jsx` wraps the outlet and resets when the path changes.
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional, Self
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -155,16 +155,6 @@ class PortfolioAsset(PortfolioAssetBase):
         from_attributes = True
 
 
-class PortfolioAssetWithDetails(PortfolioAsset):
-    """Portfolio asset with additional asset information"""
-
-    symbol: Optional[str] = None
-    asset_name: Optional[str] = None
-    market_value: Optional[Decimal] = None
-    total_return: Optional[Decimal] = None
-    total_return_percent: Optional[Decimal] = None
-
-
 class AssetBase(BaseModel):
     symbol: str
     name: str
@@ -242,13 +232,32 @@ class Asset(AssetBase):
 
     @field_validator("detail", mode="before")
     @classmethod
-    def validate_detail(cls, v):
+    def validate_detail(cls, v: Any) -> Any:
         # This validator runs before Pydantic's own validation.
         # If the incoming value 'v' is a dict, it creates an AssetDetail instance from it.
         # If 'v' is already None or an AssetDetail instance, it passes it through unchanged.
         if isinstance(v, dict):
             return AssetDetail(**v)
         return v
+
+
+class AssetHighlight(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    value: float
+
+
+class AssetHighlights(BaseModel):
+    """Best asset per quote field over all the user's assets; percent fields are percent."""
+
+    top_gainer: Optional[AssetHighlight] = None
+    top_loser: Optional[AssetHighlight] = None
+    highest_dividend_yield: Optional[AssetHighlight] = None
+    lowest_pe: Optional[AssetHighlight] = None
+    most_traded: Optional[AssetHighlight] = None
+    lowest_beta: Optional[AssetHighlight] = None
+    highest_revenue_growth: Optional[AssetHighlight] = None
+    closest_to_52w_high: Optional[AssetHighlight] = None
 
 
 class AssetBulkCreateRequest(BaseModel):
@@ -350,10 +359,10 @@ class TransactionBase(BaseModel):
 
 class TransactionCreate(TransactionBase):
     # Computed server-side from quantity, price, fees and taxes; any value sent is ignored
-    total_amount: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None  # type: ignore[assignment]
 
     @model_validator(mode="after")
-    def _numbers(self):
+    def _numbers(self) -> Self:
         check_transaction_numbers(self.transaction_type, self.quantity, self.price)
         return self
 
@@ -373,7 +382,7 @@ class TransactionUpdate(BaseModel):
     status: Optional[TransactionStatus] = None
 
     @model_validator(mode="after")
-    def _numbers(self):
+    def _numbers(self) -> Self:
         check_transaction_numbers(
             self.transaction_type,
             self.quantity,

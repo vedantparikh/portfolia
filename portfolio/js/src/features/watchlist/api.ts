@@ -1,4 +1,5 @@
 import { api, type Id, type Params } from "../../shared/api/client";
+import type { Schemas } from "../../shared/api/schema";
 
 export const watchlistAPI = {
   getAlerts: async (unreadOnly = false, limit = 50) =>
@@ -35,6 +36,15 @@ export const watchlistAPI = {
       .data,
   removeItemFromWatchlist: async (watchlistId: Id, itemId: Id) =>
     (await api.delete(`/watchlists/${watchlistId}/items/${itemId}`)).data,
+  getItemHistory: async (
+    watchlistId: Id,
+    itemId: Id,
+  ): Promise<Schemas["WatchlistPricePoint"][]> =>
+    (await api.get(`/watchlists/${watchlistId}/items/${itemId}/history`)).data,
+  getPublicWatchlists: async (): Promise<Schemas["WatchlistResponse"][]> =>
+    (await api.get("/watchlists/public")).data,
+  getPublicWatchlist: async (watchlistId: Id) =>
+    (await api.get(`/watchlists/public/${watchlistId}`)).data,
   reorderWatchlistItems: async (watchlistId: Id, itemIds: Id[]) =>
     (
       await api.post(`/watchlists/${watchlistId}/reorder`, {

@@ -4,6 +4,7 @@ import {
   Bell,
   Edit3,
   GripVertical,
+  LineChart,
   MoreVertical,
   Plus,
   RefreshCw,
@@ -20,14 +21,14 @@ import { watchlistAPI } from "./api";
 import { apiErrorMessage } from "../../shared/api/client";
 import {
   formatDate,
-  formatCurrency,
   formatDateTime,
   formatPercentage,
-  formatPrice,
+  formatQuote,
   getChangeColor,
 } from "../../utils/formatters.jsx";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import EditSymbolModal from "./EditSymbolModal";
+import PriceHistoryModal from "./PriceHistoryModal";
 import { Modal } from "../../shared/ui";
 
 // WatchlistContent component - displays the symbols table with search, sort, and refresh controls
@@ -51,7 +52,9 @@ const WatchlistContent = ({
   addingSymbol,
   removingSymbol,
   alertItemIds = new Set(),
+  readOnly = false,
 }) => {
+  const [historyItem, setHistoryItem] = useState(null);
   // useState is a React Hook that lets you add state to functional components
   // Each useState call returns an array with two elements: [currentValue, setterFunction]
   const [loadingItems, setLoadingItems] = useState(
@@ -307,7 +310,7 @@ const WatchlistContent = ({
 
   // Get the filtered and sorted items for display
   const sortedItems = getSortedItems();
-  const canReorder = sortBy === "custom" && !searchTerm;
+  const canReorder = !readOnly && sortBy === "custom" && !searchTerm;
 
   // This is what gets displayed on the screen
   return (
@@ -543,15 +546,26 @@ const WatchlistContent = ({
                                 {/* Drag handle - allows user to grab and drag the row */}
                                 <div
                                   {...provided.dragHandleProps}
-                                  className="text-gray-500 hover:text-gray-400 cursor-grab active:cursor-grabbing"
+                                  className={`text-gray-500 hover:text-gray-400 cursor-grab active:cursor-grabbing ${readOnly ? "invisible" : ""}`}
                                 >
                                   <GripVertical size={16} />
                                 </div>
 
                                 {/* Symbol name and company info */}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-medium text-gray-100">
+                                  <h4
+                                    className="text-sm font-medium text-gray-100"
+                                    title={item.investment_thesis || undefined}
+                                  >
                                     {item.company_name || "Unknown Company"}
+                                    {item.personal_rating ? (
+                                      <span
+                                        className="ml-2 text-warning-400"
+                                        aria-label={`Rated ${item.personal_rating} of 5`}
+                                      >
+                                        {"★".repeat(item.personal_rating)}
+                                      </span>
+                                    ) : null}
                                   </h4>
                                   <p className="text-xs text-gray-400 truncate flex items-center gap-1">
                                     {item.symbol}
@@ -563,6 +577,18 @@ const WatchlistContent = ({
                                       />
                                     )}
                                   </p>
+                                  {item.tags?.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {item.tags.map((tag) => (
+                                        <span
+                                          key={tag}
+                                          className="px-1.5 py-0.5 rounded-sm bg-dark-700 text-xs text-gray-300"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               {/* Right side: Data columns with fixed widths */}
@@ -570,7 +596,7 @@ const WatchlistContent = ({
                                 {/* Added Price & Date Column */}
                                 <div className="text-right w-28 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    {formatPrice(item.added_price)}
+                                    {formatQuote(item.added_price, item.currency)}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Added {formatDate(item.added_date)}
@@ -583,7 +609,7 @@ const WatchlistContent = ({
                                 {/* Current Price & Last Updated Column */}
                                 <div className="text-right w-28 shrink-0">
                                   <div className="text-gray-100 font-medium">
-                                    {formatPrice(item.current_price)}
+                                    {formatQuote(item.current_price, item.currency)}
                                   </div>
                                   <div className="text-xs text-gray-400">
                                     Updated {formatDateTime(item.updated_at)}
@@ -607,8 +633,9 @@ const WatchlistContent = ({
                                     )}`}
                                   >
                                     {isPositive ? "+" : ""}
-                                    {formatCurrency(
-                                      parseFloat(item.price_change_since_added ?? 0)
+                                    {formatQuote(
+                                      item.price_change_since_added ?? 0,
+                                      item.currency
                                     )}
                                   </div>
                                 </div>
@@ -652,7 +679,7 @@ const WatchlistContent = ({
                                 </div>
 
                                 {/* Actions Column - dropdown menu */}
-                                <div className="relative w-16 text-center shrink-0">
+                                <div className={`relative w-16 text-center shrink-0 ${readOnly ? "invisible" : ""}`}>
                                   {/* Three-dot menu button */}
                                   <button
                                     onClick={() =>
@@ -673,6 +700,16 @@ const WatchlistContent = ({
                                   {/* Dropdown menu - only show for this item */}
                                   {showDropdown === item.id && (
                                     <div className="absolute right-0 top-8 w-48 bg-dark-800 border border-dark-600 rounded-lg shadow-lg z-10">
+                                      <button
+                                        onClick={() => {
+                                          setShowDropdown(null);
+                                          setHistoryItem(item);
+                                        }}
+                                        className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:bg-dark-700 transition-colors"
+                                      >
+                                        <LineChart size={14} />
+                                        <span>Price history</span>
+                                      </button>
                                       <button
                                         onClick={() => handleEditSymbol(item)}
                                         className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-300 hover:bg-dark-700 transition-colors"
@@ -714,6 +751,11 @@ const WatchlistContent = ({
       </div>
 
       {/* ===== MODALS ===== */}
+      <PriceHistoryModal
+        watchlistId={watchlist?.id}
+        item={historyItem}
+        onClose={() => setHistoryItem(null)}
+      />
       {/* Edit Symbol Modal - allows editing symbol details */}
       <EditSymbolModal
         isOpen={showEditModal}
@@ -759,7 +801,7 @@ const WatchlistContent = ({
                 </p>
               </div>
 
-              {/* Edit notes button */}
+              {!readOnly && (
               <div className="mt-4 text-center">
                 <button
                   onClick={() => {
@@ -773,6 +815,7 @@ const WatchlistContent = ({
                   Edit Notes
                 </button>
               </div>
+              )}
             </div>
           </div>
         </Modal>

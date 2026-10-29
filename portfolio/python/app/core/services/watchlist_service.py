@@ -57,7 +57,7 @@ class WatchlistService:
             )
 
             self.db.add(watchlist)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(watchlist)
 
             logger.info(f"Created watchlist '{watchlist.name}' for user {user_id}")
@@ -89,7 +89,7 @@ class WatchlistService:
 
             # Add item count for each watchlist
             for watchlist in watchlists:
-                watchlist.item_count = len(watchlist.items)
+                setattr(watchlist, "item_count", len(watchlist.items))
 
             return watchlists
 
@@ -131,7 +131,7 @@ class WatchlistService:
                 setattr(watchlist, field, value)
 
             watchlist.updated_at = datetime.now(timezone.utc)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(watchlist)
 
             logger.info(f"Updated watchlist '{watchlist.name}' for user {user_id}")
@@ -164,7 +164,7 @@ class WatchlistService:
 
             watchlist_name = watchlist.name
             self.db.delete(watchlist)
-            self.db.commit()
+            self.db.flush()
 
             logger.info(f"Deleted watchlist '{watchlist_name}' for user {user_id}")
             return True
@@ -227,6 +227,9 @@ class WatchlistService:
                 watchlist_id=watchlist_id,
                 symbol=item_data.symbol.upper(),
                 company_name=item_data.company_name,
+                currency=(await self._currencies([item_data.symbol])).get(
+                    item_data.symbol.upper()
+                ),
                 notes=item_data.notes,
                 personal_rating=item_data.personal_rating,
                 investment_thesis=item_data.investment_thesis,
@@ -242,7 +245,7 @@ class WatchlistService:
                 self._record_daily_price(
                     item.id, current_price, datetime.now(timezone.utc)
                 )
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(item)
 
             logger.info(
@@ -286,7 +289,7 @@ class WatchlistService:
                 "alerts_enabled",
             }.intersection(fields):
                 self._apply_alerts(item, item.current_price, item.updated_at)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(item)
 
             logger.info(f"Updated watchlist item {item.symbol} for user {user_id}")
@@ -315,7 +318,7 @@ class WatchlistService:
             watchlist_name = item.watchlist.name
 
             self.db.delete(item)
-            self.db.commit()
+            self.db.flush()
 
             logger.info(
                 f"Removed {symbol} from watchlist '{watchlist_name}' for user {user_id}"
@@ -358,7 +361,7 @@ class WatchlistService:
                 if item:
                     item.sort_order = index + 1
 
-            self.db.commit()
+            self.db.flush()
 
             logger.info(
                 f"Reordered items in watchlist '{watchlist.name}' for user {user_id}"
@@ -383,9 +386,14 @@ class WatchlistService:
         )
         symbols = sorted({item.symbol.upper() for item in items})
         prices = await self.market_data_service.get_current_prices(symbols)
+        currencies = await self._currencies(
+            [item.symbol for item in items if not item.currency]
+        )
         now = datetime.now(timezone.utc)
         updated = triggered = 0
         for item in items:
+            if not item.currency and currencies.get(item.symbol.upper()):
+                item.currency = currencies[item.symbol.upper()]
             price = prices.get(item.symbol.upper())
             if price is None:
                 continue
@@ -400,7 +408,7 @@ class WatchlistService:
                 self._record_daily_price(item.id, price, now)
                 updated += 1
             triggered += self._apply_alerts(item, price, now)
-        self.db.commit()
+        self.db.flush()
         return {
             "items": len(items),
             "symbols": len(symbols),
@@ -408,6 +416,51 @@ class WatchlistService:
             "updated": updated,
             "triggered": triggered,
         }
+
+    async def _currencies(self, symbols: List[str]) -> Dict[str, str]:
+        if not symbols:
+            return {}
+        try:
+            infos = await self.market_data_service.get_symbols_info(symbols)
+        except Exception:
+            logger.warning("No quote currency for %s", ", ".join(symbols))
+            return {}
+        return {
+            info["symbol"].upper(): info["currency"][:3]
+            for info in infos
+            if info.get("symbol") and info.get("currency")
+        }
+
+    def get_item_price_history(
+        self, watchlist_id: int, item_id: int, user_id: int
+    ) -> Optional[List[WatchlistPerformance]]:
+        """One price per day since the item was added (the worker's rows), oldest first."""
+        item = (
+            self.db.query(WatchlistItem)
+            .join(Watchlist)
+            .filter(
+                WatchlistItem.id == item_id,
+                WatchlistItem.watchlist_id == watchlist_id,
+                Watchlist.user_id == user_id,
+            )
+            .first()
+        )
+        if item is None:
+            return None
+        return (
+            self.db.query(WatchlistPerformance)
+            .filter(WatchlistPerformance.watchlist_item_id == item.id)
+            .order_by(WatchlistPerformance.date)
+            .all()
+        )
+
+    def get_public_watchlist(self, watchlist_id: int) -> Optional[Watchlist]:
+        return (
+            self.db.query(Watchlist)
+            .filter(Watchlist.id == watchlist_id, Watchlist.is_public.is_(True))
+            .options(joinedload(Watchlist.items))
+            .first()
+        )
 
     def _record_daily_price(self, item_id: int, price: Decimal, now: datetime) -> None:
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -496,7 +549,7 @@ class WatchlistService:
                     WatchlistItem.watchlist
                 )
             )
-            .order_by(desc(WatchlistAlert.triggered_at))
+            .order_by(WatchlistAlert.triggered_at.desc())
             .limit(limit)
             .all()
         )
@@ -536,7 +589,7 @@ class WatchlistService:
             {WatchlistAlert.acknowledged_at: datetime.now(timezone.utc)},
             synchronize_session=False,
         )
-        self.db.commit()
+        self.db.flush()
         return count
 
     def create_price_alert(
@@ -568,7 +621,7 @@ class WatchlistService:
             )
 
             self.db.add(alert)
-            self.db.commit()
+            self.db.flush()
             self.db.refresh(alert)
 
             logger.info(f"Created {alert.alert_type} alert for {item.symbol}")
@@ -730,7 +783,7 @@ class WatchlistService:
                     logger.info(
                         f"Updated watchlist item {item.symbol} with real-time data"
                     )
-            self.db.commit()
+            self.db.flush()
 
             # Refresh the watchlist to get updated data
             self.db.refresh(watchlist)
@@ -750,14 +803,14 @@ class WatchlistService:
             watchlists = (
                 self.db.query(Watchlist)
                 .filter(Watchlist.is_public == True)
-                .order_by(desc(Watchlist.updated_at))
+                .order_by(Watchlist.updated_at.desc())
                 .limit(limit)
                 .all()
             )
 
             # Add item count for each watchlist
             for watchlist in watchlists:
-                watchlist.item_count = len(watchlist.items)
+                setattr(watchlist, "item_count", len(watchlist.items))
 
             return watchlists
 
@@ -805,7 +858,7 @@ class WatchlistService:
                 self.db.query(WatchlistItem)
                 .join(Watchlist)
                 .filter(Watchlist.user_id == user_id)
-                .order_by(desc(WatchlistItem.added_date))
+                .order_by(WatchlistItem.added_date.desc())
                 .limit(10)
                 .all()
             )

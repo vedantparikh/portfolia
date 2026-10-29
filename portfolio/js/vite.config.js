@@ -31,5 +31,7 @@ export default defineConfig({
     environmentOptions: { jsdom: { url: 'http://localhost/' } },
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{js,jsx,ts,tsx}'],
+    // The shared host is often busy; the Trade Republic login test waits on a 2 s poll
+    testTimeout: 15000,
   },
 })

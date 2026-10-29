@@ -30,6 +30,7 @@ import CreateWatchlistModal from "./CreateWatchlistModal";
 import EditWatchlistModal from "./EditWatchlistModal";
 import WatchlistContent from "./WatchlistContent";
 import WatchlistAlerts from "./WatchlistAlerts";
+import PublicWatchlists from "./PublicWatchlists";
 
 const noWatchlists = [];
 const noAlerts = { unread_count: 0, alerts: [] };
@@ -657,6 +658,7 @@ const Watchlist = () => {
                     </div>
                   </div>
                 )}
+                <PublicWatchlists currentUserId={user?.id} />
               </>
             )}
           </div>

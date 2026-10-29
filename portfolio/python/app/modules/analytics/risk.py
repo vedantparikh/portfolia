@@ -40,7 +40,7 @@ class PortfolioRiskMetricsService:
         self,
         portfolio_id: int,
         period: str = PeriodType.INCEPTION,
-        benchmark_symbol: str = "^GSPC",  # S&P 500 as default benchmark
+        benchmark_symbol: Optional[str] = None,
         end_date: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         """
@@ -127,7 +127,8 @@ class PortfolioRiskMetricsService:
         return {
             "portfolio_id": portfolio_id,
             "period": period,
-            "benchmark_symbol_for_beta": benchmark_symbol,
+            "benchmark_symbol_for_beta": benchmark_symbol
+            or self.calculation_service.default_benchmark_for(portfolio_id),
             "start_date": start_date,
             "end_date": end_date,
             "calculation_date": datetime.now(timezone.utc).isoformat(),

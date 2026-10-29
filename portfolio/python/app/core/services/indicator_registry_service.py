@@ -222,7 +222,7 @@ class IndicatorRegistryService:
         self, config: IndicatorConfiguration
     ) -> List[IndicatorValidationError]:
         """Validate an indicator configuration."""
-        errors = []
+        errors: List[IndicatorValidationError] = []
         indicator_def = self.get_indicator_definition(config.indicator_name)
 
         if not indicator_def:
@@ -236,16 +236,17 @@ class IndicatorRegistryService:
             ]
 
         # Ensure parameters is a dictionary before validation
-        if isinstance(config.parameters, str):
+        parameters: Any = config.parameters
+        if isinstance(parameters, str):
             try:
-                config.parameters = json.loads(config.parameters)
+                config.parameters = json.loads(parameters)
             except json.JSONDecodeError:
                 return [
                     IndicatorValidationError(
                         indicator_name=config.indicator_name,
                         parameter_name="parameters",
                         error_message="Parameters field is a malformed JSON string.",
-                        provided_value=config.parameters,
+                        provided_value=parameters,
                     )
                 ]
 
@@ -344,7 +345,7 @@ class IndicatorRegistryService:
         Accepts a pandas DataFrame and converts it internally to Polars for processing.
         """
         start_time = time.time()
-        errors = []
+        errors: List[IndicatorCalculationError] = []
 
         try:
             result_df = BaseIndicator(pl.from_pandas(data)).df
@@ -406,15 +407,18 @@ class IndicatorRegistryService:
         errors: List[IndicatorCalculationError],
     ) -> Dict[str, List[Tuple[IndicatorConfiguration, IndicatorDefinition]]]:
         """Group valid and enabled configurations by their class name."""
-        indicators_by_class = {}
+        indicators_by_class: Dict[
+            str, List[Tuple[IndicatorConfiguration, IndicatorDefinition]]
+        ] = {}
         for i, config in enumerate(configurations):
             if not config.enabled:
                 continue
 
             # FIX: Check if parameters is a string and parse it into a dictionary.
-            if isinstance(config.parameters, str):
+            parameters: Any = config.parameters
+            if isinstance(parameters, str):
                 try:
-                    config.parameters = json.loads(config.parameters)
+                    config.parameters = json.loads(parameters)
                 except json.JSONDecodeError:
                     errors.append(
                         self._create_calculation_error(

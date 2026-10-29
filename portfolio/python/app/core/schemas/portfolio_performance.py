@@ -9,8 +9,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from core.schemas.portfolio import Portfolio
-
 
 class PortfolioPerformance(BaseModel):
     """Portfolio performance metrics."""
@@ -27,42 +25,10 @@ class PortfolioPerformance(BaseModel):
     calculation_date: datetime = Field(..., description="Calculation date")
 
 
-class TransactionSummaryResponse(BaseModel):
-    """Transaction summary response."""
-
-    portfolio_id: int = Field(..., description="Portfolio ID")
-    portfolio_name: str = Field(..., description="Portfolio name")
-    total_transactions: int = Field(..., description="Total transactions")
-    total_buy_value: float = Field(..., description="Total buy value")
-    total_sell_value: float = Field(..., description="Total sell value")
-    total_dividends: float = Field(..., description="Total dividends")
-    total_fees: float = Field(..., description="Total fees")
-    net_investment: float = Field(..., description="Net investment")
-    period: dict = Field(..., description="Period information")
-
-
 class PortfolioRefreshResponse(BaseModel):
     """Portfolio refresh response."""
 
     message: str = Field(..., description="Refresh message")
-
-
-class PortfolioSearchResponse(BaseModel):
-    """Portfolio search response."""
-
-    portfolios: List[Portfolio] = Field(..., description="Search results")
-    total_count: int = Field(..., description="Total results count")
-    search_term: Optional[str] = Field(None, description="Search term")
-    currency: Optional[str] = Field(None, description="Currency filter")
-
-
-class PortfolioDiscoverResponse(BaseModel):
-    """Portfolio discover response."""
-
-    portfolios: List[dict] = Field(..., description="Public portfolios")
-    total_count: int = Field(..., description="Total count")
-    limit: int = Field(..., description="Result limit")
-    offset: int = Field(..., description="Result offset")
 
 
 class BulkAddResponse(BaseModel):

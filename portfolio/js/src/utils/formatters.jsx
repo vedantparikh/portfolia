@@ -116,6 +116,19 @@ export const formatDecimal = (value, digits = 2) => {
 };
 
 /**
+ * A price in its quote currency. Yahoo quotes some listings in a minor unit
+ * (GBp pence, ILA agorot), which is shown as the number with that code; an
+ * unknown currency shows the bare number.
+ */
+export const formatQuote = (value, currency) => {
+    if (value === null || value === undefined || isNaN(parseFloat(value))) return 'N/A';
+    if (currency && /^[A-Z]{3}$/.test(currency)) return formatPrice(value, currency);
+    const n = Math.abs(parseFloat(value));
+    const number = formatDecimal(value, n < 0.01 ? 6 : n < 1 ? 4 : 2);
+    return currency ? `${number} ${currency}` : number;
+};
+
+/**
  * Difference between two percentages, in percentage points ("+1.25 pp").
  */
 export const formatPercentagePoints = (value, options = {}) => {
@@ -129,6 +142,11 @@ export const formatPercentagePoints = (value, options = {}) => {
  * @param {Object} options - Formatting options
  * @returns {string} Formatted number string
  */
+export const formatCompact = (num) => {
+    if (num === null || num === undefined || isNaN(Number(num))) return 'N/A';
+    return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(Number(num));
+};
+
 export const formatNumber = (num, options = {}) => {
     if (num === null || num === undefined) return 'N/A';
     const numericNum = parseFloat(num);

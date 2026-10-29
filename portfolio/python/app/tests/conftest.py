@@ -110,8 +110,10 @@ def client(test_db) -> Generator:
     def override_get_db():
         try:
             yield test_db
-        finally:
-            pass
+            test_db.commit()
+        except Exception:
+            test_db.rollback()
+            raise
 
     # Override database dependency
     app.dependency_overrides[get_db] = override_get_db
@@ -130,8 +132,10 @@ async def async_client(test_db) -> AsyncGenerator:
     def override_get_db():
         try:
             yield test_db
-        finally:
-            pass
+            test_db.commit()
+        except Exception:
+            test_db.rollback()
+            raise
 
     # Override database dependency
     app.dependency_overrides[get_db] = override_get_db

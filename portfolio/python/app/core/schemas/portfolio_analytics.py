@@ -521,6 +521,7 @@ class PortfolioBenchmarkResponse(BaseModel):
     id: int = Field(..., description="Benchmark ID")
     portfolio_id: int = Field(..., description="Portfolio ID")
     benchmark_asset_id: int = Field(..., description="Benchmark asset ID")
+    symbol: Optional[str] = Field(None, description="The benchmark asset's ticker")
     benchmark_name: str = Field(..., description="Benchmark name")
     benchmark_type: str = Field(..., description="Benchmark type")
     tracking_error: Optional[Decimal] = Field(None, description="Tracking error")

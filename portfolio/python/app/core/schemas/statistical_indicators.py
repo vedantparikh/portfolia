@@ -3,9 +3,9 @@ Statistical Indicators Configuration Schemas
 Pydantic schemas for user-configurable statistical indicators and analysis configurations.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
@@ -163,7 +163,9 @@ class IndicatorCalculationRequest(BaseModel):
     end_date: Optional[datetime] = Field(None, description="End date for data")
 
     @validator("indicators", always=True)
-    def validate_indicators(cls, v, values):
+    def validate_indicators(
+        cls, v: Optional[List[IndicatorConfiguration]], values: Dict[str, Any]
+    ) -> Optional[List[IndicatorConfiguration]]:
         """Validate that either configuration_id or indicators is provided."""
         if not values.get("configuration_id") and not v:
             raise ValueError("Either configuration_id or indicators must be provided")
@@ -340,8 +342,8 @@ class IndicatorValidationError(BaseModel):
     indicator_name: str = Field(..., description="Indicator name")
     parameter_name: str = Field(..., description="Parameter name")
     error_message: str = Field(..., description="Error message")
-    provided_value: Any = Field(..., description="Provided value")
-    expected_type: str = Field(..., description="Expected type")
+    provided_value: Any = Field(None, description="Provided value")
+    expected_type: Optional[str] = Field(None, description="Expected type")
 
 
 class IndicatorCalculationError(BaseModel):
@@ -640,3 +642,34 @@ COMMON_ANALYSIS_TEMPLATES = {
         difficulty_level="advanced",
     ),
 }
+
+
+class GfsReadingSchema(BaseModel):
+    timeframe: Literal["monthly", "weekly", "daily"]
+    rsi: float
+    as_of: date
+
+
+class GfsStrategyResponse(BaseModel):
+    """RSI(14) of monthly, weekly and daily closes; all < 30 buy, all > 70 sell."""
+
+    symbol: str
+    action: Literal["buy", "sell", "hold"]
+    readings: List[GfsReadingSchema]
+
+
+class MacdSignalSchema(BaseModel):
+    date: date
+    action: Literal["buy", "sell"]
+    close: float
+    macd: float
+    signal: float
+    trend_ema: float
+
+
+class MacdStrategyResponse(BaseModel):
+    """MACD(12, 26, 9) crosses that pass the zero-line and 200-day EMA rules."""
+
+    symbol: str
+    since: date
+    signals: List[MacdSignalSchema]

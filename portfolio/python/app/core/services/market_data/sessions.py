@@ -32,13 +32,15 @@ def _as_of(index: pd.DatetimeIndex, now: datetime) -> date:
     if index.tz is not None:
         if moment.tzinfo is None:
             moment = moment.tz_localize("UTC")
-        return moment.tz_convert(index.tz).date()
-    if moment.tzinfo is not None:
-        return moment.tz_convert("UTC").date()
-    return moment.date()
+        day: date = moment.tz_convert(index.tz).date()
+    elif moment.tzinfo is not None:
+        day = moment.tz_convert("UTC").date()
+    else:
+        day = moment.date()
+    return day
 
 
-def _session_dates(index: pd.DatetimeIndex):
+def _session_dates(index: pd.DatetimeIndex) -> list[date]:
     if index.tz is not None:
         return [stamp.date() for stamp in index]
     return [pd.Timestamp(stamp).date() for stamp in index]

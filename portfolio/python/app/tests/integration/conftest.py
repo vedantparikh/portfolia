@@ -46,7 +46,15 @@ def sent_emails(monkeypatch):
 
 @pytest.fixture
 def api(test_db, fake_redis, sent_emails):
-    app.dependency_overrides[get_db] = lambda: test_db
+    def request_session():
+        try:
+            yield test_db
+            test_db.commit()
+        except Exception:
+            test_db.rollback()
+            raise
+
+    app.dependency_overrides[get_db] = request_session
     # No context manager: skips the lifespan (it would initialise the real database)
     # https, so the client sends the Secure refresh cookie back
     yield TestClient(app, base_url="https://testserver")

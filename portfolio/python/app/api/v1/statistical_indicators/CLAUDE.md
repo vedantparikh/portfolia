@@ -13,7 +13,8 @@
 | `GET /indicators` | Registry, built by introspecting `*_indicator` methods |
 | `POST /calculate` | OHLCV plus the requested indicator series; with `configuration_id` the saved set (and its parameters) is used — only the caller's own or a public set. A request with neither `configuration_id` nor `indicators` is a 422 before any market data is fetched |
 | `POST/GET /configurations`, `GET/PUT/DELETE /configurations/{id}`, `POST /configurations/{id}/duplicate` | Saved sets: `GET /configurations?user_only=true` = your own, otherwise public ones. A private set is visible only to its owner (anonymous callers see public sets only) |
-| `GET /templates`, `POST /templates/{name}/create`, `POST /validate`, `GET /statistics`, `GET /popular` | Templates and helpers. No UI for templates, statistics or popular |
+| `GET /templates`, `POST /templates/{name}/create`, `POST /validate`, `GET /statistics`, `GET /popular` | Templates and helpers. The configuration manager's `ConfigurationLibrary` lists templates (Use = create from template) and popular public sets (Copy = duplicate), with a one-line summary from `/statistics`. `/validate` has no UI |
+| `GET /strategies/gfs?symbol=`, `GET /strategies/macd?symbol=&since=` | Rule outputs from `core/domain/strategies.py` on `get_daily_history` closes (split-adjusted, not dividend-adjusted): GFS = RSI(14) of monthly, weekly and daily closes (all < 30 buy, all > 70 sell, else hold, each with its as-of date); MACD = MACD(12,26,9) crosses up below zero with the close above its 200-day EMA (buy) or down above zero below it (sell), default since one year ago. No history → 404; too little (15 months for GFS, 201 days for MACD) → 400. Tests: `tests/unit/test_strategies.py` (RSI equals the chart's after warm-up) |
 | `GET /configurations/search?q=` | Name, description or tags (JSON cast to text) contain `q`; own + public |
 
 **Indicators:**
@@ -33,11 +34,12 @@
 - Bollinger: population std. ATR: Wilder. Keltner (default): EMA(20) ± 2 × ATR(10); `original_version=True` = typical-price SMA bands. `pband` = %B, `wband` = width % of the middle.
 - VPT: fractional price change × volume. VWAP: rolling 14 bars. OBV: unchanged on an equal close, starts at 0 (`ta` differs in both; only daily changes are compared).
 
-Strategies in `utils/trading_strategies/{gfs,macd}_strategy.py` are tests only, with no API. The characterisation snapshot pins indicator outputs, so any formula fix must regenerate it, explained in the commit.
+The old `utils/trading_strategies` were removed (2026-10-29): GFS took daily RSI over 5y/1y/1mo, which is one number past the warm-up, and MACD lost the buy/sell sign. The characterisation snapshot pins indicator outputs, so any formula fix must regenerate it, explained in the commit.
 
 ## Frontend
 No route of its own; it lives inside `/assets`:
 - An asset card's analytics button in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
+- `features/analytics/StrategySignals.jsx` (in `AssetAnalyticsView`): GFS action and the three RSIs, and the last 12 months of MACD signals, labelled as rule output, not advice.
 - `features/analytics/IndicatorConfigurationManager.jsx` sits in a `Modal` rendered by `Assets.jsx`, opened from "Manage Configurations" in the analytics view, to create, edit, duplicate and select sets. The selected set is passed to `AssetAnalyticsView` as `selectedConfiguration` and calculated by `configuration_id`; the view also lists your saved sets with Apply. Toggling an indicator by hand leaves the set.
 - API wrapper: `statisticalIndicatorsAPI` in `js/src/shared/api/indicators.ts` (also used by `EnhancedChart` and `Chart`). Query hooks `useIndicatorConfigurations`, `useAvailableIndicators`, `useIndicatorCalculation` in `features/analytics/queries.ts`, keyed under `["indicators", …]`.
 
@@ -45,8 +47,7 @@ No route of its own; it lives inside `/assets`:
 Assets → an asset card's analytics button → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
 
 ## Known gaps
-- No UI for templates, statistics or popular sets.
-- Trading strategies (`utils/trading_strategies/`) have no API.
+- Strategy signals are rules, not backtested; there is no performance of past signals.
 
 ## Planned
-Templates/popular UI if wanted.
+A backtest of the strategy signals if wanted.

@@ -72,7 +72,7 @@ class WatchlistItemBase(BaseModel):
         None, max_length=2000, description="Investment thesis"
     )
     tags: Optional[List[str]] = Field(
-        None, max_items=10, description="User-defined tags"
+        None, max_length=10, description="User-defined tags"
     )
 
 
@@ -89,7 +89,7 @@ class WatchlistItemUpdate(BaseModel):
     notes: Optional[str] = Field(None, max_length=1000)
     personal_rating: Optional[int] = Field(None, ge=1, le=5)
     investment_thesis: Optional[str] = Field(None, max_length=2000)
-    tags: Optional[List[str]] = Field(None, max_items=10)
+    tags: Optional[List[str]] = Field(None, max_length=10)
     sort_order: Optional[int] = Field(None, ge=0)
     alert_price_high: Optional[Decimal] = Field(
         None, gt=0, description="Alert when the price reaches this or more; null clears"
@@ -105,6 +105,11 @@ class WatchlistItemUpdate(BaseModel):
     alerts_enabled: Optional[bool] = None
 
 
+class WatchlistPricePoint(BaseModel):
+    date: datetime
+    price: Decimal
+
+
 class WatchlistItemResponse(WatchlistItemBase):
     """Schema for watchlist item response."""
 
@@ -113,6 +118,10 @@ class WatchlistItemResponse(WatchlistItemBase):
     sort_order: int
     added_date: datetime
     updated_at: datetime
+
+    currency: Optional[str] = Field(
+        None, description="Quote currency (Yahoo's, e.g. GBp)"
+    )
 
     # Performance data (from database)
     added_price: Optional[Decimal] = None
@@ -129,7 +138,7 @@ class WatchlistItemResponse(WatchlistItemBase):
     class Config:
         from_attributes = True
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def days_since_added(self) -> Optional[int]:
         """Calculates the number of days since the item was added."""
@@ -218,7 +227,7 @@ class WatchlistReorderRequest(BaseModel):
     """Schema for reordering watchlist items."""
 
     item_ids: List[int] = Field(
-        ..., min_items=1, description="Ordered list of item IDs"
+        ..., min_length=1, description="Ordered list of item IDs"
     )
 
 
@@ -226,7 +235,7 @@ class WatchlistBulkAddRequest(BaseModel):
     """Schema for adding multiple symbols to a watchlist."""
 
     symbols: List[str] = Field(
-        ..., min_items=1, max_items=100, description="List of stock symbols"
+        ..., min_length=1, max_length=100, description="List of stock symbols"
     )
 
 

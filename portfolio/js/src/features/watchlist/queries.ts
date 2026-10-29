@@ -9,7 +9,26 @@ export const watchlistKeys = {
     ["watchlists", "detail", id, realtime] as const,
   alerts: ["watchlists", "alerts"] as const,
   unreadAlerts: ["watchlists", "alerts", "unread"] as const,
+  history: (itemId: Id) => ["watchlists", "history", itemId] as const,
+  publicLists: ["watchlists", "public"] as const,
+  publicList: (id: Id) => ["watchlists", "public", id] as const,
 };
+
+export function usePublicWatchlists(enabled = true) {
+  return useQuery({
+    queryKey: watchlistKeys.publicLists,
+    queryFn: watchlistAPI.getPublicWatchlists,
+    enabled,
+  });
+}
+
+export function usePublicWatchlist(watchlistId: Id | null) {
+  return useQuery({
+    queryKey: watchlistKeys.publicList(watchlistId ?? "none"),
+    queryFn: () => watchlistAPI.getPublicWatchlist(watchlistId!),
+    enabled: watchlistId !== null,
+  });
+}
 
 export function useWatchlists(includeItems = false) {
   return useQuery({

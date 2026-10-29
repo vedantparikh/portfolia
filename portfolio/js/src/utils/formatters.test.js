@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCompact,
   formatCurrency,
   formatDate,
   formatPercentage,
@@ -54,5 +55,14 @@ describe("formatDate", () => {
 
   it("returns N/A for an invalid date", () => {
     expect(formatDate("not a date")).toBe("N/A");
+  });
+});
+
+describe("formatCompact", () => {
+  it("abbreviates without a currency", () => {
+    expect(formatCompact(1e12)).toBe("1T");
+    expect(formatCompact(1e6)).toBe("1M");
+    expect(formatCompact(10)).toBe("10");
+    expect(formatCompact(null)).toBe("N/A");
   });
 });

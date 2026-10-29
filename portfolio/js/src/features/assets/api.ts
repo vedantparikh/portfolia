@@ -16,6 +16,8 @@ export const assetAPI = {
       total: Number.isFinite(total) ? total : null,
     };
   },
+  getHighlights: async (): Promise<Schemas["AssetHighlights"]> =>
+    (await api.get("/assets/highlights")).data,
   getAssetPrices: async (id: Id, params: Params = {}) =>
     (await api.get(`/assets/${id}/prices`, { params })).data,
   createAsset: async (assetData: Params) =>

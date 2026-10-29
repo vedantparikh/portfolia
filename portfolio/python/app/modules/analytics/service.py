@@ -134,7 +134,7 @@ class PortfolioAnalyticsService:
             **{key: _decimal(value) for key, value in metrics.items()},
         )
         self.db.add(snapshot)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(snapshot)
         return PerformanceSnapshotResponse(
             id=snapshot.id,
@@ -270,7 +270,7 @@ class PortfolioAnalyticsService:
             self.db.add(allocation)
             new_allocations.append(allocation)
 
-        self.db.commit()
+        self.db.flush()
         for allocation in new_allocations:
             self.db.refresh(allocation)
 

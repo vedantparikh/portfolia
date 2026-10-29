@@ -24,6 +24,7 @@ from core.schemas.watchlist import (
     WatchlistItemCreate,
     WatchlistItemResponse,
     WatchlistItemUpdate,
+    WatchlistPricePoint,
     WatchlistReorderRequest,
     WatchlistResponse,
     WatchlistStatsResponse,
@@ -122,6 +123,21 @@ def get_public_watchlists(
     response_time = time.time() - start_time
     log_api_response(logger, "GET", "/watchlists/public", 200, response_time)
     return watchlists
+
+
+@router.get("/public/{watchlist_id}", response_model=WatchlistWithItemsResponse)
+def get_public_watchlist(
+    watchlist_id: int,
+    _current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """A public watchlist with its items, read only."""
+    watchlist = WatchlistService(db).get_public_watchlist(watchlist_id)
+    if not watchlist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found"
+        )
+    return watchlist
 
 
 @router.get("/stats", response_model=WatchlistStatsResponse)
@@ -501,6 +517,27 @@ def remove_item_from_watchlist(
     return WatchlistItemDeleteResponse(
         message="Item removed from watchlist successfully"
     )
+
+
+@router.get(
+    "/{watchlist_id}/items/{item_id}/history",
+    response_model=List[WatchlistPricePoint],
+)
+def get_watchlist_item_history(
+    watchlist_id: int,
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Daily prices since the item was added, oldest first."""
+    history = WatchlistService(db).get_item_price_history(
+        watchlist_id, item_id, current_user.id
+    )
+    if history is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist item not found"
+        )
+    return [WatchlistPricePoint(date=row.date, price=row.price) for row in history]
 
 
 @router.post("/{watchlist_id}/reorder", response_model=WatchlistReorderResponse)

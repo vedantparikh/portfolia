@@ -1,16 +1,10 @@
 import { Filter, X } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatters.jsx';
+import { formatCompact as amount } from '../../utils/formatters.jsx';
 
-const usd = (n) =>
-    formatCurrency(n, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-        notation: n >= 1e6 ? 'compact' : 'standard',
-    });
-
+// Amounts are in each listing's own currency, so the labels carry none
 const range = (value, low, high) => ({
     value,
-    label: low === null ? `Under ${usd(high)}` : high === null ? `Over ${usd(low)}` : `${usd(low)} - ${usd(high)}`,
+    label: low === null ? `Under ${amount(high)}` : high === null ? `${amount(low)} and over` : `${amount(low)} - ${amount(high)}`,
 });
 
 // `hidden` lets a page drop filters its data source cannot honour
@@ -37,19 +31,11 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
         range('1000-', 1000, null)
     ];
 
-    const valueRanges = [
-        { value: 'all', label: 'All Values' },
-        range('0-100', null, 100),
-        range('100-1000', 100, 1000),
-        range('1000-10000', 1000, 10000),
-        range('10000-', 10000, null)
-    ];
-
     const changeRanges = [
         { value: 'all', label: 'All Changes' },
-        { value: 'positive', label: 'Gainers' },
-        { value: 'negative', label: 'Losers' },
-        { value: 'stable', label: 'Stable' }
+        { value: 'up', label: 'Up 0.5% or more' },
+        { value: 'down', label: 'Down 0.5% or more' },
+        { value: 'flat', label: 'Within ±0.5%' }
     ];
 
     const marketCapRanges = [
@@ -83,7 +69,6 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
         onFilterChange({
             category: 'all',
             priceRange: 'all',
-            valueRange: 'all',
             changeRange: 'all',
             marketCapRange: 'all',
             sortBy: 'symbol',
@@ -94,7 +79,6 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
     const hasActiveFilters = () => {
         return filters.category !== 'all' ||
             filters.priceRange !== 'all' ||
-            filters.valueRange !== 'all' ||
             filters.changeRange !== 'all' ||
             filters.marketCapRange !== 'all' ||
             filters.sortBy !== 'symbol' ||
@@ -150,26 +134,6 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
                         className="input-field w-full"
                     >
                         {priceRanges.map((range) => (
-                            <option key={range.value} value={range.value}>
-                                {range.label}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                )}
-
-                {/* Value Range Filter */}
-                {!hidden.includes('valueRange') && (
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        Total Value
-                    </label>
-                    <select
-                        value={filters.valueRange || 'all'}
-                        onChange={(e) => handleFilterChange('valueRange', e.target.value)}
-                        className="input-field w-full"
-                    >
-                        {valueRanges.map((range) => (
                             <option key={range.value} value={range.value}>
                                 {range.label}
                             </option>

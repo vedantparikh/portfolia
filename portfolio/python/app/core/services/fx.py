@@ -6,12 +6,13 @@ from typing import Iterable
 import pandas as pd
 
 from core.domain.fx import MissingFxError, canonical_currency
+from core.services.market_data_service import MarketDataService
 
 logger = logging.getLogger(__name__)
 
 
 async def load_rates(
-    market_data,
+    market_data: MarketDataService,
     portfolio_currency: str,
     currencies: Iterable[str | None],
     *,

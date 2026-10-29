@@ -83,7 +83,47 @@ export const indicatorKeys = {
   configurations: ["indicators", "configurations"] as const,
   calculation: (request: Record<string, unknown>) =>
     ["indicators", "calculation", request] as const,
+  templates: ["indicators", "templates"] as const,
+  statistics: ["indicators", "configurations", "statistics"] as const,
+  popular: ["indicators", "configurations", "popular"] as const,
+  strategies: (symbol: string) => ["indicators", "strategies", symbol] as const,
 };
+
+export function useIndicatorTemplates() {
+  return useQuery({
+    queryKey: indicatorKeys.templates,
+    queryFn: statisticalIndicatorsAPI.getTemplates,
+    staleTime: Infinity,
+  });
+}
+
+export function useConfigurationStatistics() {
+  return useQuery({
+    queryKey: indicatorKeys.statistics,
+    queryFn: statisticalIndicatorsAPI.getStatistics,
+  });
+}
+
+export function usePopularConfigurations() {
+  return useQuery({
+    queryKey: indicatorKeys.popular,
+    queryFn: () => statisticalIndicatorsAPI.getPopular(10),
+  });
+}
+
+export function useStrategySignals(symbol: string | undefined) {
+  return useQuery({
+    queryKey: indicatorKeys.strategies(symbol ?? ""),
+    queryFn: async () => {
+      const [gfs, macd] = await Promise.allSettled([
+        statisticalIndicatorsAPI.getGfsStrategy(symbol!),
+        statisticalIndicatorsAPI.getMacdStrategy(symbol!),
+      ]);
+      return { gfs: settled(gfs, null), macd: settled(macd, null) };
+    },
+    enabled: Boolean(symbol),
+  });
+}
 
 export function invalidateIndicatorConfigurations(): Promise<void> {
   return queryClient.invalidateQueries({

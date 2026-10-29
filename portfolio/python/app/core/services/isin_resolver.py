@@ -94,7 +94,7 @@ def fill_match(
 def rank(candidates: List[ListingCandidate], currency: str) -> List[ListingCandidate]:
     """Best match first; within 5 points prefer the account currency, then the venue order."""
 
-    def key(c: ListingCandidate):
+    def key(c: ListingCandidate) -> tuple[int, bool, int, int]:
         bucket = -round((c.match_percent or 0) / 5)
         return (bucket, c.currency != currency, venue_rank(c.symbol), -c.fills_checked)
 
@@ -157,7 +157,11 @@ class IsinResolver:
         candidates = rank([c for c in scored if c is not None], currency)
         best = candidates[0] if candidates else None
         best_match = (best.match_percent or 0) if best else 0
-        if best_match >= MATCHED * 100 and best.currency == currency:
+        if (
+            best is not None
+            and best_match >= MATCHED * 100
+            and best.currency == currency
+        ):
             status = "matched"
         elif best_match >= PLAUSIBLE * 100:
             status = "uncertain"
@@ -166,7 +170,9 @@ class IsinResolver:
         return InstrumentResolution(
             isin=instrument.isin,
             status=status,
-            suggested_symbol=best.symbol if status != "unmatched" else None,
+            suggested_symbol=(
+                best.symbol if best is not None and status != "unmatched" else None
+            ),
             candidates=candidates[:10],
         )
 

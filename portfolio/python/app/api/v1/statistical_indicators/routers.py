@@ -3,6 +3,7 @@ Simplified Statistical Indicators API Router
 Basic API endpoints for user-configurable statistical indicators.
 """
 
+from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -16,22 +17,28 @@ from core.auth.dependencies import (
 from core.auth.utils import is_rate_limited
 from core.database.connection import get_db
 from core.database.models.user import User
-from core.errors import public_message
+from core.domain.strategies import gfs, macd_signals
+from core.errors import NotFoundError, public_message
 from core.schemas.statistical_indicators import (
     AnalysisConfiguration,
     AnalysisConfigurationCreate,
     AnalysisConfigurationListResponse,
     AnalysisConfigurationUpdate,
+    GfsReadingSchema,
+    GfsStrategyResponse,
     IndicatorCalculationRequest,
     IndicatorCalculationResponse,
     IndicatorConfiguration,
     IndicatorRegistryResponse,
     IndicatorValidationError,
+    MacdSignalSchema,
+    MacdStrategyResponse,
 )
 from core.services.analysis_configuration_service import (
     AnalysisConfigurationService,
 )
 from core.services.enhanced_statistical_service import EnhancedStatisticalService
+from core.services.market_data_service import market_data_service
 
 router = APIRouter(prefix="/statistical-indicators", tags=["statistical-indicators"])
 
@@ -204,6 +211,58 @@ def delete_configuration(
         )
 
     return {"message": "Configuration deleted successfully"}
+
+
+async def _closes(symbol: str):
+    history = await market_data_service.get_daily_history(symbol.upper())
+    if not history or history["close"].empty:
+        raise NotFoundError(f"No price history for {symbol.upper()}")
+    return history["close"]
+
+
+@router.get("/strategies/gfs", response_model=GfsStrategyResponse)
+async def get_gfs_strategy(
+    symbol: str = Query(..., min_length=1, max_length=20),
+    _current_user: User = Depends(get_current_user),
+):
+    """Grandfather-father-son: RSI(14) on monthly, weekly and daily closes."""
+    result = gfs(await _closes(symbol))
+    return GfsStrategyResponse(
+        symbol=symbol.upper(),
+        action=result.action,
+        readings=[
+            GfsReadingSchema(timeframe=r.timeframe, rsi=r.rsi, as_of=r.as_of)
+            for r in result.readings
+        ],
+    )
+
+
+@router.get("/strategies/macd", response_model=MacdStrategyResponse)
+async def get_macd_strategy(
+    symbol: str = Query(..., min_length=1, max_length=20),
+    since: Optional[date] = Query(
+        None, description="Signals from this day; default one year back"
+    ),
+    _current_user: User = Depends(get_current_user),
+):
+    """MACD crossovers filtered by the zero line and the 200-day EMA trend."""
+    since = since or date.today() - timedelta(days=365)
+    found = macd_signals(await _closes(symbol), since=since)
+    return MacdStrategyResponse(
+        symbol=symbol.upper(),
+        since=since,
+        signals=[
+            MacdSignalSchema(
+                date=s.date,
+                action=s.action,
+                close=s.close,
+                macd=s.macd,
+                signal=s.signal,
+                trend_ema=s.trend_ema,
+            )
+            for s in found
+        ],
+    )
 
 
 @router.get("/templates")

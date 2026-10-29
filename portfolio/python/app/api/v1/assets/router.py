@@ -25,6 +25,7 @@ from core.schemas.portfolio import (
     AssetBulkCreateRequest,
     AssetBulkCreateResponse,
     AssetCreate,
+    AssetHighlights,
     AssetPrice,
     AssetUpdate,
 )
@@ -33,6 +34,7 @@ from core.schemas.portfolio import (
 )
 from core.services.asset_factory import asset_from_ticker_info
 from core.services.market_data_service import market_data_service
+from modules.assets.quotes import Change, QuoteFilter, highlights
 from modules.assets.repository import SORT_COLUMNS, AssetRepository
 
 AssetSort = Literal[
@@ -180,6 +182,15 @@ async def get_assets(
     ),
     symbol: Optional[str] = Query(None, description="Filter by symbol"),
     asset_type: Optional[str] = Query(None, description="Filter by asset type"),
+    price_min: Optional[float] = Query(None, ge=0, description="Price at least"),
+    price_max: Optional[float] = Query(None, gt=0, description="Price below"),
+    market_cap_min: Optional[float] = Query(
+        None, ge=0, description="Market cap at least"
+    ),
+    market_cap_max: Optional[float] = Query(None, gt=0, description="Market cap below"),
+    change: Optional[Change] = Query(
+        None, description="24h change: up or down by at least 0.5%, or flat within it"
+    ),
     sort_by: AssetSort = Query("symbol", description="Sort field"),
     sort_order: Literal["asc", "desc"] = Query("asc", description="Sort order"),
     include_detail: bool = Query(
@@ -191,44 +202,74 @@ async def get_assets(
     """List the user's assets; the total before paging is in `X-Total-Count`."""
     repository = AssetRepository(db)
     descending = sort_order == "desc"
-    by_market_data = sort_by not in SORT_COLUMNS
+    quote_filter = QuoteFilter(
+        price_min=price_min,
+        price_max=price_max,
+        market_cap_min=market_cap_min,
+        market_cap_max=market_cap_max,
+        change=change,
+    )
+    by_market_data = sort_by not in SORT_COLUMNS or quote_filter.active
     assets = repository.list_active(
         current_user.id,
         symbol=symbol,
         asset_type=asset_type,
-        order_by="symbol" if by_market_data else sort_by,
+        order_by=sort_by if sort_by in SORT_COLUMNS else "symbol",
         skip=0 if by_market_data else skip,
         limit=None if by_market_data else limit,
-        descending=descending and not by_market_data,
-    )
-    response.headers["X-Total-Count"] = str(
-        len(assets)
-        if by_market_data
-        else repository.count_active(
-            current_user.id, symbol=symbol, asset_type=asset_type
-        )
+        descending=descending and sort_by in SORT_COLUMNS,
     )
     if not (include_detail or by_market_data):
+        response.headers["X-Total-Count"] = str(
+            repository.count_active(
+                current_user.id, symbol=symbol, asset_type=asset_type
+            )
+        )
         return assets
 
-    ticker_detail_list = await market_data_service.get_symbols_info(
-        [asset.symbol for asset in assets]
-    )
-    ticker_detail_map = {item["symbol"]: item for item in ticker_detail_list}
+    quotes = await _quotes(assets)
+    if quote_filter.active:
+        assets = [a for a in assets if quote_filter.matches(quotes.get(a.symbol))]
     asset_details = []
     for asset in assets:
         asset_detail = AssetSchema.model_validate(asset)
-        info = ticker_detail_map.get(asset.symbol)
+        info = quotes.get(asset.symbol)
         asset_detail.detail = AssetDetailSchema(**info) if info else {}
         asset_details.append(asset_detail)
 
     if by_market_data:
-        asset_details = _sorted_by_detail(asset_details, sort_by, descending)
+        response.headers["X-Total-Count"] = str(len(asset_details))
+        if sort_by not in SORT_COLUMNS:
+            asset_details = _sorted_by_detail(asset_details, sort_by, descending)
         asset_details = asset_details[skip : skip + limit]
         if not include_detail:
             for asset_detail in asset_details:
                 asset_detail.detail = None
+    else:
+        response.headers["X-Total-Count"] = str(
+            repository.count_active(
+                current_user.id, symbol=symbol, asset_type=asset_type
+            )
+        )
     return asset_details
+
+
+@router.get("/highlights", response_model=AssetHighlights)
+async def get_asset_highlights(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Top gainer, loser, yield, P/E, volume, beta, growth and 52-week-high proximity over all the user's assets."""
+    assets = AssetRepository(db).list_active(
+        current_user.id, symbol=None, asset_type=None
+    )
+    quotes = await _quotes(assets)
+    return highlights([(a.symbol, a.name, quotes.get(a.symbol)) for a in assets])
+
+
+async def _quotes(assets) -> dict:
+    found = await market_data_service.get_symbols_info([a.symbol for a in assets])
+    return {item["symbol"]: item for item in found}
 
 
 def _sorted_by_detail(

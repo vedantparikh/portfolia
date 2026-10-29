@@ -2,7 +2,7 @@
 Portfolio management router with full authentication.
 """
 
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -21,7 +21,6 @@ from core.schemas.portfolio import (
     Portfolio,
     PortfolioAsset,
     PortfolioAssetCreate,
-    PortfolioAssetWithDetails,
     PortfolioCreate,
     PortfolioHolding,
     PortfolioStatistics,
@@ -38,9 +37,7 @@ from core.schemas.portfolio import (
     TransactionCreate,
 )
 from core.schemas.portfolio_performance import (
-    PortfolioDiscoverResponse,
     PortfolioRefreshResponse,
-    PortfolioSearchResponse,
 )
 from modules.broker_sync import PytrSyncService
 from modules.broker_sync.fetch import TradeRepublicFetchService, run_fetch
@@ -78,28 +75,6 @@ def get_user_portfolios(
     return portfolios
 
 
-@router.get("/search", response_model=PortfolioSearchResponse)
-def search_portfolios(
-    search_term: Optional[str] = Query(
-        None, description="Search term for portfolio names"
-    ),
-    currency: Optional[str] = Query(None, description="Filter by currency"),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Search portfolios with filters."""
-    portfolio_service = PortfolioService(db)
-    portfolios = portfolio_service.search_portfolios(
-        current_user.id, search_term=search_term, currency=currency
-    )
-    return PortfolioSearchResponse(
-        portfolios=portfolios,
-        total_count=len(portfolios),
-        search_term=search_term,
-        currency=currency,
-    )
-
-
 @router.get("/statistics/overview", response_model=PortfolioStatistics)
 async def get_portfolio_statistics(
     current_user: User = Depends(get_current_active_user),
@@ -109,20 +84,6 @@ async def get_portfolio_statistics(
     portfolio_service = PortfolioService(db)
     statistics = await portfolio_service.get_portfolio_statistics(current_user.id)
     return statistics
-
-
-@router.get("/public/discover", response_model=PortfolioDiscoverResponse)
-def discover_public_portfolios(
-    limit: int = Query(50, ge=1, le=100, description="Number of portfolios to return"),
-    offset: int = Query(0, ge=0, description="Number of portfolios to skip"),
-    db: Session = Depends(get_db),
-):
-    """Discover public portfolios (no authentication required)."""
-    portfolio_service = PortfolioService(db)
-    portfolios = portfolio_service.get_public_portfolios(limit=limit, offset=offset)
-    return PortfolioDiscoverResponse(
-        portfolios=portfolios, total_count=len(portfolios), limit=limit, offset=offset
-    )
 
 
 @router.get("/sync/pytr", response_model=PytrSyncAvailability)
@@ -360,22 +321,6 @@ def get_portfolio_assets(
     """Get all assets in a portfolio (user must own the portfolio)."""
     portfolio_service = PortfolioService(db)
     assets = portfolio_service.get_portfolio_assets(portfolio_id, current_user.id)
-    return assets
-
-
-@router.get(
-    "/{portfolio_id}/assets/details", response_model=List[PortfolioAssetWithDetails]
-)
-async def get_portfolio_assets_with_details(
-    portfolio_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db),
-):
-    """Get portfolio assets with detailed information including current values and P&L."""
-    portfolio_service = PortfolioService(db)
-    assets = await portfolio_service.get_portfolio_assets_with_details(
-        portfolio_id, current_user.id
-    )
     return assets
 
 

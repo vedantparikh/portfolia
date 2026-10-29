@@ -105,7 +105,7 @@ The tabs on this view:
 | Analytics | Risk for the period you pick. See the next section. |
 | Allocations | Target weights. Drift turns red when it passes the threshold (5% if you did not set one). |
 | Rebalancing | How many shares to buy or sell to reach those targets, with a rough commission. |
-| Benchmarks | Names you stored as benchmarks. The comparison itself is not on this tab. |
+| Benchmarks | Your portfolio next to the same deposits and withdrawals invested in a benchmark, for a period you pick: value, profit and both returns side by side. Pick a saved benchmark or a suggested total-return series. **Add Benchmark** saves one of your assets; the primary one is the default here, on the chart and for beta. |
 
 ### Analytics
 
@@ -115,7 +115,7 @@ Open Holdings Detail, then **Analytics**.
 
 **Risk Metrics** are computed from the portfolio's own daily returns: volatility, VaR, CVaR, max drawdown, Sharpe, Sortino, Calmar, and a High / Medium / Low label. The info icon on the risk level explains the label in a dialog.
 
-**Advanced Metrics** compare the book with `^GSPC` (the S&P 500 price index, not a total-return index) and score concentration: beta, alpha, the Herfindahl index, a diversification ratio, and how many equal positions the book behaves like. The first open of this tab can take about twenty seconds.
+**Advanced Metrics** compare the book with its primary benchmark, or the total-return default for its currency (MSCI World `EUNL.DE` for EUR, `^SP500TR` for USD), and score concentration: beta, alpha, the Herfindahl index, a diversification ratio, and how many equal positions the book behaves like. The first open of this tab can take about twenty seconds.
 
 The period dropdown defaults to since inception. A shorter window changes the risk numbers. It does not change the holdings table.
 
@@ -258,7 +258,7 @@ For symbols you do not hold, or hold and still want a price alarm on.
 
 ![Watchlists and open alerts](images/04-watchlist.png)
 
-**New Watchlist** creates a named list. Lists can be marked public; there is no browser for other people's public lists yet.
+**New Watchlist** creates a named list. Lists can be marked public. **Public watchlists → Browse**, under your own lists, shows other people's public lists; opening one shows its symbols read only.
 
 Open **Demo watchlist**:
 
@@ -273,14 +273,17 @@ Open **Demo watchlist**:
 - a percent move since the added price
 - alerts on or off
 - a note
+- a rating (1 to 5 stars), tags and an investment thesis. Stars and tags show under the name; the thesis shows when you hover the name.
 
 The demo alerts were set around the price on the day the account was created, so the panel has something to show. AAPL's low is above the live price, and MSFT's high is below it. They are examples, not recommendations. **Mark read** acknowledges an alert. It fires again only after the condition stops being true and then becomes true again, or you change the threshold.
 
 The worker checks about every 15 minutes (`WORKER_INTERVAL_SECONDS`, default 900). **Refresh** on the page fetches prices immediately but the alert decision still belongs to the worker. Nothing is emailed. The dashboard link and the bell are the whole notification.
 
-Prices on this page are shown with a `$` even when that is just the quote currency. Watchlist rows do not store a currency yet.
+Prices are shown in each symbol's quote currency. A London listing quoted in pence shows as, for example, `152.40 GBp`. Rows added before 2026-10-29 get their currency on the worker's next pass.
 
-Reorder by dragging. Rating, thesis, and tags exist on the item and have no fields in the UI.
+**Price history** in a row's menu shows the daily price the worker has recorded since you added it, with the low and high.
+
+Reorder by dragging.
 
 ## Assets and indicators
 
@@ -313,6 +316,10 @@ A glossary, with no API behind it. Search, filter by category, and open a card. 
 
 If a card and a number on a portfolio ever disagree, the portfolio is right and the card should be updated.
 
+## Settings
+
+**Settings** in the sidebar edits your name, phone, country, time zone and preferred currency, and changes your password. Changing the password signs out your other devices. **Close account** asks for your password, deactivates the account and signs you out everywhere; your data stays in the database.
+
 ## Day to day
 
 A normal loop:
@@ -330,8 +337,6 @@ A normal loop:
 - Track a cash balance, interest, or card spending
 - Import splits, transfers, swaps, or spin-offs
 - Send watchlist alerts anywhere but the UI
-- Compare benchmarks on the Benchmarks tab (use the chart)
 - Explain a PDF from a broker that is not Trade Republic
-- Show a settings page
 
 Those are the open items in [portfolio/REFACTOR_PLAN.md](../portfolio/REFACTOR_PLAN.md). The short list is also at the bottom of the [project README](../README.md).

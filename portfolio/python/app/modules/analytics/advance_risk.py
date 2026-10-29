@@ -40,7 +40,7 @@ class PortfolioAdvanceRiskMetricsService:
         self,
         portfolio_id: int,
         period: str = PeriodType.YTD,
-        benchmark_symbol: str = "^GSPC",  # S&P 500 as default
+        benchmark_symbol: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Calculates a suite of advanced risk metrics for a portfolio.
@@ -49,13 +49,18 @@ class PortfolioAdvanceRiskMetricsService:
             portfolio_id: The ID of the portfolio.
             user_id: The ID of the user to verify ownership.
             period: The calculation period (e.g., 'ytd', '1y').
-            benchmark_symbol: The market benchmark ticker.
+            benchmark_symbol: The market benchmark ticker; default the portfolio's
+                primary benchmark, else the total-return default for its currency.
 
         Returns:
             A dictionary containing the calculated advanced metrics.
         """
         end_date = datetime.now(timezone.utc)
         start_date = PeriodType.get_start_date(period, end_date)
+        benchmark_symbol = (
+            benchmark_symbol
+            or self.calculation_service.default_benchmark_for(portfolio_id)
+        )
 
         # --- Step 1: Fetch Foundational Data using other Services ---
         try:

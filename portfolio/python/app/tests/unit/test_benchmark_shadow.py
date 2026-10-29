@@ -178,3 +178,42 @@ def test_default_benchmark_follows_the_portfolio_currency(test_db, portfolio):
     assert (
         PortfolioCalculationService(test_db).default_benchmark(portfolio) == "EUNL.DE"
     )
+
+
+def test_beta_uses_the_primary_benchmark_else_the_currency_default(
+    client, test_db, portfolio
+):
+    from core.auth.dependencies import get_current_active_user
+    from core.database.models import Asset
+    from core.database.models.asset import AssetType
+    from core.database.models.portfolio_analytics import PortfolioBenchmark
+    from main import app
+    from modules.analytics.calculations import PortfolioCalculationService
+
+    service = PortfolioCalculationService(test_db)
+    assert service.default_benchmark_for(portfolio.id) == "EUNL.DE"
+
+    index = Asset(
+        symbol="VWCE.DE",
+        name="All-World",
+        asset_type=AssetType.ETF,
+        user_id=portfolio.user_id,
+    )
+    test_db.add(index)
+    test_db.flush()
+    test_db.add(
+        PortfolioBenchmark(
+            portfolio_id=portfolio.id,
+            benchmark_asset_id=index.id,
+            benchmark_name="All-World",
+            benchmark_type="index",
+            is_primary=True,
+        )
+    )
+    test_db.commit()
+    assert service.default_benchmark_for(portfolio.id) == "VWCE.DE"
+
+    app.dependency_overrides[get_current_active_user] = lambda: portfolio.user
+    saved = client.get(f"/api/v1/analytics/portfolios/{portfolio.id}/benchmarks").json()
+    app.dependency_overrides.pop(get_current_active_user, None)
+    assert [(b["symbol"], b["is_primary"]) for b in saved] == [("VWCE.DE", True)]

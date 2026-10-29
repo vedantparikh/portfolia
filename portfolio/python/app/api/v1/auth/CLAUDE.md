@@ -11,20 +11,20 @@
 | `POST /login` | Username/email + password (bcrypt, 72-byte truncation) → access token in the body, refresh token as the cookie. Unknown usernames check a dummy hash. Rate limited |
 | `POST /refresh` | Reads the cookie only (no body). Single-use rotation: a new access token and a new cookie; the session stores the token's SHA-256. Reuse revokes the session |
 | `POST /logout` | Revokes the session and expires the cookie |
-| `GET /me`, `GET /me/profile`, `PUT /me`, `DELETE /me` | Current user / profile |
+| `GET /me`, `GET /me/profile`, `PUT /me`, `DELETE /me` | Current user / profile. `PUT /me` writes the profile fields (names, phone, country, time zone, currency, language). `DELETE /me {password}` closes the account: wrong password → 400; otherwise the user is deactivated, every session expires and the refresh cookie is cleared (data is kept) |
 | `POST /change-password`, `POST /forgot-password`, `GET /validate-reset-token/`, `POST /reset-password` | Reset tokens kept in Redis |
 | `POST /verify-email`, `POST /resend-verification` | Many endpoints need `is_verified` (`get_current_verified_user`) |
 
 Tables `users`, `user_profiles`, `user_sessions` (`core/database/models/user.py`). Access token `ACCESS_TOKEN_EXPIRE_MINUTES` (15), refresh `REFRESH_TOKEN_EXPIRE_DAYS` (7) unless `REFRESH_TOKEN_EXPIRE_MINUTES` is set. `REFRESH_COOKIE_SECURE=false` only for a plain-http origin other than localhost (browsers drop a `Secure` cookie there, so a reload signs the user out). Every other router uses `get_current_active_user` / `get_current_user`; every resource is scoped by `user_id`.
 
 ## Frontend
-Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` live in `js/src/app/router.jsx`. Pages are `js/src/features/auth/`. `ProtectedLayout` gates the signed-in routes. `EmailVerificationPrompt` is used by the dashboard and the watchlist. `contexts/AuthContext.jsx`. `authAPI` is in `js/src/features/auth/api.ts`; the 401 interceptor and the single-flight `refreshAccessToken` are in `js/src/shared/api/client.ts`. The access token goes through `shared/auth/tokenStore.ts` (memory only; it also deletes tokens and `user`/`profile` left in localStorage by older builds). `user` and `profile` live in `AuthContext` state only. On start `AuthContext` calls `refreshAccessToken()`; no cookie means signed out.
+Routes `/login`, `/register`, `/forgot-password`, `/reset-password`, `/validate-reset-token`, `/verify-email` live in `js/src/app/router.jsx`. Pages are `js/src/features/auth/`. `ProtectedLayout` gates the signed-in routes. `EmailVerificationPrompt` is used by the dashboard and the watchlist. `contexts/AuthContext.jsx`. `authAPI` is in `js/src/features/auth/api.ts` (also `updateProfile`, `changePassword`, `deleteAccount` for `features/settings/Settings.jsx`, route `/settings`, sidebar "Settings"); the 401 interceptor and the single-flight `refreshAccessToken` are in `js/src/shared/api/client.ts`. The access token goes through `shared/auth/tokenStore.ts` (memory only; it also deletes tokens and `user`/`profile` left in localStorage by older builds). `user` and `profile` live in `AuthContext` state only. On start `AuthContext` calls `refreshAccessToken()`; no cookie means signed out.
 
 ## Workflow
 Register → email link → `/verify-email` → login (cookie set) → protected pages; the axios interceptor refreshes on 401, and a reload refreshes once on start. Forgot password → email link → validate → reset. Dev/demo: verification can be set in the DB (`seed_demo_application.py` does this for demouser).
 
 ## Known gaps
-- No profile/settings page: `changePassword`, `PUT /me`, `DELETE /me` unused by the UI.
+- No two-factor authentication.
 
 ## Planned
-A settings page (profile, password, delete account).
+Nothing scheduled.

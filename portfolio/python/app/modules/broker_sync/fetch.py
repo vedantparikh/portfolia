@@ -212,6 +212,7 @@ async def run_fetch(user_id: int) -> None:
             for portfolio in portfolios:
                 try:
                     result = await PytrSyncService(db).sync(portfolio)
+                    db.commit()
                 except Exception:
                     logger.exception(
                         "pytr import failed for portfolio %s", portfolio.id

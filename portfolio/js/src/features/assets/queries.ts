@@ -12,6 +12,7 @@ export const assetKeys = {
   pages: (params: Params) => ["assets", "pages", params] as const,
   top: ["assets", "top"] as const,
   details: ["assets", "details"] as const,
+  highlights: ["assets", "highlights"] as const,
 };
 
 export function fetchAssets(): Promise<AssetRecord[]> {
@@ -64,6 +65,13 @@ export function useAssetDetails() {
   return useQuery({
     queryKey: assetKeys.details,
     queryFn: () => assetAPI.getAssets({ limit: 1000, include_detail: true }),
+  });
+}
+
+export function useAssetHighlights() {
+  return useQuery({
+    queryKey: assetKeys.highlights,
+    queryFn: assetAPI.getHighlights,
   });
 }
 

@@ -3,7 +3,7 @@ Authentication schemas for request/response validation.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, EmailStr, Field, validator
 
@@ -24,13 +24,13 @@ class UserCreate(UserBase):
     confirm_password: str = Field(..., min_length=8, max_length=128)
 
     @validator("confirm_password")
-    def passwords_match(cls, v, values):
+    def passwords_match(cls, v: str, values: dict[str, Any]) -> str:
         if "password" in values and v != values["password"]:
             raise ValueError("Passwords do not match")
         return v
 
     @validator("username")
-    def username_valid(cls, v):
+    def username_valid(cls, v: str) -> str:
         if not v.isalnum():
             raise ValueError("Username must contain only alphanumeric characters")
         return v.lower()
@@ -55,6 +55,12 @@ class UserUpdate(BaseModel):
     language_preference: Optional[str] = Field(None, min_length=2, max_length=10)
 
 
+class AccountDeletion(BaseModel):
+    """The current password, to confirm closing the account."""
+
+    password: str
+
+
 class PasswordChange(BaseModel):
     """Schema for password change."""
 
@@ -63,7 +69,7 @@ class PasswordChange(BaseModel):
     confirm_new_password: str = Field(..., min_length=8, max_length=128)
 
     @validator("confirm_new_password")
-    def passwords_match(cls, v, values):
+    def passwords_match(cls, v: str, values: dict[str, Any]) -> str:
         if "new_password" in values and v != values["new_password"]:
             raise ValueError("Passwords do not match")
         return v
@@ -83,7 +89,7 @@ class PasswordResetConfirm(BaseModel):
     confirm_new_password: str = Field(..., min_length=8, max_length=128)
 
     @validator("confirm_new_password")
-    def passwords_match(cls, v, values):
+    def passwords_match(cls, v: str, values: dict[str, Any]) -> str:
         if "new_password" in values and v != values["new_password"]:
             raise ValueError("Passwords do not match")
         return v

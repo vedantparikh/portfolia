@@ -21,13 +21,9 @@
 ## Endpoints (`market/routers.py`)
 - `stock.py` (`/api/v1/stock`):
   - `GET /symbols` — the only symbol search (Yahoo via the provider); optional auth; anonymous users limited to 10/hour per IP. Used by SymbolSearch and AddSymbolModal.
-  - `GET /symbol-data` — no UI caller.
   - `GET /stock-latest-data` — used by the transaction modal and ClientSideAssetSearch.
-  - `GET /major-indices` — a static list; no UI caller.
 - `data_router.py` (`/api/v1/market-data`, auth required):
-  - `GET /ticker/{symbol}`, `GET /ticker/{symbol}/info`, `GET /prices/bulk` (max 50) — no UI caller.
   - `GET /market-status` — Dashboard tile.
-  - `GET /supported-periods`, `GET /supported-intervals` — no UI caller.
 - `marketAPI` in `js/src/shared/api/market.ts`: `getMarketStatus`, `searchSymbols`, `getStockLatestData`.
 
 ## Known gaps

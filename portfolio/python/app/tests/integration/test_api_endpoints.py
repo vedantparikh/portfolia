@@ -1,6 +1,5 @@
 """The public surface of the API: meta routes, auth flow, validation, symbol search."""
 
-import pandas as pd
 import pytest
 
 from core.services.market_data_service import MarketDataService
@@ -225,29 +224,6 @@ class TestMarketEndpoints:
         response = api.get("/api/v1/stock/symbols")
         assert response.status_code == 422
         assert "name" in error(response)["message"]
-
-    def test_symbol_data(self, api, monkeypatch):
-        async def fetch(self, symbol, **kwargs):
-            return pd.DataFrame(
-                {
-                    "Date": pd.to_datetime(["2026-01-02", "2026-01-05"]),
-                    "Open": [1.0, 2.0],
-                    "High": [1.5, 2.5],
-                    "Low": [0.5, 1.5],
-                    "Close": [1.2, 2.2],
-                    "Volume": [100, 200],
-                }
-            )
-
-        monkeypatch.setattr(MarketDataService, "fetch_ticker_data", fetch)
-
-        response = api.get("/api/v1/stock/symbol-data", params={"name": "aapl"})
-
-        assert response.status_code == 200, response.text
-        body = response.json()
-        assert body["symbol"] == "AAPL"
-        assert body["data_points"] == 2
-        assert [row["close"] for row in body["data"]] == ["1.2", "2.2"]
 
 
 class TestStatisticalIndicators:

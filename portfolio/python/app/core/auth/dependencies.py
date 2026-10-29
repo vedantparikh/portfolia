@@ -3,7 +3,7 @@ Authentication dependencies for FastAPI routes.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Callable, Optional
 
 import jwt
 from fastapi import Depends, HTTPException, Request, status
@@ -52,7 +52,7 @@ def get_current_user(
     try:
         # Verify the token
         payload = verify_token(credentials.credentials, "access")
-        user_id: str = payload.get("sub")
+        user_id: Optional[str] = payload.get("sub")
         if user_id is None:
             raise credentials_exception
 
@@ -124,7 +124,7 @@ def get_optional_current_user(
 
         token = auth_header.split(" ")[1]
         payload = verify_token(token, "access")
-        user_id: str = payload.get("sub")
+        user_id: Optional[str] = payload.get("sub")
 
         if user_id is None:
             return None
@@ -162,10 +162,10 @@ def get_owned_portfolio(
     return portfolio
 
 
-def require_permission(permission: str):
+def require_permission(permission: str) -> Callable[..., User]:
     """Decorator to require specific permission."""
 
-    def permission_checker(current_user: User = Depends(get_current_user)):
+    def permission_checker(current_user: User = Depends(get_current_user)) -> User:
         # For now, we'll implement basic role checking
         # In a full RBAC system, this would check user permissions
         if not current_user.is_active:
@@ -181,10 +181,10 @@ def get_token_data(token: str) -> TokenData:
     """Extract token data without database dependency."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        email: str = payload.get("email")
-        username: str = payload.get("username")
-        exp: int = payload.get("exp")
+        user_id: Optional[str] = payload.get("sub")
+        email: Optional[str] = payload.get("email")
+        username: Optional[str] = payload.get("username")
+        exp: Optional[int] = payload.get("exp")
 
         return TokenData(
             user_id=int(user_id) if user_id else None,

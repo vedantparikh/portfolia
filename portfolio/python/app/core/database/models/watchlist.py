@@ -84,6 +84,8 @@ class WatchlistItem(Base):
         String(20), nullable=False
     )  # Stock symbol (e.g., AAPL, GOOGL)
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Yahoo's quote currency, as given (e.g. GBp is pence)
+    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
 
     # Performance tracking
     added_price: Mapped[Decimal | None] = mapped_column(

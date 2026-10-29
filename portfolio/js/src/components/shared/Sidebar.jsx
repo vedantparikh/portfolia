@@ -7,6 +7,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Settings,
   TrendingUp,
   User,
   Wallet,
@@ -60,6 +61,7 @@ const Sidebar = ({
       icon: BookOpen,
       href: "/concepts",
     },
+    { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
   ];
 
   const handleLogout = async () => {

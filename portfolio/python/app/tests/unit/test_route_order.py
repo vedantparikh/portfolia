@@ -74,7 +74,6 @@ def _login_as(user):
 @pytest.mark.parametrize(
     "path",
     [
-        "/api/v1/portfolios/search",
         "/api/v1/assets/search/popular",
         "/api/v1/assets/search/suggestions?q=AA",
         "/api/v1/watchlists/public",

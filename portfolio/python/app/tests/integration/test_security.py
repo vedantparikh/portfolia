@@ -255,6 +255,41 @@ class TestSessions:
         assert api.get("/api/v1/auth/me", headers=auth(current)).status_code == 200
         assert api.get("/api/v1/auth/me", headers=auth(other)).status_code == 401
 
+    def test_closing_the_account_needs_the_password(self, api, test_db):
+        _, tokens = register_and_login(api, test_db, "alice")
+
+        wrong = api.request(
+            "DELETE", "/api/v1/auth/me", headers=auth(tokens), json={"password": "nope"}
+        )
+        assert wrong.status_code == 400
+        assert api.get("/api/v1/auth/me", headers=auth(tokens)).status_code == 200
+
+        closed = api.request(
+            "DELETE",
+            "/api/v1/auth/me",
+            headers=auth(tokens),
+            json={"password": STRONG_PASSWORD},
+        )
+        assert closed.status_code == 200, closed.text
+        assert api.get("/api/v1/auth/me", headers=auth(tokens)).status_code == 401
+        assert refresh_cookie(api) is None
+
+    def test_profile_update_is_saved(self, api, test_db):
+        _, tokens = register_and_login(api, test_db, "alice")
+
+        response = api.put(
+            "/api/v1/auth/me",
+            headers=auth(tokens),
+            json={"first_name": "Alicia", "currency_preference": "EUR"},
+        )
+
+        assert response.status_code == 200, response.text
+        profile = api.get("/api/v1/auth/me/profile", headers=auth(tokens)).json()
+        assert (profile["first_name"], profile["currency_preference"]) == (
+            "Alicia",
+            "EUR",
+        )
+
 
 class TestRateLimiting:
     def test_login_is_rate_limited_per_username(self, api, test_db):

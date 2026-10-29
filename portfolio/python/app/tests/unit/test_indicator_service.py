@@ -105,3 +105,16 @@ def test_max_period_fetches_by_period(client, market):
 )
 def test_period_start(period, expected):
     assert period_start(period, datetime(2026, 10, 16, 12)) == expected
+
+
+def test_validation_reports_an_unknown_indicator_instead_of_failing():
+    from core.schemas.statistical_indicators import IndicatorConfiguration
+    from core.services.indicator_registry_service import IndicatorRegistryService
+
+    errors = IndicatorRegistryService(db=None).validate_indicator_configuration(
+        IndicatorConfiguration(id="x", indicator_name="nope", parameters={})
+    )
+
+    assert [(e.parameter_name, e.provided_value) for e in errors] == [
+        ("indicator_name", "nope")
+    ]

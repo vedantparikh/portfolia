@@ -412,7 +412,6 @@ The plan is finished. What is left is in §6c.
 | Create `/mnt/samsung_ufs/backups/portfolio` and install `portfolia-{backup,restore-drill,staging}.timer` | Needs root; belongs in an Ansible role. Until then `backup.sh` and `deploy.sh` cannot write their dumps | User |
 | E2E against release images in staging before promotion | Needs staging running | After timers |
 | Prettier, husky/lint-staged, knip, jsx-a11y; hypothesis, testcontainers, schemathesis, pytest-socket; coverage targets | New dependencies not approved in this pass | Ask first |
-| ESLint does not lint `.ts` files | Needs `typescript-eslint`, a new dependency | Ask first |
 | Postgres on the official image | Recreates the live container; needs a planned window and a dump | Planned window |
 | Beta against a total-return index; Benchmarks tab on the shadow comparison | Product changes, not refactor | Backlog |
 

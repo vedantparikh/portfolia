@@ -56,9 +56,9 @@ There is no `Table` primitive: the tables share no structure beyond Tailwind cla
   - `getChangeColor`.
   - Chart tooltips use `chartMoney(v, currency)` and `barChange(open, close)` from `shared/ui/tooltipDom.js`; `Chart` and `EnhancedChart` take the asset's `currency`.
 - **No financial maths in the browser.** The only remaining exceptions are the amount↔quantity↔price helpers in the transaction forms (they fill inputs through `toInputDecimal`) and a candle's open→close change in the chart tooltips.
-- ESLint (`no-restricted-syntax`) fails on `.toFixed(` and on a `$` before a digit or an interpolation (`"$5"`, `` `$${x}` ``, JSX `${x}`) in `.js`/`.jsx` files, except `utils/formatters.jsx`, the glossary and tests. ESLint does not lint `.ts`/`.tsx`.
+- ESLint (`no-restricted-syntax`) fails on `.toFixed(` and on a `$` before a digit or an interpolation (`"$5"`, `` `$${x}` ``, JSX `${x}`) in every source file, except `utils/formatters.jsx`, the glossary and tests.
 - `font-variant-numeric: tabular-nums` is global (`index.css`). Tailwind 4 theme lives in `@theme`; there is no `info-*` colour.
-- Lint: ESLint 9 flat config with 0 warnings in the gate; `react/prop-types` is off.
+- Lint: ESLint 9 flat config with 0 warnings in the gate; `react/prop-types` is off. `.ts`/`.tsx` files use `typescript-eslint` (recommended, not type-aware) with the same React, hooks and formatter rules; `shared/api/generated/` is ignored.
 - API types: `npm run generate:api` writes `shared/api/generated/schema.ts` from the OpenAPI document; `shared/api/schema.ts` exposes `Schemas` (e.g. `assetAPI` returns `Schemas["Asset"]`).
 - Tests: `npm test` = Vitest (jsdom, `src/**/*.test.*`, MSW handlers in `src/test/msw/`, `renderWithProviders`); files: `utils/formatters.test.js`, `shared/auth/tokenStore.test.ts`, `contexts/AuthContext.test.jsx`. `npm run test:e2e` = Playwright `e2e/smoke.spec.ts` (sign in, reload keeps the session, create a portfolio, sign out).
 

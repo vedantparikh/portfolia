@@ -1,4 +1,5 @@
 import { api, type Id, type Params } from "./client";
+import type { Schemas } from "./schema";
 
 const base = "/statistical-indicators";
 
@@ -29,6 +30,20 @@ export const statisticalIndicatorsAPI = {
       .data,
   deleteConfiguration: async (configId: Id) =>
     (await api.delete(`${base}/configurations/${configId}`)).data,
+  getTemplates: async () => (await api.get(`${base}/templates`)).data,
+  createFromTemplate: async (templateName: string, customName?: string) =>
+    (
+      await api.post(`${base}/templates/${templateName}/create`, null, {
+        params: customName ? { custom_name: customName } : {},
+      })
+    ).data,
+  getStatistics: async () => (await api.get(`${base}/statistics`)).data,
+  getPopular: async (limit = 10) =>
+    (await api.get(`${base}/popular`, { params: { limit } })).data,
+  getGfsStrategy: async (symbol: string): Promise<Schemas["GfsStrategyResponse"]> =>
+    (await api.get(`${base}/strategies/gfs`, { params: { symbol } })).data,
+  getMacdStrategy: async (symbol: string): Promise<Schemas["MacdStrategyResponse"]> =>
+    (await api.get(`${base}/strategies/macd`, { params: { symbol } })).data,
   duplicateConfiguration: async (configId: Id, newName: string) => {
     const params = new URLSearchParams({ new_name: newName });
     return (

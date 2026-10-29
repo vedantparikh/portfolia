@@ -3,9 +3,9 @@ Statistical Indicators Configuration Schemas
 Pydantic schemas for user-configurable statistical indicators and analysis configurations.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
@@ -640,3 +640,34 @@ COMMON_ANALYSIS_TEMPLATES = {
         difficulty_level="advanced",
     ),
 }
+
+
+class GfsReadingSchema(BaseModel):
+    timeframe: Literal["monthly", "weekly", "daily"]
+    rsi: float
+    as_of: date
+
+
+class GfsStrategyResponse(BaseModel):
+    """RSI(14) of monthly, weekly and daily closes; all < 30 buy, all > 70 sell."""
+
+    symbol: str
+    action: Literal["buy", "sell", "hold"]
+    readings: List[GfsReadingSchema]
+
+
+class MacdSignalSchema(BaseModel):
+    date: date
+    action: Literal["buy", "sell"]
+    close: float
+    macd: float
+    signal: float
+    trend_ema: float
+
+
+class MacdStrategyResponse(BaseModel):
+    """MACD(12, 26, 9) crosses that pass the zero-line and 200-day EMA rules."""
+
+    symbol: str
+    since: date
+    signals: List[MacdSignalSchema]

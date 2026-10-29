@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import { useIndicatorCalculation, useIndicatorConfigurations } from "./queries";
 import EnhancedChart from "../../components/shared/EnhancedChart";
+import StrategySignals from "./StrategySignals";
 import { seriesLabel } from "../../utils/indicatorLabels";
 import LoadingSpinner from "../../shared/ui/Spinner";
 import { formatRatio } from "../../utils/formatters.jsx";
@@ -270,6 +271,8 @@ const AssetAnalyticsView = ({ asset, onRefresh, selectedConfiguration = null, he
           {/* ... same as before ... */}
         </div>
       )}
+
+      <StrategySignals symbol={asset?.symbol} currency={asset?.currency} />
 
       {/* Indicator Configurations */}
       {indicatorConfigurations.length > 0 && (

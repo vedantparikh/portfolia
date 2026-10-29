@@ -18,6 +18,7 @@ import {
 } from './queries';
 import LoadingSpinner from '../../shared/ui/Spinner';
 import { Modal } from '../../shared/ui';
+import ConfigurationLibrary from './ConfigurationLibrary';
 
 const IndicatorConfigurationManager = ({
     onConfigurationSelect,
@@ -313,6 +314,8 @@ const IndicatorConfigurationManager = ({
                     ))
                 )}
             </div>
+
+            <ConfigurationLibrary />
 
             {/* Create Configuration Modal */}
             {showCreateModal && (

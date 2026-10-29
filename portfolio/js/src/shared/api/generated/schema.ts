@@ -487,6 +487,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/statistical-indicators/strategies/gfs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gfs Strategy
+         * @description Grandfather-father-son: RSI(14) on monthly, weekly and daily closes.
+         */
+        get: operations["get_api_v1_statistical_indicators_strategies_gfs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/statistical-indicators/strategies/macd": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Macd Strategy
+         * @description MACD crossovers filtered by the zero line and the 200-day EMA trend.
+         */
+        get: operations["get_api_v1_statistical_indicators_strategies_macd"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/statistical-indicators/templates": {
         parameters: {
             query?: never;
@@ -3630,6 +3670,36 @@ export interface components {
              */
             price: string;
         };
+        /** GfsReadingSchema */
+        GfsReadingSchema: {
+            /**
+             * Timeframe
+             * @enum {string}
+             */
+            timeframe: "monthly" | "weekly" | "daily";
+            /** Rsi */
+            rsi: number;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+        };
+        /**
+         * GfsStrategyResponse
+         * @description RSI(14) of monthly, weekly and daily closes; all < 30 buy, all > 70 sell.
+         */
+        GfsStrategyResponse: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "buy" | "sell" | "hold";
+            /** Readings */
+            readings: components["schemas"]["GfsReadingSchema"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -4158,6 +4228,42 @@ export interface components {
              * @default 0
              */
             fills_checked: number;
+        };
+        /** MacdSignalSchema */
+        MacdSignalSchema: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "buy" | "sell";
+            /** Close */
+            close: number;
+            /** Macd */
+            macd: number;
+            /** Signal */
+            signal: number;
+            /** Trend Ema */
+            trend_ema: number;
+        };
+        /**
+         * MacdStrategyResponse
+         * @description MACD(12, 26, 9) crosses that pass the zero-line and 200-day EMA rules.
+         */
+        MacdStrategyResponse: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Since
+             * Format: date
+             */
+            since: string;
+            /** Signals */
+            signals: components["schemas"]["MacdSignalSchema"][];
         };
         /** MarketData */
         MarketData: {
@@ -7962,6 +8068,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_statistical_indicators_strategies_gfs: {
+        parameters: {
+            query: {
+                symbol: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GfsStrategyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_statistical_indicators_strategies_macd: {
+        parameters: {
+            query: {
+                symbol: string;
+                /** @description Signals from this day; default one year back */
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MacdStrategyResponse"];
                 };
             };
             /** @description Validation Error */

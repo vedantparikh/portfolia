@@ -415,7 +415,6 @@ The plan is finished. What is left is in §6c.
 | ESLint does not lint `.ts` files | Needs `typescript-eslint`, a new dependency | Ask first |
 | Postgres on the official image | Recreates the live container; needs a planned window and a dump | Planned window |
 | Beta against a total-return index; Benchmarks tab on the shadow comparison | Product changes, not refactor | Backlog |
-| HIGH CVEs in pypdf 6.20.1, urllib3 2.7.0, msgpack 1.1.2 | Fixes are dependency upgrades (Renovate-style), not critical | Ask first |
 
 ## 7. Release strategy
 

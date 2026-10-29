@@ -25,7 +25,7 @@ dependencies = [
     "python-dateutil==2.9.0.post0",
     "pyxirr==0.10.8",
     "reportlab==5.0.1",
-    "pypdf==6.20.1",
+    "pypdf==6.21.2",
     "pytr==0.4.10",
 ]
 

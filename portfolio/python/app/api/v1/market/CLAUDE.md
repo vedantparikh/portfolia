@@ -16,7 +16,7 @@
 | `fetch_ticker_data(...)` | OHLCV (dividend-adjusted default) for charts, indicators and advance-risk (beta index, asset weights) | none |
 | `get_fx_rates(quote, portfolio)` | Portfolio currency per 1 quote unit from `{QUOTE}{PORTFOLIO}=X`, else the inverted reverse pair; none → `MissingFxError` | via `get_daily_history` (6 h) |
 | `search_quotes` / `search_listings` | One Yahoo search. The UI gets every quote; the ISIN resolver keeps equities, ETFs, funds and crypto | 7 d |
-| `get_ticker_info`, `get_market_status` | Info (15 min, one pipeline write), US market open (weekdays 9:30–16:00 ET, no holidays) | |
+| `get_ticker_info`, `get_market_status` | Info (15 min, one pipeline write), US market open, next open and close from `core/domain/market_calendar.py` (NYSE hours, holidays, 13:00 early closes) | |
 
 ## Endpoints (`market/routers.py`)
 - `stock.py` (`/api/v1/stock`):
@@ -31,5 +31,4 @@
 - `marketAPI` in `js/src/shared/api/market.ts`: `getMarketStatus`, `searchSymbols`, `getStockLatestData`.
 
 ## Known gaps
-- Market status ignores US holidays.
 - A cold daily-history or FX cache still calls Yahoo inside the request. The worker fills those for symbols the book already holds.

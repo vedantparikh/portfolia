@@ -6,6 +6,16 @@ export type AssetRecord = Schemas["Asset"];
 export const assetAPI = {
   getAssets: async (params: Params = {}): Promise<AssetRecord[]> =>
     (await api.get("/assets/", { params })).data || [],
+  getAssetPage: async (
+    params: Params = {},
+  ): Promise<{ items: AssetRecord[]; total: number | null }> => {
+    const response = await api.get("/assets/", { params });
+    const total = Number(response.headers["x-total-count"]);
+    return {
+      items: response.data || [],
+      total: Number.isFinite(total) ? total : null,
+    };
+  },
   getAssetPrices: async (id: Id, params: Params = {}) =>
     (await api.get(`/assets/${id}/prices`, { params })).data,
   createAsset: async (assetData: Params) =>

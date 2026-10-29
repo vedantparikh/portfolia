@@ -236,7 +236,13 @@ const Dashboard = () => {
                 className="col-span-2 lg:col-span-1"
                 tone={marketStatus?.is_open ? "success" : "gray"}
                 value={marketStatus ? (marketStatus.is_open ? "Open" : "Closed") : "—"}
-                sub="Mon–Fri 9:30–16:00 ET"
+                sub={
+                  marketStatus?.is_open
+                    ? `Closes ${formatDateTime(marketStatus.next_close)}`
+                    : marketStatus?.next_open
+                      ? `Opens ${formatDateTime(marketStatus.next_open)}`
+                      : "Mon–Fri 9:30–16:00 ET"
+                }
               />
             </div>
 

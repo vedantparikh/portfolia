@@ -63,10 +63,8 @@ const AssetFilters = ({ filters, onFilterChange, hidden = [] }) => {
     const sortOptions = [
         { value: 'symbol', label: 'Symbol' },
         { value: 'name', label: 'Name' },
-        { value: 'quantity', label: 'Quantity' },
-        { value: 'purchase_price', label: 'Purchase Price' },
+        { value: 'created_at', label: 'Date Added' },
         { value: 'current_price', label: 'Current Price' },
-        { value: 'total_value', label: 'Total Value' },
         { value: 'market_cap', label: 'Market Cap' },
         { value: 'volume_24h', label: '24h Volume' },
         { value: 'price_change_percentage_24h', label: '24h Change %' }

@@ -113,9 +113,10 @@ const Assets = () => {
     const { data: portfolios = [] } = usePortfolios();
     const pages = useAssetPages(apiParams, { refetchInterval: autoRefresh ? 30000 : false });
     const assets = useMemo(
-        () => Array.from(new Map((pages.data?.pages.flat() || []).map((asset) => [asset.id, asset])).values()),
+        () => Array.from(new Map((pages.data?.pages.flatMap((page) => page.items) || []).map((asset) => [asset.id, asset])).values()),
         [pages.data],
     );
+    const total = pages.data?.pages[0]?.total;
     const loading = pages.isPending;
     const loadingMore = pages.isFetchingNextPage;
     const hasMore = pages.hasNextPage;
@@ -396,11 +397,11 @@ const Assets = () => {
 
                     {showFilters && (
                         <div className="card p-6 mb-8">
-                            {/* The assets API only filters by type; ranges and sorting are ignored server-side */}
+                            {/* The assets API filters by type and sorts; it has no range filters */}
                             <AssetFilters
                                 filters={filters}
                                 onFilterChange={handleFilterChange}
-                                hidden={['priceRange', 'valueRange', 'changeRange', 'marketCapRange', 'sort']}
+                                hidden={['priceRange', 'valueRange', 'changeRange', 'marketCapRange']}
                             />
                         </div>
                     )}
@@ -419,7 +420,7 @@ const Assets = () => {
                             </button>
                         </div>
                         <p className="text-sm text-gray-400">
-                            Showing {assets.length} assets
+                            Showing {assets.length}{total != null ? ` of ${total}` : ''} assets
                         </p>
                     </div>
 

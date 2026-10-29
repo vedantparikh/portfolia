@@ -4,6 +4,12 @@ from sqlalchemy.orm import Session
 
 from core.database.models import Asset
 
+SORT_COLUMNS = {
+    "symbol": Asset.symbol,
+    "name": Asset.name,
+    "created_at": Asset.created_at,
+}
+
 
 class AssetRepository:
     def __init__(self, db: Session):
@@ -37,15 +43,7 @@ class AssetRepository:
             self.db.refresh(asset)
         return assets
 
-    def list_active(
-        self,
-        user_id: int,
-        *,
-        symbol: str | None,
-        asset_type: str | None,
-        skip: int,
-        limit: int,
-    ) -> list[Asset]:
+    def _active(self, user_id: int, symbol: str | None, asset_type: str | None):
         query = self.db.query(Asset).filter(
             Asset.is_active.is_(True), Asset.user_id == user_id
         )
@@ -53,7 +51,30 @@ class AssetRepository:
             query = query.filter(Asset.symbol.ilike(f"%{symbol.upper()}%"))
         if asset_type:
             query = query.filter(Asset.asset_type == asset_type)
-        return query.order_by(Asset.symbol, Asset.id).offset(skip).limit(limit).all()
+        return query
+
+    def list_active(
+        self,
+        user_id: int,
+        *,
+        symbol: str | None,
+        asset_type: str | None,
+        skip: int = 0,
+        limit: int | None = None,
+        order_by: str = "symbol",
+        descending: bool = False,
+    ) -> list[Asset]:
+        column = SORT_COLUMNS[order_by]
+        query = self._active(user_id, symbol, asset_type).order_by(
+            column.desc().nulls_last() if descending else column.asc().nulls_last(),
+            Asset.id,
+        )
+        return query.offset(skip).limit(limit).all()
+
+    def count_active(
+        self, user_id: int, *, symbol: str | None, asset_type: str | None
+    ) -> int:
+        return self._active(user_id, symbol, asset_type).count()
 
     def get_active(self, user_id: int, asset_id: int) -> Asset | None:
         return (

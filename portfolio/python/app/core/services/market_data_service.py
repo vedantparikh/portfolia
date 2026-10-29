@@ -14,6 +14,7 @@ import pandas as pd  # type: ignore
 from config import settings
 from core.database.redis_client import get_redis
 from core.domain.fx import MissingFxError, canonical_currency
+from core.domain.market_calendar import market_status
 from core.services.market_data.provider import MarketDataProvider
 from core.services.market_data.yahoo import YahooMarketDataProvider
 
@@ -339,40 +340,8 @@ class MarketDataService:
         ]
 
     async def get_market_status(self) -> Dict[str, Any]:
-        """
-        Get current market status.
-        Note: This is a basic implementation using market hours.
-        """
-        try:
-            # Get current time in Eastern Time (US market timezone)
-            import pytz  # type: ignore
-
-            et = pytz.timezone("US/Eastern")
-            now_et = datetime.now(et)
-
-            # Basic market hours check (9:30 AM - 4:00 PM ET, Monday-Friday)
-            is_weekday = now_et.weekday() < 5  # Monday = 0, Friday = 4
-            market_open_time = now_et.replace(
-                hour=9, minute=30, second=0, microsecond=0
-            )
-            market_close_time = now_et.replace(
-                hour=16, minute=0, second=0, microsecond=0
-            )
-
-            is_market_hours = market_open_time <= now_et <= market_close_time
-            is_open = is_weekday and is_market_hours
-
-            return {
-                "is_open": is_open,
-                "current_time_et": now_et.isoformat(),
-                "next_open": None,  # Would need more complex logic
-                "next_close": None,  # Would need more complex logic
-                "timezone": "US/Eastern",
-            }
-
-        except Exception as e:
-            logger.error("Error getting market status: %s", e)
-            return {"is_open": None, "error": "Market status unavailable"}
+        """US market (NYSE) hours, holidays and early closes."""
+        return market_status(datetime.now(timezone.utc))
 
     async def get_ticker_info(self, symbol: str) -> Optional[Dict[str, Any]]:
         """OPTIMIZED: Wraps the cached batch method."""

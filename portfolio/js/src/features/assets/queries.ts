@@ -44,18 +44,18 @@ export function useAssetPages(
     queryKey: assetKeys.pages(params),
     queryFn: ({ pageParam }) =>
       assetAPI
-        .getAssets({
+        .getAssetPage({
           ...params,
           limit: ASSET_PAGE_SIZE,
           skip: pageParam * ASSET_PAGE_SIZE,
         })
         .catch((error) => {
           console.error("Failed to get assets:", error);
-          return [] as AssetRecord[];
+          return { items: [] as AssetRecord[], total: null };
         }),
     initialPageParam: 0,
     getNextPageParam: (lastPage, pages) =>
-      lastPage.length === ASSET_PAGE_SIZE ? pages.length : undefined,
+      lastPage.items.length === ASSET_PAGE_SIZE ? pages.length : undefined,
     refetchInterval: options.refetchInterval,
   });
 }
@@ -73,7 +73,8 @@ export function useTopAssets() {
     queryFn: () =>
       assetAPI.getAssets({
         limit: 10,
-        sort: "market_cap",
+        sort_by: "market_cap",
+        sort_order: "desc",
         include_detail: true,
       }),
   });

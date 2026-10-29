@@ -44,6 +44,7 @@ from core.database.models import User, UserProfile, UserSession
 from core.email_client import send_forgot_password_email, send_verification_email
 from core.logging_config import get_logger, log_api_request, log_security_event
 from core.schemas.auth import (
+    AccountDeletion,
     EmailVerification,
     PasswordChange,
     PasswordReset,
@@ -831,11 +832,16 @@ def resend_verification(current_user: User = Depends(get_current_user)):
 
 @router.delete("/me")
 def delete_account(
-    current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)
+    confirmation: AccountDeletion,
+    response: Response,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
 ):
-    """Delete current user account."""
-    # In production, this would require additional confirmation
-    # and might implement soft delete instead of hard delete
+    """Close the account (deactivate it and end every session); needs the password."""
+    if not verify_password(confirmation.password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Password is incorrect"
+        )
 
     # Mark user as inactive
     current_user.is_active = False
@@ -848,5 +854,6 @@ def delete_account(
     log_security_event(
         logger, "account_deleted", str(current_user.id), None, "User account deleted"
     )
+    _clear_refresh_cookie(response)
 
     return {"message": "Account deleted successfully"}

@@ -100,7 +100,6 @@ Not built yet. Notes are in [portfolio/REFACTOR_PLAN.md](portfolio/REFACTOR_PLAN
 - Withholding tax kept on Trade Republic PDF dividends (the pytr CSV import already stores it)
 - Email or phone alerts for watchlist prices
 - The Benchmarks tab showing the same comparison the chart already does, with beta against a total-return index
-- A settings page: profile, change password, delete account
 - Statements from brokers other than Trade Republic, including a model-assisted parser on the shared GPU and OCR for scans
 
 ## Stack

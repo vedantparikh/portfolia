@@ -23,6 +23,7 @@ const Portfolio = lazy(() => import("../features/portfolio/Portfolio"));
 const Transactions = lazy(
   () => import("../features/transactions/Transactions"),
 );
+const Settings = lazy(() => import("../features/settings/Settings"));
 const FinancialConcepts = lazy(
   () => import("../components/FinancialConcepts"),
 );
@@ -53,6 +54,7 @@ export default function AppRoutes() {
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/concepts" element={<FinancialConcepts />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
 

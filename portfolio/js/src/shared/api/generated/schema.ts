@@ -167,7 +167,7 @@ export interface paths {
         post?: never;
         /**
          * Delete Account
-         * @description Delete current user account.
+         * @description Close the account (deactivate it and end every session); needs the password.
          */
         delete: operations["delete_api_v1_auth_me"];
         options?: never;
@@ -2185,6 +2185,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccountDeletion
+         * @description The current password, to confirm closing the account.
+         */
+        AccountDeletion: {
+            /** Password */
+            password: string;
+        };
         /**
          * AccountStatementProvider
          * @description Account statement provider information.
@@ -7391,7 +7399,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeletion"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -7400,6 +7412,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -27,6 +27,12 @@ export const authAPI = {
     (await api.get(`/auth/validate-reset-token/?token=${token}`)).data,
   verifyEmail: async (token: string) =>
     (await api.post("/auth/verify-email", { token })).data,
+  updateProfile: async (changes: Body) =>
+    (await api.put("/auth/me", changes)).data,
+  changePassword: async (passwords: Body) =>
+    (await api.post("/auth/change-password", passwords)).data,
+  deleteAccount: async (password: string) =>
+    (await api.delete("/auth/me", { data: { password } })).data,
   resendVerification: async () =>
     (await api.post("/auth/resend-verification")).data,
 };

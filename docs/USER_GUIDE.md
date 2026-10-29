@@ -316,6 +316,10 @@ A glossary, with no API behind it. Search, filter by category, and open a card. 
 
 If a card and a number on a portfolio ever disagree, the portfolio is right and the card should be updated.
 
+## Settings
+
+**Settings** in the sidebar edits your name, phone, country, time zone and preferred currency, and changes your password. Changing the password signs out your other devices. **Close account** asks for your password, deactivates the account and signs you out everywhere; your data stays in the database.
+
 ## Day to day
 
 A normal loop:
@@ -335,6 +339,5 @@ A normal loop:
 - Send watchlist alerts anywhere but the UI
 - Compare benchmarks on the Benchmarks tab (use the chart)
 - Explain a PDF from a broker that is not Trade Republic
-- Show a settings page
 
 Those are the open items in [portfolio/REFACTOR_PLAN.md](../portfolio/REFACTOR_PLAN.md). The short list is also at the bottom of the [project README](../README.md).

@@ -55,6 +55,12 @@ class UserUpdate(BaseModel):
     language_preference: Optional[str] = Field(None, min_length=2, max_length=10)
 
 
+class AccountDeletion(BaseModel):
+    """The current password, to confirm closing the account."""
+
+    password: str
+
+
 class PasswordChange(BaseModel):
     """Schema for password change."""
 

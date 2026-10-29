@@ -15,6 +15,7 @@ const views = [
   ["/transactions", "transactions"],
   ["/watchlist", "watchlist"],
   ["/concepts", "concepts"],
+  ["/settings", "settings"],
 ];
 
 function viewFor(pathname) {

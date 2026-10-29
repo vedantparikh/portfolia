@@ -155,16 +155,6 @@ class PortfolioAsset(PortfolioAssetBase):
         from_attributes = True
 
 
-class PortfolioAssetWithDetails(PortfolioAsset):
-    """Portfolio asset with additional asset information"""
-
-    symbol: Optional[str] = None
-    asset_name: Optional[str] = None
-    market_value: Optional[Decimal] = None
-    total_return: Optional[Decimal] = None
-    total_return_percent: Optional[Decimal] = None
-
-
 class AssetBase(BaseModel):
     symbol: str
     name: str

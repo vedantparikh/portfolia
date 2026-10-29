@@ -34,7 +34,6 @@ from core.errors import DomainError
 from core.schemas.portfolio import (
     CurrencyTotals,
     PortfolioAssetCreate,
-    PortfolioAssetWithDetails,
     PortfolioCreate,
     PortfolioHolding,
     PortfolioStatistics,
@@ -226,78 +225,6 @@ class PortfolioService:
             .filter(PortfolioAsset.portfolio_id == portfolio_id)
             .all()
         )
-
-    async def get_portfolio_assets_with_details(
-        self, portfolio_id: int, user_id: int
-    ) -> List[PortfolioAssetWithDetails]:
-        """Get portfolio assets with additional asset information."""
-        portfolio = self.get_portfolio(portfolio_id, user_id)
-        if not portfolio:
-            return []
-
-        portfolio_assets_with_info = (
-            self.db.query(PortfolioAsset, Asset)
-            .join(Asset, PortfolioAsset.asset_id == Asset.id)
-            .filter(PortfolioAsset.portfolio_id == portfolio_id)
-            .all()
-        )
-
-        symbols = [asset.symbol for pa, asset in portfolio_assets_with_info]
-        market_prices = await self.market_data_service.get_current_prices(
-            symbols, fetch=False
-        )
-        rates = await load_rates(
-            self.market_data_service,
-            portfolio.currency,
-            [asset.currency for _, asset in portfolio_assets_with_info],
-            strict=False,
-        )
-
-        result = []
-        for portfolio_asset, asset_info in portfolio_assets_with_info:
-            current_price = market_prices.get(asset_info.symbol)
-            if current_price is not None:
-                current_price = self._converted(
-                    current_price,
-                    asset_info.currency,
-                    portfolio.currency,
-                    date.today(),
-                    rates,
-                )
-            current_value = None
-            unrealized_pnl = None
-            unrealized_pnl_percent = None
-
-            if current_price is not None:
-                current_value = current_price * portfolio_asset.quantity
-                unrealized_pnl = current_value - portfolio_asset.cost_basis_total
-                if portfolio_asset.cost_basis_total > 0:
-                    unrealized_pnl_percent = (
-                        unrealized_pnl / portfolio_asset.cost_basis_total
-                    ) * 100
-
-            asset_details = PortfolioAssetWithDetails(
-                id=portfolio_asset.id,
-                portfolio_id=portfolio_asset.portfolio_id,
-                asset_id=portfolio_asset.asset_id,
-                quantity=portfolio_asset.quantity,
-                cost_basis=portfolio_asset.cost_basis,
-                cost_basis_total=portfolio_asset.cost_basis_total,
-                current_value=current_value,
-                unrealized_pnl=unrealized_pnl,
-                unrealized_pnl_percent=unrealized_pnl_percent,
-                realized_pnl=portfolio_asset.realized_pnl,
-                realized_pnl_percent=portfolio_asset.realized_pnl_percent,
-                last_updated=portfolio_asset.last_updated,
-                symbol=asset_info.symbol,
-                asset_name=asset_info.name,
-                market_value=current_value,
-                total_return=unrealized_pnl,
-                total_return_percent=unrealized_pnl_percent,
-            )
-            result.append(asset_details)
-
-        return result
 
     # Transaction Management
     def _get_owned_asset(self, asset_id: int, user_id: int) -> Optional[Asset]:
@@ -745,22 +672,6 @@ class PortfolioService:
         """
         return [holding for holding, _, _ in await self._holding_rows(portfolio_id)]
 
-    def search_portfolios(
-        self, user_id: int, search_term: str = None, currency: str = None
-    ) -> List[Portfolio]:
-        """Search portfolios with filters."""
-        query = self.db.query(Portfolio).filter(
-            Portfolio.user_id == user_id, Portfolio.is_active == True
-        )
-
-        if search_term:
-            query = query.filter(Portfolio.name.ilike(f"%{search_term}%"))
-
-        if currency:
-            query = query.filter(Portfolio.currency == currency)
-
-        return query.all()
-
     async def get_portfolio_statistics(self, user_id: int) -> PortfolioStatistics:
         """Totals across the user's active portfolios, per currency, from live holdings."""
         portfolios = self.get_user_portfolios(user_id, include_inactive=True)
@@ -840,19 +751,6 @@ class PortfolioService:
             await self.recalculate_asset_state(portfolio_id, asset_id)
         self.db.flush()
         return True
-
-    def get_public_portfolios(
-        self, limit: int = 50, offset: int = 0
-    ) -> List[Portfolio]:
-        """Get public portfolios for discovery."""
-        return (
-            self.db.query(Portfolio)
-            .filter(Portfolio.is_public == True, Portfolio.is_active == True)
-            .order_by(desc(Portfolio.updated_at))
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
 
     async def get_user_portfolio_holdings(
         self, portfolio_id: int, user_id: int

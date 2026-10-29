@@ -12,13 +12,12 @@
 | `GET /{id}/summary` | Sum of the same holding rows (open positions only): value, cost, unrealized (priced positions only), today's P&L / % on start-of-day value + cash invested today, `total_realized_pnl` (sales, before tax), `missing_prices`. Tax view: `total_dividends` (before tax), `taxes_withheld` (`transactions.taxes` on sales and dividends), `tax_adjustments` (`tax_entries`: refunds negative), `net_taxes_paid` = withheld + adjustments, `realized_after_tax` = realized + dividends − net taxes. All converted to the portfolio currency |
 | `GET /statistics/overview` | Same rows across active portfolios, summed **per currency** in `totals[]` (value, holdings, today's P&L/%); `total_value`/`currency`/`today_pnl` only when all portfolios share one currency; missing prices. Dashboard "Total Value" tile |
 | `POST /{id}/refresh` | Rebuilds every position from transactions (picks up new splits) and re-prices |
-| `POST/GET /{id}/assets`, `GET /{id}/assets/details`, `DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | `POST` and legacy `POST` add a holding by creating a buy. `DELETE` removes the holding and its transactions. There is no update: quantity and P&L are not writable |
+| `POST/GET /{id}/assets`, `DELETE /{id}/assets/{asset_id}`, `POST /{id}/assets/legacy` | `POST` and legacy `POST` add a holding by creating a buy. `DELETE` removes the holding and its transactions. There is no update: quantity and P&L are not writable |
 | `POST/GET /{id}/transactions` | Portfolio-scoped transaction create/list (`limit` ≤ 1000, `offset`; newest first; create triggers `recalculate_asset_state`) |
 | `GET /sync/pytr` | Whether this user may link a portfolio to the Trade Republic export (`PYTR_SYNC_USERS`), the file's time, the login (`connected`, `login_pending`, `session_expired`) and the last fetch (`fetch_status`, `fetch_report`) |
 | `POST /sync/pytr/login` `{phone, pin}`, `POST /sync/pytr/login/confirm` `{code?}`, `DELETE /sync/pytr/login` | pytr web login: confirm in the Trade Republic app (poll confirm until `confirmed`) or send the authenticator code. PIN never stored; session Fernet-encrypted in `broker_connections` |
 | `POST /sync/pytr/fetch` | 202; downloads into the shared folder after the response, then imports into every linked portfolio of the user; poll `GET /sync/pytr` |
 | `GET/PUT/POST /{id}/sync`, `POST /{id}/sync/instruments` | Broker sync (`modules/broker_sync`): status and last report; `PUT {source: "pytr"\|null}` links (EUR portfolios only) and imports at once, or unlinks; `POST` imports now; `instruments {isin, symbol}` gives a trade-priced ISIN a Yahoo ticker (rebuilds it on market prices) |
-| `GET /search?search_term=&currency=`, `GET /public/discover` | Own portfolios by name/currency; discover lists public portfolios. No UI for either |
 
 `PortfolioAsset` is a **cache** rebuilt by `recalculate_asset_state(portfolio_id, asset_id)` on every transaction write and on refresh: `compute_position` on FX-converted trades + live price converted the same way. Holding rows (`_holding_rows`) read the cached price and the previous close `get_yesterdays_closes` (last finished session, 12h, UTC-date key), both multiplied by the FX rate on that day.
 
@@ -48,7 +47,6 @@ Create portfolio → add transactions (Transactions page, PDF import, or Add Pos
 ## Known gaps
 - Delete flows have no undo; holdings include zero-quantity rows in the table.
 - A cold daily-history or FX cache (a newly added symbol or pair) still fetches from Yahoo inside the request until the worker has run.
-- `GET /search`, `GET /public/discover` and `GET /{id}/assets/details` have no UI caller.
 
 ## Planned
 Nothing scheduled.

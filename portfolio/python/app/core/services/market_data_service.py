@@ -317,28 +317,6 @@ class MarketDataService:
             )
         return cached or None
 
-    def get_supported_periods(self) -> List[str]:
-        """Get list of supported period values."""
-        return ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]
-
-    def get_supported_intervals(self) -> List[str]:
-        """Get list of supported interval values."""
-        return [
-            "1m",
-            "2m",
-            "5m",
-            "15m",
-            "30m",
-            "60m",
-            "90m",
-            "1h",
-            "1d",
-            "5d",
-            "1wk",
-            "1mo",
-            "3mo",
-        ]
-
     async def get_market_status(self) -> Dict[str, Any]:
         """US market (NYSE) hours, holidays and early closes."""
         return market_status(datetime.now(timezone.utc))

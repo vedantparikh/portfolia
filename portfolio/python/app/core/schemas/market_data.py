@@ -4,7 +4,6 @@ Pydantic schemas for market data operations and yfinance integration.
 """
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -29,30 +28,6 @@ class YFinanceQuoteData(BaseModel):
     isin: Optional[str] = Field(None, description="ISIN")
     cusip: Optional[str] = Field(None, description="CUSIP")
     long_description: Optional[str] = Field(None, description="Long description")
-
-
-class YFinancePriceData(BaseModel):
-    """yfinance price data structure."""
-
-    date: datetime = Field(..., description="Date")
-    open: Optional[Decimal] = Field(None, description="Open price")
-    high: Optional[Decimal] = Field(None, description="High price")
-    low: Optional[Decimal] = Field(None, description="Low price")
-    close: Optional[Decimal] = Field(None, description="Close price")
-    volume: Optional[int] = Field(None, description="Volume")
-    dividends: Optional[Decimal] = Field(None, description="Dividends")
-    stock_splits: Optional[Decimal] = Field(None, description="Stock splits")
-
-
-class YFinanceDataResponse(BaseModel):
-    """yfinance data response structure."""
-
-    symbol: str = Field(..., description="Stock symbol")
-    period: str = Field(..., description="Data period")
-    interval: str = Field(..., description="Data interval")
-    source: str = Field(..., description="Data source")
-    data_points: int = Field(..., description="Number of data points")
-    data: List[YFinancePriceData] = Field(..., description="Price data")
 
 
 class SymbolSearchResult(BaseModel):
@@ -182,45 +157,6 @@ class TickerDataPoint(BaseModel):
     adj_close: float = Field(..., description="Adjusted close price")
 
 
-class TickerDataResponse(BaseModel):
-    """Ticker historical data response."""
-
-    symbol: str = Field(..., description="Ticker symbol")
-    period: str = Field(..., description="Data period")
-    interval: str = Field(..., description="Data interval")
-    data_points: int = Field(..., description="Number of data points")
-    data: List[TickerDataPoint] = Field(..., description="Historical data")
-    source: str = Field(..., description="Data source")
-
-
-class TickerInfoResponse(BaseModel):
-    """Comprehensive ticker information response."""
-
-    symbol: str = Field(..., description="Ticker symbol")
-    name: Optional[str] = Field(None, description="Company name")
-    company_name: Optional[str] = Field(None, description="Full company name")
-    sector: Optional[str] = Field(None, description="Sector")
-    industry: Optional[str] = Field(None, description="Industry")
-    exchange: Optional[str] = Field(None, description="Exchange")
-    currency: Optional[str] = Field(None, description="Currency")
-    market_cap: Optional[int] = Field(None, description="Market capitalization")
-    current_price: Optional[float] = Field(None, description="Current price")
-    previous_close: Optional[float] = Field(None, description="Previous close")
-    day_low: Optional[float] = Field(None, description="Day low")
-    day_high: Optional[float] = Field(None, description="Day high")
-    volume: Optional[int] = Field(None, description="Volume")
-    avg_volume: Optional[int] = Field(None, description="Average volume")
-    beta: Optional[float] = Field(None, description="Beta")
-    pe_ratio: Optional[float] = Field(None, description="P/E ratio")
-    dividend_yield: Optional[float] = Field(None, description="Dividend yield")
-    book_value: Optional[float] = Field(None, description="Book value")
-    earnings_growth: Optional[float] = Field(None, description="Earnings growth")
-    revenue_growth: Optional[float] = Field(None, description="Revenue growth")
-    business_summary: Optional[str] = Field(None, description="Business summary")
-    website: Optional[str] = Field(None, description="Website")
-    employees: Optional[int] = Field(None, description="Number of employees")
-
-
 class StockSearchResult(BaseModel):
     """Stock search result."""
 
@@ -251,31 +187,6 @@ class MarketStatusResponse(BaseModel):
 
 
 # Missing response schemas for endpoints without response_model
-
-
-class BulkPricesResponse(BaseModel):
-    """Bulk prices response."""
-
-    prices: Dict[str, Optional[float]] = Field(
-        ..., description="Symbol to price mapping"
-    )
-    source: str = Field(..., description="Data source")
-    requested_count: int = Field(..., description="Number of symbols requested")
-    successful_count: int = Field(..., description="Number of successful price fetches")
-
-
-class SupportedPeriodsResponse(BaseModel):
-    """Supported periods response."""
-
-    periods: List[str] = Field(..., description="List of supported periods")
-    description: str = Field(..., description="Description of the response")
-
-
-class SupportedIntervalsResponse(BaseModel):
-    """Supported intervals response."""
-
-    intervals: List[str] = Field(..., description="List of supported intervals")
-    description: str = Field(..., description="Description of the response")
 
 
 # Asset search response schemas

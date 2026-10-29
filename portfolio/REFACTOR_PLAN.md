@@ -413,7 +413,6 @@ The plan is finished. What is left is in §6c.
 | Prettier, husky/lint-staged, knip, jsx-a11y; hypothesis, testcontainers, schemathesis, pytest-socket; coverage targets | New dependencies not approved in this pass | Ask first |
 | mypy strict on the rest of `core/` (264 errors) | Gradual, per module | Ongoing |
 | ESLint does not lint `.ts` files | Needs `typescript-eslint`, a new dependency | Ask first |
-| Unused routes with no UI caller (`/portfolios/search`, `/public/discover`, `/{id}/assets/details`, `/transactions/{id}/summary`, most `/market-data` and `/stock`), unused `WatchlistSidebar` | Removing endpoints is an API change; listed in the feature docs | Backlog |
 | Postgres on the official image | Recreates the live container; needs a planned window and a dump | Planned window |
 | Beta against a total-return index; Benchmarks tab on the shadow comparison | Product changes, not refactor | Backlog |
 | HIGH CVEs in pypdf 6.20.1, urllib3 2.7.0, msgpack 1.1.2 | Fixes are dependency upgrades (Renovate-style), not critical | Ask first |

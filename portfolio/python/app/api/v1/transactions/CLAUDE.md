@@ -2,13 +2,12 @@
 
 **Purpose:** record buys, sells and dividends per portfolio; positions are derived from them.
 
-**State (2026-10-28):** ✅ CRUD, oversell protection, position rebuild, summary, PDF export (in the portfolio currency) work. ⚠️ filtering is client-side.
+**State (2026-10-28):** ✅ CRUD, oversell protection, position rebuild, PDF export (in the portfolio currency) work. ⚠️ filtering is client-side.
 
 ## Backend — `router.py` (prefix `/api/v1/transactions`), `pdf_export_router.py` (prefix `/api/v1/transactions/pdf`)
 | Endpoint | Behaviour |
 |---|---|
-| `POST /`, `GET /?portfolio_id&limit≤10000&offset`, `GET/PUT/DELETE /{id}` | CRUD via `modules/portfolios`. The list is always newest first (`order_by`/`order` sent by the UI are ignored). Each write flushes, runs `recalculate_asset_state` (FIFO + splits, see `core/domain`), then commits. Cash currency rule: see `api/v1/portfolio/CLAUDE.md` |
-| `GET /{portfolio_id}/summary?start_date&end_date` | Completed only; cash moved: buys (with fees/taxes), net sell proceeds, dividends, fees, net investment. Matches the performance series' deposits/withdrawals. No UI caller |
+| `POST /`, `GET /?portfolio_id&limit≤10000&offset`, `GET/PUT/DELETE /{id}` | CRUD via `modules/portfolios`. The list is always newest first (`order_by`/`order` sent by the UI are ignored). Each write flushes, runs `recalculate_asset_state` (FIFO + splits, see `core/domain`), then the request commits. Cash currency rule: see `api/v1/portfolio/CLAUDE.md` |
 | `POST /export`, `/export/download`, `/export/preview` | `core/services/transaction_pdf_export_service.py` (ReportLab). Each row is converted into its portfolio currency (a missing rate leaves it in its own currency); totals are per currency. UI uses preview + download |
 
 Rules:
@@ -34,7 +33,6 @@ Rules:
 Transactions → New Transaction (pick portfolio + asset via search, buy/sell/dividend, qty, price, fees, date) → position and charts update immediately. Bulk entry or PDF import for many rows. Export → preview → download PDF.
 
 ## Known gaps
-- `GET /{portfolio_id}/summary` has no UI caller.
 - Dividend `taxes` are not netted out of `total_amount` (plan 2.2).
 
 ## Planned

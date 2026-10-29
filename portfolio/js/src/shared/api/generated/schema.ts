@@ -335,28 +335,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stock/symbol-data": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Symbol Data Fresh
-         * @description Get fresh stock data for a specific symbol from yfinance API.
-         *
-         *     Rate limited for unauthenticated users to prevent abuse.
-         */
-        get: operations["get_api_v1_stock_symbol_data"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/stock/stock-latest-data": {
         parameters: {
             query?: never;
@@ -377,83 +355,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/stock/major-indices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Major Indices */
-        get: operations["get_api_v1_stock_major_indices"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/market-data/ticker/{symbol}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Ticker Data
-         * @description Get historical market data for a ticker from yfinance.
-         */
-        get: operations["get_api_v1_market_data_ticker_symbol"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/market-data/ticker/{symbol}/info": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Ticker Info
-         * @description Get comprehensive ticker information from yfinance.
-         */
-        get: operations["get_api_v1_market_data_ticker_symbol_info"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/market-data/prices/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Bulk Prices
-         * @description Get current prices for multiple symbols.
-         */
-        get: operations["get_api_v1_market_data_prices_bulk"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/market-data/market-status": {
         parameters: {
             query?: never;
@@ -466,46 +367,6 @@ export interface paths {
          * @description Get current market status.
          */
         get: operations["get_api_v1_market_data_market_status"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/market-data/supported-periods": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Supported Periods
-         * @description Get list of supported period values.
-         */
-        get: operations["get_api_v1_market_data_supported_periods"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/market-data/supported-intervals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Supported Intervals
-         * @description Get list of supported interval values.
-         */
-        get: operations["get_api_v1_market_data_supported_intervals"];
         put?: never;
         post?: never;
         delete?: never;
@@ -770,26 +631,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/portfolios/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search Portfolios
-         * @description Search portfolios with filters.
-         */
-        get: operations["get_api_v1_portfolios_search"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/portfolios/statistics/overview": {
         parameters: {
             query?: never;
@@ -802,26 +643,6 @@ export interface paths {
          * @description Get overall portfolio statistics for the authenticated user.
          */
         get: operations["get_api_v1_portfolios_statistics_overview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/portfolios/public/discover": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Discover Public Portfolios
-         * @description Discover public portfolios (no authentication required).
-         */
-        get: operations["get_api_v1_portfolios_public_discover"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1028,26 +849,6 @@ export interface paths {
          * @description Add an asset to a portfolio (user must own the portfolio).
          */
         post: operations["post_api_v1_portfolios_portfolio_id_assets"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/portfolios/{portfolio_id}/assets/details": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Portfolio Assets With Details
-         * @description Get portfolio assets with detailed information including current values and P&L.
-         */
-        get: operations["get_api_v1_portfolios_portfolio_id_assets_details"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1440,26 +1241,6 @@ export interface paths {
          * @description Delete a transaction. The service layer handles recalculation.
          */
         delete: operations["delete_api_v1_transactions_transaction_id"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/transactions/{portfolio_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Transactions Summary
-         * @description Get transaction summary for a portfolio.
-         */
-        get: operations["get_api_v1_transactions_portfolio_id_summary"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3370,34 +3151,6 @@ export interface components {
             errors?: string[];
         };
         /**
-         * BulkPricesResponse
-         * @description Bulk prices response.
-         */
-        BulkPricesResponse: {
-            /**
-             * Prices
-             * @description Symbol to price mapping
-             */
-            prices: {
-                [key: string]: number | null;
-            };
-            /**
-             * Source
-             * @description Data source
-             */
-            source: string;
-            /**
-             * Requested Count
-             * @description Number of symbols requested
-             */
-            requested_count: number;
-            /**
-             * Successful Count
-             * @description Number of successful price fetches
-             */
-            successful_count: number;
-        };
-        /**
          * BulkTransactionCreate
          * @description Request for bulk transaction creation.
          */
@@ -4315,13 +4068,6 @@ export interface components {
              */
             fills_checked: number;
         };
-        /** MajorIndex */
-        MajorIndex: {
-            /** Name */
-            name: string;
-            /** Symbol */
-            symbol: string;
-        };
         /** MarketData */
         MarketData: {
             /** Symbol */
@@ -5188,49 +4934,6 @@ export interface components {
             /** Cost Basis */
             cost_basis: number | string;
         };
-        /**
-         * PortfolioAssetWithDetails
-         * @description Portfolio asset with additional asset information
-         */
-        PortfolioAssetWithDetails: {
-            /** Portfolio Id */
-            portfolio_id: number;
-            /** Asset Id */
-            asset_id: number;
-            /** Quantity */
-            quantity: string;
-            /** Cost Basis */
-            cost_basis: string;
-            /** Cost Basis Total */
-            cost_basis_total: string;
-            /** Current Value */
-            current_value?: string | null;
-            /** Unrealized Pnl */
-            unrealized_pnl?: string | null;
-            /** Unrealized Pnl Percent */
-            unrealized_pnl_percent?: string | null;
-            /** Realized Pnl */
-            realized_pnl?: string | null;
-            /** Realized Pnl Percent */
-            realized_pnl_percent?: string | null;
-            /** Id */
-            id: number;
-            /**
-             * Last Updated
-             * Format: date-time
-             */
-            last_updated: string;
-            /** Symbol */
-            symbol?: string | null;
-            /** Asset Name */
-            asset_name?: string | null;
-            /** Market Value */
-            market_value?: string | null;
-            /** Total Return */
-            total_return?: string | null;
-            /** Total Return Percent */
-            total_return_percent?: string | null;
-        };
         /** PortfolioBenchmarkCreate */
         PortfolioBenchmarkCreate: {
             /** Portfolio Id */
@@ -5388,34 +5091,6 @@ export interface components {
              * @default false
              */
             is_public: boolean;
-        };
-        /**
-         * PortfolioDiscoverResponse
-         * @description Portfolio discover response.
-         */
-        PortfolioDiscoverResponse: {
-            /**
-             * Portfolios
-             * @description Public portfolios
-             */
-            portfolios: {
-                [key: string]: unknown;
-            }[];
-            /**
-             * Total Count
-             * @description Total count
-             */
-            total_count: number;
-            /**
-             * Limit
-             * @description Result limit
-             */
-            limit: number;
-            /**
-             * Offset
-             * @description Result offset
-             */
-            offset: number;
         };
         /**
          * PortfolioHolding
@@ -5811,32 +5486,6 @@ export interface components {
              * @description Refresh message
              */
             message: string;
-        };
-        /**
-         * PortfolioSearchResponse
-         * @description Portfolio search response.
-         */
-        PortfolioSearchResponse: {
-            /**
-             * Portfolios
-             * @description Search results
-             */
-            portfolios: components["schemas"]["Portfolio"][];
-            /**
-             * Total Count
-             * @description Total results count
-             */
-            total_count: number;
-            /**
-             * Search Term
-             * @description Search term
-             */
-            search_term?: string | null;
-            /**
-             * Currency
-             * @description Currency filter
-             */
-            currency?: string | null;
         };
         /**
          * PortfolioStatistics
@@ -6462,38 +6111,6 @@ export interface components {
          */
         SupportedFormat: "pdf" | "csv" | "xlsx";
         /**
-         * SupportedIntervalsResponse
-         * @description Supported intervals response.
-         */
-        SupportedIntervalsResponse: {
-            /**
-             * Intervals
-             * @description List of supported intervals
-             */
-            intervals: string[];
-            /**
-             * Description
-             * @description Description of the response
-             */
-            description: string;
-        };
-        /**
-         * SupportedPeriodsResponse
-         * @description Supported periods response.
-         */
-        SupportedPeriodsResponse: {
-            /**
-             * Periods
-             * @description List of supported periods
-             */
-            periods: string[];
-            /**
-             * Description
-             * @description Description of the response
-             */
-            description: string;
-        };
-        /**
          * SymbolSearchResult
          * @description One Yahoo symbol-search hit.
          */
@@ -6548,204 +6165,6 @@ export interface components {
              * @description Market cap
              */
             market_cap?: number | null;
-        };
-        /**
-         * TickerDataPoint
-         * @description Single ticker data point.
-         */
-        TickerDataPoint: {
-            /**
-             * Date
-             * @description Date in ISO format
-             */
-            date: string;
-            /**
-             * Open
-             * @description Open price
-             */
-            open: number;
-            /**
-             * High
-             * @description High price
-             */
-            high: number;
-            /**
-             * Low
-             * @description Low price
-             */
-            low: number;
-            /**
-             * Close
-             * @description Close price
-             */
-            close: number;
-            /**
-             * Volume
-             * @description Volume
-             */
-            volume: number;
-            /**
-             * Adj Close
-             * @description Adjusted close price
-             */
-            adj_close: number;
-        };
-        /**
-         * TickerDataResponse
-         * @description Ticker historical data response.
-         */
-        TickerDataResponse: {
-            /**
-             * Symbol
-             * @description Ticker symbol
-             */
-            symbol: string;
-            /**
-             * Period
-             * @description Data period
-             */
-            period: string;
-            /**
-             * Interval
-             * @description Data interval
-             */
-            interval: string;
-            /**
-             * Data Points
-             * @description Number of data points
-             */
-            data_points: number;
-            /**
-             * Data
-             * @description Historical data
-             */
-            data: components["schemas"]["TickerDataPoint"][];
-            /**
-             * Source
-             * @description Data source
-             */
-            source: string;
-        };
-        /**
-         * TickerInfoResponse
-         * @description Comprehensive ticker information response.
-         */
-        TickerInfoResponse: {
-            /**
-             * Symbol
-             * @description Ticker symbol
-             */
-            symbol: string;
-            /**
-             * Name
-             * @description Company name
-             */
-            name?: string | null;
-            /**
-             * Company Name
-             * @description Full company name
-             */
-            company_name?: string | null;
-            /**
-             * Sector
-             * @description Sector
-             */
-            sector?: string | null;
-            /**
-             * Industry
-             * @description Industry
-             */
-            industry?: string | null;
-            /**
-             * Exchange
-             * @description Exchange
-             */
-            exchange?: string | null;
-            /**
-             * Currency
-             * @description Currency
-             */
-            currency?: string | null;
-            /**
-             * Market Cap
-             * @description Market capitalization
-             */
-            market_cap?: number | null;
-            /**
-             * Current Price
-             * @description Current price
-             */
-            current_price?: number | null;
-            /**
-             * Previous Close
-             * @description Previous close
-             */
-            previous_close?: number | null;
-            /**
-             * Day Low
-             * @description Day low
-             */
-            day_low?: number | null;
-            /**
-             * Day High
-             * @description Day high
-             */
-            day_high?: number | null;
-            /**
-             * Volume
-             * @description Volume
-             */
-            volume?: number | null;
-            /**
-             * Avg Volume
-             * @description Average volume
-             */
-            avg_volume?: number | null;
-            /**
-             * Beta
-             * @description Beta
-             */
-            beta?: number | null;
-            /**
-             * Pe Ratio
-             * @description P/E ratio
-             */
-            pe_ratio?: number | null;
-            /**
-             * Dividend Yield
-             * @description Dividend yield
-             */
-            dividend_yield?: number | null;
-            /**
-             * Book Value
-             * @description Book value
-             */
-            book_value?: number | null;
-            /**
-             * Earnings Growth
-             * @description Earnings growth
-             */
-            earnings_growth?: number | null;
-            /**
-             * Revenue Growth
-             * @description Revenue growth
-             */
-            revenue_growth?: number | null;
-            /**
-             * Business Summary
-             * @description Business summary
-             */
-            business_summary?: string | null;
-            /**
-             * Website
-             * @description Website
-             */
-            website?: string | null;
-            /**
-             * Employees
-             * @description Number of employees
-             */
-            employees?: number | null;
         };
         /**
          * Token
@@ -6959,59 +6378,6 @@ export interface components {
          * @enum {string}
          */
         TransactionStatus: "pending" | "completed" | "cancelled" | "failed";
-        /**
-         * TransactionSummaryResponse
-         * @description Transaction summary response.
-         */
-        TransactionSummaryResponse: {
-            /**
-             * Portfolio Id
-             * @description Portfolio ID
-             */
-            portfolio_id: number;
-            /**
-             * Portfolio Name
-             * @description Portfolio name
-             */
-            portfolio_name: string;
-            /**
-             * Total Transactions
-             * @description Total transactions
-             */
-            total_transactions: number;
-            /**
-             * Total Buy Value
-             * @description Total buy value
-             */
-            total_buy_value: number;
-            /**
-             * Total Sell Value
-             * @description Total sell value
-             */
-            total_sell_value: number;
-            /**
-             * Total Dividends
-             * @description Total dividends
-             */
-            total_dividends: number;
-            /**
-             * Total Fees
-             * @description Total fees
-             */
-            total_fees: number;
-            /**
-             * Net Investment
-             * @description Net investment
-             */
-            net_investment: number;
-            /**
-             * Period
-             * @description Period information
-             */
-            period: {
-                [key: string]: unknown;
-            };
-        };
         /**
          * TransactionSummaryStats
          * @description Summary statistics for transactions.
@@ -7692,89 +7058,6 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /**
-         * YFinanceDataResponse
-         * @description yfinance data response structure.
-         */
-        YFinanceDataResponse: {
-            /**
-             * Symbol
-             * @description Stock symbol
-             */
-            symbol: string;
-            /**
-             * Period
-             * @description Data period
-             */
-            period: string;
-            /**
-             * Interval
-             * @description Data interval
-             */
-            interval: string;
-            /**
-             * Source
-             * @description Data source
-             */
-            source: string;
-            /**
-             * Data Points
-             * @description Number of data points
-             */
-            data_points: number;
-            /**
-             * Data
-             * @description Price data
-             */
-            data: components["schemas"]["YFinancePriceData"][];
-        };
-        /**
-         * YFinancePriceData
-         * @description yfinance price data structure.
-         */
-        YFinancePriceData: {
-            /**
-             * Date
-             * Format: date-time
-             * @description Date
-             */
-            date: string;
-            /**
-             * Open
-             * @description Open price
-             */
-            open?: string | null;
-            /**
-             * High
-             * @description High price
-             */
-            high?: string | null;
-            /**
-             * Low
-             * @description Low price
-             */
-            low?: string | null;
-            /**
-             * Close
-             * @description Close price
-             */
-            close?: string | null;
-            /**
-             * Volume
-             * @description Volume
-             */
-            volume?: number | null;
-            /**
-             * Dividends
-             * @description Dividends
-             */
-            dividends?: string | null;
-            /**
-             * Stock Splits
-             * @description Stock splits
-             */
-            stock_splits?: string | null;
-        };
     };
     responses: never;
     parameters: never;
@@ -8257,45 +7540,6 @@ export interface operations {
             };
         };
     };
-    get_api_v1_stock_symbol_data: {
-        parameters: {
-            query: {
-                name: string;
-                /** @description Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max) */
-                period?: string;
-                /** @description Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo) */
-                interval?: string;
-                /** @description Start date (YYYY-MM-DD) */
-                start_date?: string | null;
-                /** @description End date (YYYY-MM-DD) */
-                end_date?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["YFinanceDataResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_api_v1_stock_stock_latest_data: {
         parameters: {
             query: {
@@ -8327,125 +7571,6 @@ export interface operations {
             };
         };
     };
-    get_api_v1_stock_major_indices: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MajorIndex"][];
-                };
-            };
-        };
-    };
-    get_api_v1_market_data_ticker_symbol: {
-        parameters: {
-            query?: {
-                /** @description Data period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max) */
-                period?: string;
-                /** @description Data interval (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo) */
-                interval?: string;
-            };
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TickerDataResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_api_v1_market_data_ticker_symbol_info: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TickerInfoResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_api_v1_market_data_prices_bulk: {
-        parameters: {
-            query: {
-                /** @description List of symbols to get prices for */
-                symbols: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BulkPricesResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_api_v1_market_data_market_status: {
         parameters: {
             query?: never;
@@ -8462,46 +7587,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MarketStatusResponse"];
-                };
-            };
-        };
-    };
-    get_api_v1_market_data_supported_periods: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupportedPeriodsResponse"];
-                };
-            };
-        };
-    };
-    get_api_v1_market_data_supported_intervals: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupportedIntervalsResponse"];
                 };
             };
         };
@@ -9006,40 +8091,6 @@ export interface operations {
             };
         };
     };
-    get_api_v1_portfolios_search: {
-        parameters: {
-            query?: {
-                /** @description Search term for portfolio names */
-                search_term?: string | null;
-                /** @description Filter by currency */
-                currency?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PortfolioSearchResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_api_v1_portfolios_statistics_overview: {
         parameters: {
             query?: never;
@@ -9056,40 +8107,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioStatistics"];
-                };
-            };
-        };
-    };
-    get_api_v1_portfolios_public_discover: {
-        parameters: {
-            query?: {
-                /** @description Number of portfolios to return */
-                limit?: number;
-                /** @description Number of portfolios to skip */
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PortfolioDiscoverResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -9527,37 +8544,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortfolioAsset"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_api_v1_portfolios_portfolio_id_assets_details: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                portfolio_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PortfolioAssetWithDetails"][];
                 };
             };
             /** @description Validation Error */
@@ -10348,42 +9334,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_api_v1_transactions_portfolio_id_summary: {
-        parameters: {
-            query?: {
-                /** @description Start date (YYYY-MM-DD) */
-                start_date?: string | null;
-                /** @description End date (YYYY-MM-DD) */
-                end_date?: string | null;
-            };
-            header?: never;
-            path: {
-                portfolio_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TransactionSummaryResponse"];
-                };
             };
             /** @description Validation Error */
             422: {

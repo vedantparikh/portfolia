@@ -2,7 +2,6 @@
 Transactions management router with authentication.
 """
 
-from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,14 +10,11 @@ from sqlalchemy.orm import Session
 from core.auth.dependencies import (
     get_current_active_user,
     get_current_verified_user,
-    get_owned_portfolio,
 )
 from core.database.connection import get_db
-from core.database.models import Portfolio, TransactionStatus, TransactionType, User
-from core.database.models import Transaction as TransactionModel
+from core.database.models import User
 from core.schemas.portfolio import Transaction as TransactionSchema
 from core.schemas.portfolio import TransactionCreate, TransactionUpdate
-from core.schemas.portfolio_performance import TransactionSummaryResponse
 from core.services import PortfolioService
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
@@ -147,68 +143,3 @@ async def delete_transaction(
             detail="Transaction not found or access denied.",
         )
     return None  # FastAPI returns 204 No Content
-
-
-@router.get("/{portfolio_id}/summary", response_model=TransactionSummaryResponse)
-def get_transactions_summary(
-    portfolio_id: int,
-    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
-    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
-    portfolio: Portfolio = Depends(get_owned_portfolio),
-    db: Session = Depends(get_db),
-):
-    """Get transaction summary for a portfolio."""
-    # Build query
-    query = db.query(TransactionModel).filter(
-        TransactionModel.portfolio_id == portfolio_id
-    )
-
-    if start_date:
-        try:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            query = query.filter(TransactionModel.transaction_date >= start_dt)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid start_date format. Use YYYY-MM-DD",
-            )
-
-    if end_date:
-        try:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            query = query.filter(TransactionModel.transaction_date <= end_dt)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid end_date format. Use YYYY-MM-DD",
-            )
-
-    transactions = query.all()
-
-    # Calculate summary
-    completed = [
-        t for t in transactions if t.status in (None, TransactionStatus.COMPLETED)
-    ]
-
-    def cash(kind):
-        return sum(
-            float(t.total_amount) for t in completed if t.transaction_type == kind
-        )
-
-    # Cash actually moved: buys include fees and taxes, sells are net proceeds
-    total_buy_value = cash(TransactionType.BUY)
-    total_sell_value = cash(TransactionType.SELL)
-    total_dividends = cash(TransactionType.DIVIDEND)
-    total_fees = sum(float(t.fees or 0) for t in completed)
-
-    return TransactionSummaryResponse(
-        portfolio_id=portfolio_id,
-        portfolio_name=portfolio.name,
-        total_transactions=len(completed),
-        total_buy_value=round(total_buy_value, 2),
-        total_sell_value=round(total_sell_value, 2),
-        total_dividends=round(total_dividends, 2),
-        total_fees=round(total_fees, 2),
-        net_investment=round(total_buy_value - total_sell_value, 2),
-        period={"start_date": start_date, "end_date": end_date},
-    )

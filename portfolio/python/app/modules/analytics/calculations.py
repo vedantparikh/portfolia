@@ -740,6 +740,12 @@ class PortfolioCalculationService:
         options = BENCHMARKS.get(portfolio.currency) or BENCHMARKS["USD"]
         return options[0]["symbol"]
 
+    def default_benchmark_for(self, portfolio_id: int) -> str:
+        portfolio = self.db.get(Portfolio, portfolio_id)
+        if portfolio is None:
+            return BENCHMARKS["USD"][0]["symbol"]
+        return self.default_benchmark(portfolio)
+
     async def get_benchmark_comparison(
         self, portfolio_id: int, user_id: int, period: str, symbol: Optional[str]
     ) -> Dict[str, Any]:

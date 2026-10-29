@@ -503,7 +503,7 @@ const PortfolioDetail = ({ portfolio }) => {
 
       {/* Benchmarks Tab */}
       {activeTab === "benchmarks" && (
-        <BenchmarkComparison portfolioId={portfolio?.id} />
+        <BenchmarkComparison portfolioId={portfolio?.id} currency={portfolio?.currency} />
       )}
     </div>
   );

@@ -5211,6 +5211,11 @@ export interface components {
              */
             benchmark_asset_id: number;
             /**
+             * Symbol
+             * @description The benchmark asset's ticker
+             */
+            symbol?: string | null;
+            /**
              * Benchmark Name
              * @description Benchmark name
              */

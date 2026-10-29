@@ -105,7 +105,7 @@ The tabs on this view:
 | Analytics | Risk for the period you pick. See the next section. |
 | Allocations | Target weights. Drift turns red when it passes the threshold (5% if you did not set one). |
 | Rebalancing | How many shares to buy or sell to reach those targets, with a rough commission. |
-| Benchmarks | Names you stored as benchmarks. The comparison itself is not on this tab. |
+| Benchmarks | Your portfolio next to the same deposits and withdrawals invested in a benchmark, for a period you pick: value, profit and both returns side by side. Pick a saved benchmark or a suggested total-return series. **Add Benchmark** saves one of your assets; the primary one is the default here, on the chart and for beta. |
 
 ### Analytics
 
@@ -115,7 +115,7 @@ Open Holdings Detail, then **Analytics**.
 
 **Risk Metrics** are computed from the portfolio's own daily returns: volatility, VaR, CVaR, max drawdown, Sharpe, Sortino, Calmar, and a High / Medium / Low label. The info icon on the risk level explains the label in a dialog.
 
-**Advanced Metrics** compare the book with `^GSPC` (the S&P 500 price index, not a total-return index) and score concentration: beta, alpha, the Herfindahl index, a diversification ratio, and how many equal positions the book behaves like. The first open of this tab can take about twenty seconds.
+**Advanced Metrics** compare the book with its primary benchmark, or the total-return default for its currency (MSCI World `EUNL.DE` for EUR, `^SP500TR` for USD), and score concentration: beta, alpha, the Herfindahl index, a diversification ratio, and how many equal positions the book behaves like. The first open of this tab can take about twenty seconds.
 
 The period dropdown defaults to since inception. A shorter window changes the risk numbers. It does not change the holdings table.
 
@@ -337,7 +337,6 @@ A normal loop:
 - Track a cash balance, interest, or card spending
 - Import splits, transfers, swaps, or spin-offs
 - Send watchlist alerts anywhere but the UI
-- Compare benchmarks on the Benchmarks tab (use the chart)
 - Explain a PDF from a broker that is not Trade Republic
 
 Those are the open items in [portfolio/REFACTOR_PLAN.md](../portfolio/REFACTOR_PLAN.md). The short list is also at the bottom of the [project README](../README.md).

@@ -331,6 +331,10 @@ class PortfolioBenchmark(Base):
         "Asset", back_populates="benchmark_portfolios"
     )
 
+    @property
+    def symbol(self) -> str | None:
+        return self.benchmark_asset.symbol if self.benchmark_asset else None
+
     # Indexes
     __table_args__ = (
         Index("idx_portfolio_benchmarks_portfolio_id", "portfolio_id"),

@@ -26,6 +26,7 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/risk
 GET /api/v1/analytics/portfolios/{portfolio_id}/summary
 GET /api/v1/analytics/users/dashboard
 GET /api/v1/assets/
+GET /api/v1/assets/highlights
 GET /api/v1/assets/search/breakdown/exchanges
 GET /api/v1/assets/search/breakdown/sectors
 GET /api/v1/assets/search/breakdown/types
@@ -60,6 +61,8 @@ GET /api/v1/statistical-indicators/configurations/{config_id}
 GET /api/v1/statistical-indicators/indicators
 GET /api/v1/statistical-indicators/popular
 GET /api/v1/statistical-indicators/statistics
+GET /api/v1/statistical-indicators/strategies/gfs
+GET /api/v1/statistical-indicators/strategies/macd
 GET /api/v1/statistical-indicators/templates
 GET /api/v1/stock/stock-latest-data
 GET /api/v1/stock/symbols
@@ -68,8 +71,10 @@ GET /api/v1/transactions/{transaction_id}
 GET /api/v1/watchlists/
 GET /api/v1/watchlists/alerts
 GET /api/v1/watchlists/public
+GET /api/v1/watchlists/public/{watchlist_id}
 GET /api/v1/watchlists/stats
 GET /api/v1/watchlists/{watchlist_id}
+GET /api/v1/watchlists/{watchlist_id}/items/{item_id}/history
 GET /health/
 GET /health/live
 GET /health/ready

@@ -26,6 +26,7 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/risk get_api_v1_analytics_portfo
 GET /api/v1/analytics/portfolios/{portfolio_id}/summary get_api_v1_analytics_portfolios_portfolio_id_summary
 GET /api/v1/analytics/users/dashboard get_api_v1_analytics_users_dashboard
 GET /api/v1/assets/ get_api_v1_assets
+GET /api/v1/assets/highlights get_api_v1_assets_highlights
 GET /api/v1/assets/search/breakdown/exchanges get_api_v1_assets_search_breakdown_exchanges
 GET /api/v1/assets/search/breakdown/sectors get_api_v1_assets_search_breakdown_sectors
 GET /api/v1/assets/search/breakdown/types get_api_v1_assets_search_breakdown_types
@@ -60,6 +61,8 @@ GET /api/v1/statistical-indicators/configurations/{config_id} get_api_v1_statist
 GET /api/v1/statistical-indicators/indicators get_api_v1_statistical_indicators_indicators
 GET /api/v1/statistical-indicators/popular get_api_v1_statistical_indicators_popular
 GET /api/v1/statistical-indicators/statistics get_api_v1_statistical_indicators_statistics
+GET /api/v1/statistical-indicators/strategies/gfs get_api_v1_statistical_indicators_strategies_gfs
+GET /api/v1/statistical-indicators/strategies/macd get_api_v1_statistical_indicators_strategies_macd
 GET /api/v1/statistical-indicators/templates get_api_v1_statistical_indicators_templates
 GET /api/v1/stock/stock-latest-data get_api_v1_stock_stock_latest_data
 GET /api/v1/stock/symbols get_api_v1_stock_symbols
@@ -68,8 +71,10 @@ GET /api/v1/transactions/{transaction_id} get_api_v1_transactions_transaction_id
 GET /api/v1/watchlists/ get_api_v1_watchlists
 GET /api/v1/watchlists/alerts get_api_v1_watchlists_alerts
 GET /api/v1/watchlists/public get_api_v1_watchlists_public
+GET /api/v1/watchlists/public/{watchlist_id} get_api_v1_watchlists_public_watchlist_id
 GET /api/v1/watchlists/stats get_api_v1_watchlists_stats
 GET /api/v1/watchlists/{watchlist_id} get_api_v1_watchlists_watchlist_id
+GET /api/v1/watchlists/{watchlist_id}/items/{item_id}/history get_api_v1_watchlists_watchlist_id_items_item_id_history
 GET /health/ get_health
 GET /health/live get_health_live
 GET /health/ready get_health_ready

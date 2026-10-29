@@ -28,7 +28,7 @@ import { apiErrorMessage } from '../../shared/api/client';
 import { queryClient } from '../../shared/api/queryClient';
 import { portfolioKeys, usePortfolios } from '../portfolio/queries';
 import { transactionKeys } from '../transactions/queries';
-import { invalidateAssets, useAssetPages, useAssets } from './queries';
+import { invalidateAssets, useAssetHighlights, useAssetPages, useAssets } from './queries';
 import { formatPercentage, formatRatio, formatVolume, getChangeColor } from '../../utils/formatters';
 import AssetAnalyticsView from '../analytics/AssetAnalyticsView';
 import IndicatorConfigurationManager from '../analytics/IndicatorConfigurationManager';
@@ -52,6 +52,27 @@ const CATEGORY_TYPES = {
     mutual_fund: 'MUTUALFUND',
     index_fund: 'INDEX',
 };
+
+// "low-high", "low-" or "-high" (as AssetFilters writes them) → `<field>_min` / `<field>_max`
+const rangeParams = (range, field) => {
+    if (!range || range === 'all') return {};
+    const [low, high] = range.split('-');
+    const params = {};
+    if (low) params[`${field}_min`] = Number(low);
+    if (high) params[`${field}_max`] = Number(high);
+    return params;
+};
+
+const HighlightCard = ({ pick, detail, changeColor = false, ...card }) => (
+    <StatCard
+        {...card}
+        value={pick ? pick.symbol : 'N/A'}
+        valueTitle={pick?.symbol}
+        sub={pick ? pick.name : 'Not available'}
+        detail={pick ? detail(pick.value) : null}
+        detailClassName={changeColor && pick ? getChangeColor(pick.value) : undefined}
+    />
+);
 
 const assetPayload = (asset, overrides = {}) => ({
     symbol: asset.symbol,
@@ -85,7 +106,6 @@ const Assets = () => {
     const [filters, setFilters] = useState({
         category: 'all',
         priceRange: 'all',
-        valueRange: 'all',
         changeRange: 'all',
         marketCapRange: 'all',
         sortBy: 'symbol',
@@ -96,21 +116,19 @@ const Assets = () => {
     const apiParams = useMemo(() => {
         const params = {
             include_detail: true,
-            include_performance: true,
-            include_analytics: true,
             sort_by: filters.sortBy,
             sort_order: filters.sortOrder,
         };
         if (searchQuery) params.symbol = searchQuery;
         if (filters.category !== 'all') params.asset_type = CATEGORY_TYPES[filters.category];
-        if (filters.priceRange !== 'all') params.price_range = filters.priceRange;
-        if (filters.valueRange !== 'all') params.value_range = filters.valueRange;
-        if (filters.changeRange !== 'all') params.change_range = filters.changeRange;
-        if (filters.marketCapRange !== 'all') params.market_cap_range = filters.marketCapRange;
+        Object.assign(params, rangeParams(filters.priceRange, 'price'));
+        Object.assign(params, rangeParams(filters.marketCapRange, 'market_cap'));
+        if (filters.changeRange !== 'all') params.change = filters.changeRange;
         return params;
     }, [filters, searchQuery]);
 
     const { data: portfolios = [] } = usePortfolios();
+    const { data: highlights } = useAssetHighlights();
     const pages = useAssetPages(apiParams, { refetchInterval: autoRefresh ? 30000 : false });
     const assets = useMemo(
         () => Array.from(new Map((pages.data?.pages.flatMap((page) => page.items) || []).map((asset) => [asset.id, asset])).values()),
@@ -232,98 +250,6 @@ const Assets = () => {
         toast.info('Use Portfolio section to view assets in specific portfolios');
     };
 
-    const getHighlightStats = () => {
-        // Define a default asset structure for consistency
-        const defaultAsset = { symbol: 'N/A', name: 'Not Available', value: 0 };
-
-        if (!assets || assets.length === 0) {
-            return {
-                topGainer: { ...defaultAsset, value: 0 },
-                highestDividend: defaultAsset,
-                bestValue: defaultAsset,
-                mostTraded: defaultAsset,
-                mostStable: defaultAsset,
-                highestGrowth: defaultAsset,
-                strongestMomentum: defaultAsset,
-                topLoser: { ...defaultAsset, value: 0 }
-            };
-        }
-
-        const highlights = assets.reduce((acc, asset) => {
-            const detail = asset.detail;
-            if (!detail) return acc;
-
-            // --- Existing Highlights ---
-            const change = parseFloat(detail.price_change_percentage_24h || 0);
-            if (change > acc.topGainer.value) {
-                acc.topGainer = { symbol: asset.symbol, name: asset.name, value: change };
-            }
-
-            const dividendYield = parseFloat(detail.dividend_yield || 0);
-            if (dividendYield > acc.highestDividend.value) {
-                acc.highestDividend = { symbol: asset.symbol, name: asset.name, value: dividendYield };
-            }
-
-            const peRatio = parseFloat(detail.trailing_PE || 0);
-            if (peRatio > 0 && (peRatio < acc.bestValue.value || acc.bestValue.value === 0)) {
-                acc.bestValue = { symbol: asset.symbol, name: asset.name, value: peRatio };
-            }
-
-            const volume = parseFloat(detail.volume_24h || 0);
-            if (volume > acc.mostTraded.value) {
-                acc.mostTraded = { symbol: asset.symbol, name: asset.name, value: volume };
-            }
-
-            // --- New Highlights ---
-            // 5. Find Most Stable (Lowest positive Beta)
-            const beta = parseFloat(detail.beta);
-            if (beta > 0 && (beta < acc.mostStable.value || acc.mostStable.value === 0)) {
-                acc.mostStable = { symbol: asset.symbol, name: asset.name, value: beta };
-            }
-
-            // 6. Find Highest Growth (Revenue Growth)
-            const revenueGrowth = parseFloat(detail.revenue_growth || 0);
-            if (revenueGrowth > acc.highestGrowth.value) {
-                acc.highestGrowth = { symbol: asset.symbol, name: asset.name, value: revenueGrowth };
-            }
-
-            // 7. Find Strongest Momentum (Closest to 52-Week High)
-            const high52w = parseFloat(detail.high_52w);
-            const currentPrice = parseFloat(detail.current_price);
-            if (high52w > 0 && currentPrice <= high52w) {
-                const proximity = (currentPrice / high52w) * 100; // e.g., 99.5 for 99.5%
-                if (proximity > acc.strongestMomentum.value) {
-                    acc.strongestMomentum = { symbol: asset.symbol, name: asset.name, value: proximity };
-                }
-            }
-
-            // 8. Find Top Loser (Most negative % change)
-            if (change < acc.topLoser.value) {
-                acc.topLoser = { symbol: asset.symbol, name: asset.name, value: change };
-            }
-
-            return acc;
-        }, {
-            topGainer: { ...defaultAsset, value: -Infinity },
-            highestDividend: defaultAsset,
-            bestValue: { ...defaultAsset, value: 0 },
-            mostTraded: defaultAsset,
-            mostStable: { ...defaultAsset, value: 0 },
-            highestGrowth: { ...defaultAsset, value: -Infinity },
-            strongestMomentum: defaultAsset,
-            topLoser: { ...defaultAsset, value: Infinity }
-        });
-
-        // Clean up initial values if no asset was found
-        if (highlights.topGainer.value === -Infinity) highlights.topGainer.value = 0;
-        if (highlights.highestGrowth.value === -Infinity) highlights.highestGrowth.value = 0;
-        if (highlights.topLoser.value === Infinity) highlights.topLoser.value = 0;
-
-        return highlights;
-    };
-
-    // In your component, call this new function
-    const stats = getHighlightStats();
 
     return (
         <div className="min-h-screen gradient-bg flex">
@@ -385,24 +311,19 @@ const Assets = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <StatCard label="Top Gainer (24h)" icon={Award} tone="success" value={stats.topGainer.symbol} valueTitle={stats.topGainer.symbol} sub={stats.topGainer.name} detail={formatPercentage(stats.topGainer.value)} detailClassName={getChangeColor(stats.topGainer.value)} />
-                        <StatCard label="Highest Dividend Yield" icon={Landmark} value={stats.highestDividend.symbol} valueTitle={stats.highestDividend.symbol} sub={stats.highestDividend.name} detail={`${formatPercentage(stats.highestDividend.value, { showSign: false })} Yield`} />
-                        <StatCard label="Best Value (Lowest P/E)" icon={Gem} tone="gray" value={stats.bestValue.symbol} valueTitle={stats.bestValue.symbol} sub={stats.bestValue.name} detail={`${formatRatio(stats.bestValue.value)} P/E Ratio`} />
-                        <StatCard label="Most Traded (24h)" icon={Zap} tone="warning" value={stats.mostTraded.symbol} valueTitle={stats.mostTraded.symbol} sub={stats.mostTraded.name} detail={`${formatVolume(stats.mostTraded.value)} Volume`} />
-                        <StatCard label="Most Stable" icon={Shield} tone="success" value={stats.mostStable.symbol} valueTitle={stats.mostStable.symbol} sub={stats.mostStable.name} detail={`${formatRatio(stats.mostStable.value)} Beta`} />
-                        <StatCard label="Highest Growth" icon={TrendingUp} value={stats.highestGrowth.symbol} valueTitle={stats.highestGrowth.symbol} sub={stats.highestGrowth.name} detail={`${formatPercentage(stats.highestGrowth.value * 100)} Revenue`} />
-                        <StatCard label="Strongest Momentum" icon={ChevronsUp} tone="gray" value={stats.strongestMomentum.symbol} valueTitle={stats.strongestMomentum.symbol} sub={stats.strongestMomentum.name} detail={`${formatPercentage(stats.strongestMomentum.value, { showSign: false, precision: 1 })} of 52-Wk High`} />
-                        <StatCard label="Top Loser (24h)" icon={AlertTriangle} tone="danger" value={stats.topLoser.symbol} valueTitle={stats.topLoser.symbol} sub={stats.topLoser.name} detail={formatPercentage(stats.topLoser.value)} detailClassName={getChangeColor(stats.topLoser.value)} />
+                        <HighlightCard label="Top Gainer (24h)" icon={Award} tone="success" pick={highlights?.top_gainer} detail={(v) => formatPercentage(v)} changeColor />
+                        <HighlightCard label="Highest Dividend Yield" icon={Landmark} pick={highlights?.highest_dividend_yield} detail={(v) => `${formatPercentage(v, { showSign: false })} Yield`} />
+                        <HighlightCard label="Best Value (Lowest P/E)" icon={Gem} tone="gray" pick={highlights?.lowest_pe} detail={(v) => `${formatRatio(v)} P/E Ratio`} />
+                        <HighlightCard label="Most Traded (24h)" icon={Zap} tone="warning" pick={highlights?.most_traded} detail={(v) => `${formatVolume(v)} Volume`} />
+                        <HighlightCard label="Most Stable" icon={Shield} tone="success" pick={highlights?.lowest_beta} detail={(v) => `${formatRatio(v)} Beta`} />
+                        <HighlightCard label="Highest Growth" icon={TrendingUp} pick={highlights?.highest_revenue_growth} detail={(v) => `${formatPercentage(v)} Revenue`} />
+                        <HighlightCard label="Strongest Momentum" icon={ChevronsUp} tone="gray" pick={highlights?.closest_to_52w_high} detail={(v) => `${formatPercentage(v, { showSign: false, precision: 1 })} of 52-Wk High`} />
+                        <HighlightCard label="Top Loser (24h)" icon={AlertTriangle} tone="danger" pick={highlights?.top_loser} detail={(v) => formatPercentage(v)} changeColor />
                     </div>
 
                     {showFilters && (
                         <div className="card p-6 mb-8">
-                            {/* The assets API filters by type and sorts; it has no range filters */}
-                            <AssetFilters
-                                filters={filters}
-                                onFilterChange={handleFilterChange}
-                                hidden={['priceRange', 'valueRange', 'changeRange', 'marketCapRange']}
-                            />
+                            <AssetFilters filters={filters} onFilterChange={handleFilterChange} />
                         </div>
                     )}
 

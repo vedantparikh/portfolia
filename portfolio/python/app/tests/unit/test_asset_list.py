@@ -9,10 +9,32 @@ from core.services.market_data_service import market_data_service
 from main import app
 
 QUOTES = {
-    "AAA": {"symbol": "AAA", "market_cap": 50},
-    "BBB": {"symbol": "BBB", "market_cap": 300},
+    "AAA": {
+        "symbol": "AAA",
+        "market_cap": 50,
+        "current_price": 5,
+        "price_change_percentage_24h": 2.5,
+        "revenue_growth": 0.12,
+        "high_52w": 10,
+        "trailing_PE": 30,
+    },
+    "BBB": {
+        "symbol": "BBB",
+        "market_cap": 300,
+        "current_price": 150,
+        "price_change_percentage_24h": -0.2,
+        "high_52w": 160,
+        "trailing_PE": 12,
+        "beta": 0.8,
+    },
     "CCC": {"symbol": "CCC"},
-    "DDD": {"symbol": "DDD", "market_cap": 120},
+    "DDD": {
+        "symbol": "DDD",
+        "market_cap": 120,
+        "current_price": 10,
+        "price_change_percentage_24h": -3,
+        "trailing_PE": -4,
+    },
 }
 
 
@@ -83,3 +105,32 @@ def test_assets_without_the_quote_field_stay_in_symbol_order(client, assets):
 
 def test_rejects_an_unknown_sort(client, assets):
     assert client.get("/api/v1/assets/?sort_by=quantity").status_code == 422
+
+
+def test_filters_by_quote_ranges_and_change(client, assets):
+    response = client.get("/api/v1/assets/?price_min=5&price_max=150")
+    assert symbols(response) == ["AAA", "DDD"]
+    assert response.headers["X-Total-Count"] == "2"
+
+    assert symbols(client.get("/api/v1/assets/?market_cap_min=100")) == ["BBB", "DDD"]
+    assert symbols(client.get("/api/v1/assets/?change=up")) == ["AAA"]
+    assert symbols(client.get("/api/v1/assets/?change=down")) == ["DDD"]
+    assert symbols(client.get("/api/v1/assets/?change=flat")) == ["BBB"]
+
+    response = client.get("/api/v1/assets/?change=down&sort_by=name&limit=1")
+    assert symbols(response) == ["DDD"]
+    assert response.headers["X-Total-Count"] == "1"
+
+
+def test_highlights_cover_every_asset(client, assets):
+    body = client.get("/api/v1/assets/highlights").json()
+
+    assert body["top_gainer"] == {"symbol": "AAA", "name": "Zulu", "value": 2.5}
+    assert body["top_loser"]["symbol"] == "DDD"
+    assert body["lowest_pe"]["symbol"] == "BBB"
+    assert body["lowest_beta"] == {"symbol": "BBB", "name": "Bravo", "value": 0.8}
+    assert body["highest_revenue_growth"]["value"] == 12.0
+    assert body["closest_to_52w_high"]["symbol"] == "BBB"
+    assert body["closest_to_52w_high"]["value"] == 93.75
+    assert body["highest_dividend_yield"] is None
+    assert body["most_traded"] is None

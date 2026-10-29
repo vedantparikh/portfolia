@@ -241,6 +241,25 @@ class Asset(AssetBase):
         return v
 
 
+class AssetHighlight(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    value: float
+
+
+class AssetHighlights(BaseModel):
+    """Best asset per quote field over all the user's assets; percent fields are percent."""
+
+    top_gainer: Optional[AssetHighlight] = None
+    top_loser: Optional[AssetHighlight] = None
+    highest_dividend_yield: Optional[AssetHighlight] = None
+    lowest_pe: Optional[AssetHighlight] = None
+    most_traded: Optional[AssetHighlight] = None
+    lowest_beta: Optional[AssetHighlight] = None
+    highest_revenue_growth: Optional[AssetHighlight] = None
+    closest_to_52w_high: Optional[AssetHighlight] = None
+
+
 class AssetBulkCreateRequest(BaseModel):
     """Schema for bulk asset creation request."""
 

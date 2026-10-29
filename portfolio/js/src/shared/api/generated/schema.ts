@@ -1024,6 +1024,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assets/highlights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Asset Highlights
+         * @description Top gainer, loser, yield, P/E, volume, beta, growth and 52-week-high proximity over all the user's assets.
+         */
+        get: operations["get_api_v1_assets_highlights"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assets/{asset_id}": {
         parameters: {
             query?: never;
@@ -2775,6 +2795,29 @@ export interface components {
              * @description Last update timestamp
              */
             updated_at: string;
+        };
+        /** AssetHighlight */
+        AssetHighlight: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Value */
+            value: number;
+        };
+        /**
+         * AssetHighlights
+         * @description Best asset per quote field over all the user's assets; percent fields are percent.
+         */
+        AssetHighlights: {
+            top_gainer?: components["schemas"]["AssetHighlight"] | null;
+            top_loser?: components["schemas"]["AssetHighlight"] | null;
+            highest_dividend_yield?: components["schemas"]["AssetHighlight"] | null;
+            lowest_pe?: components["schemas"]["AssetHighlight"] | null;
+            most_traded?: components["schemas"]["AssetHighlight"] | null;
+            lowest_beta?: components["schemas"]["AssetHighlight"] | null;
+            highest_revenue_growth?: components["schemas"]["AssetHighlight"] | null;
+            closest_to_52w_high?: components["schemas"]["AssetHighlight"] | null;
         };
         /**
          * AssetPerformanceSummary
@@ -8797,6 +8840,16 @@ export interface operations {
                 symbol?: string | null;
                 /** @description Filter by asset type */
                 asset_type?: string | null;
+                /** @description Price at least */
+                price_min?: number | null;
+                /** @description Price below */
+                price_max?: number | null;
+                /** @description Market cap at least */
+                market_cap_min?: number | null;
+                /** @description Market cap below */
+                market_cap_max?: number | null;
+                /** @description 24h change: up or down by at least 0.5%, or flat within it */
+                change?: ("up" | "down" | "flat") | null;
                 /** @description Sort field */
                 sort_by?: "symbol" | "name" | "created_at" | "current_price" | "market_cap" | "volume_24h" | "price_change_percentage_24h";
                 /** @description Sort order */
@@ -8892,6 +8945,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_assets_highlights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetHighlights"];
                 };
             };
         };

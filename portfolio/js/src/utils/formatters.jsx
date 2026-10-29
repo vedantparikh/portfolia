@@ -129,6 +129,11 @@ export const formatPercentagePoints = (value, options = {}) => {
  * @param {Object} options - Formatting options
  * @returns {string} Formatted number string
  */
+export const formatCompact = (num) => {
+    if (num === null || num === undefined || isNaN(Number(num))) return 'N/A';
+    return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(Number(num));
+};
+
 export const formatNumber = (num, options = {}) => {
     if (num === null || num === undefined) return 'N/A';
     const numericNum = parseFloat(num);

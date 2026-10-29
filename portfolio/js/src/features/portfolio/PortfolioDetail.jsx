@@ -58,8 +58,16 @@ const PortfolioDetail = ({ portfolio }) => {
     [holdingsQuery.data],
   );
 
+  const [showClosed, setShowClosed] = useState(false);
+  const closedCount = useMemo(
+    () => holdings.filter((holding) => !(Number(holding.quantity) > 0)).length,
+    [holdings],
+  );
+
   const sortedHoldings = useMemo(() => {
-    let sortableHoldings = [...holdings];
+    let sortableHoldings = showClosed
+      ? [...holdings]
+      : holdings.filter((holding) => Number(holding.quantity) > 0);
     if (sortConfig.key) {
       sortableHoldings.sort((a, b) => {
         const valA = a[sortConfig.key];
@@ -78,7 +86,7 @@ const PortfolioDetail = ({ portfolio }) => {
       });
     }
     return sortableHoldings;
-  }, [holdings, sortConfig]);
+  }, [holdings, sortConfig, showClosed]);
 
   const requestSort = (key) => {
     let direction = "ascending";
@@ -207,7 +215,17 @@ const PortfolioDetail = ({ portfolio }) => {
           <div className="card p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-100">Holdings</h3>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-4">
+                {closedCount > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-gray-400">
+                    <input
+                      type="checkbox"
+                      checked={showClosed}
+                      onChange={(e) => setShowClosed(e.target.checked)}
+                    />
+                    Show closed positions ({closedCount})
+                  </label>
+                )}
                 <button
                   onClick={loadHoldings}
                   disabled={loadingHoldings}
@@ -299,11 +317,13 @@ const PortfolioDetail = ({ portfolio }) => {
                         <LoadingSpinner type="analyst" size="md" text="Loading holdings..." centered />
                       </td>
                     </tr>
-                  ) : holdings.length === 0 ? (
+                  ) : sortedHoldings.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="py-8 text-center">
                         <span className="text-gray-400">
-                          No holdings found in this portfolio
+                          {holdings.length === 0
+                            ? "No holdings found in this portfolio"
+                            : "All positions are closed"}
                         </span>
                       </td>
                     </tr>

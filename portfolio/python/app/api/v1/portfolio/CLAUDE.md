@@ -34,7 +34,7 @@ Bachat and Portfolia both log in to Trade Republic with pytr and write `trade-re
 ## Frontend — `js/src/features/portfolio/`
 - Route `/portfolio` → `Portfolio.jsx`: header, portfolio selector, five views (icon buttons):
   1. **Overview** — `PortfolioCard` + recent transactions.
-  2. **Holdings Detail** — `PortfolioDetail.jsx`: KPI strips (summary: value/invested/unrealized/today; realized before tax/dividends/taxes paid/realized after tax), sortable holdings table (footer = summary totals), `AllocationDonut` (allocation analysis), `ValueVsInvestedChart`; tabs Analytics / Allocations / Rebalancing / Benchmarks (see `api/v1/analytics/CLAUDE.md`).
+  2. **Holdings Detail** — `PortfolioDetail.jsx`: KPI strips (summary: value/invested/unrealized/today; realized before tax/dividends/taxes paid/realized after tax), sortable holdings table (footer = summary totals; closed positions, quantity 0, are hidden behind "Show closed positions (N)"), `AllocationDonut` (allocation analysis), `ValueVsInvestedChart`; tabs Analytics / Allocations / Rebalancing / Benchmarks (see `api/v1/analytics/CLAUDE.md`).
   3. **Portfolio Assets** — `PortfolioAssets.jsx` cards (`PortfolioAssetCard`), highlights (`StatCard`), filters; enriched with `/assets?include_detail` for sector/market cap/24h.
   4. **Performance Chart** — `PortfolioChart.jsx` (see `api/v1/portfolio_calculations/CLAUDE.md`).
   5. **Performance Metrics** — `PortfolioPerformanceMetrics.jsx`.
@@ -45,7 +45,7 @@ Bachat and Portfolia both log in to Trade Republic with pytr and write `trade-re
 Create portfolio → add transactions (Transactions page, PDF import, or Add Position) → positions rebuild automatically → Holdings Detail shows live value; Refresh rebuilds/re-prices.
 
 ## Known gaps
-- Delete flows have no undo; holdings include zero-quantity rows in the table.
+- Delete flows have no undo.
 - A cold daily-history or FX cache (a newly added symbol or pair) still fetches from Yahoo inside the request until the worker has run.
 
 ## Planned

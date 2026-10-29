@@ -76,5 +76,10 @@ def test_sorts_by_a_quote_field_with_missing_values_last(client, assets):
     assert response.json()[0]["detail"]["market_cap"] == "300"
 
 
+def test_assets_without_the_quote_field_stay_in_symbol_order(client, assets):
+    response = client.get("/api/v1/assets/?sort_by=volume_24h&sort_order=desc")
+    assert symbols(response) == ["AAA", "BBB", "CCC", "DDD"]
+
+
 def test_rejects_an_unknown_sort(client, assets):
     assert client.get("/api/v1/assets/?sort_by=quantity").status_code == 422

@@ -673,3 +673,27 @@ class MacdStrategyResponse(BaseModel):
     symbol: str
     since: date
     signals: List[MacdSignalSchema]
+
+
+class BacktestTradeSchema(BaseModel):
+    entry_date: date
+    entry_price: float
+    exit_date: date
+    exit_price: float
+    return_pct: float
+    open: bool = Field(..., description="Still held; valued at the last close")
+
+
+class BacktestResponse(BaseModel):
+    """Past signals replayed long only, without costs or taxes; percent units."""
+
+    symbol: str
+    strategy: Literal["gfs", "macd"]
+    start: date
+    end: date
+    trades: List[BacktestTradeSchema]
+    win_rate_pct: Optional[float] = None
+    average_return_pct: Optional[float] = None
+    total_return_pct: float
+    buy_and_hold_pct: float
+    days_invested_pct: float

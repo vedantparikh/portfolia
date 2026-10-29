@@ -527,6 +527,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/statistical-indicators/strategies/backtest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strategy Backtest
+         * @description The strategy's signals over the last `years`, traded long only without costs.
+         */
+        get: operations["get_api_v1_statistical_indicators_strategies_backtest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/statistical-indicators/templates": {
         parameters: {
             query?: never;
@@ -3145,6 +3165,65 @@ export interface components {
              * @description Available periods
              */
             periods: components["schemas"]["AvailablePeriod"][];
+        };
+        /**
+         * BacktestResponse
+         * @description Past signals replayed long only, without costs or taxes; percent units.
+         */
+        BacktestResponse: {
+            /** Symbol */
+            symbol: string;
+            /**
+             * Strategy
+             * @enum {string}
+             */
+            strategy: "gfs" | "macd";
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Trades */
+            trades: components["schemas"]["BacktestTradeSchema"][];
+            /** Win Rate Pct */
+            win_rate_pct?: number | null;
+            /** Average Return Pct */
+            average_return_pct?: number | null;
+            /** Total Return Pct */
+            total_return_pct: number;
+            /** Buy And Hold Pct */
+            buy_and_hold_pct: number;
+            /** Days Invested Pct */
+            days_invested_pct: number;
+        };
+        /** BacktestTradeSchema */
+        BacktestTradeSchema: {
+            /**
+             * Entry Date
+             * Format: date
+             */
+            entry_date: string;
+            /** Entry Price */
+            entry_price: number;
+            /**
+             * Exit Date
+             * Format: date
+             */
+            exit_date: string;
+            /** Exit Price */
+            exit_price: number;
+            /** Return Pct */
+            return_pct: number;
+            /**
+             * Open
+             * @description Still held; valued at the last close
+             */
+            open: boolean;
         };
         /**
          * BenchmarkComparisonResponse
@@ -8137,6 +8216,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MacdStrategyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_statistical_indicators_strategies_backtest: {
+        parameters: {
+            query: {
+                symbol: string;
+                strategy: "gfs" | "macd";
+                years?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BacktestResponse"];
                 };
             };
             /** @description Validation Error */

@@ -29,7 +29,6 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 | `Sparkline` | Plain-SVG line (no dependency) |
 | `LoadingSpinner` | Re-export of `shared/ui/Spinner` |
 | `EnhancedChart` | lightweight-charts v5 price + indicator panes (imported directly, not via the barrel) |
-| `Chart` | Older OHLC chart used only by `AssetModal` |
 | `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`useAssets`, 5 min) |
 
 Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).
@@ -44,7 +43,7 @@ Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Inves
 | `EmptyState`, `ErrorState` | Centered icon, title, message; `ErrorState` adds a "Try Again" button for `onRetry`. Used by the analytics tabs |
 | `tooltipDom.js` | Text-only chart tooltips, `chartMoney`, `barChange` |
 
-There is no `Table` primitive: the tables share no structure beyond Tailwind classes. `SymbolSearch` and `ClientSideAssetSearch` search different sources, and `Chart` (asset modal, OHLC) and `EnhancedChart` (indicator panes) render different things, so neither pair was merged.
+There is no `Table` primitive: the tables share no structure beyond Tailwind classes. `SymbolSearch` and `ClientSideAssetSearch` search different sources, so they were not merged. Every price chart is `EnhancedChart` (the older `Chart` was removed 2026-10-29).
 
 ## Conventions
 - All HTTP goes through the axios instance in `shared/api/client.ts` (`API_BASE_URL`, `apiErrorMessage`, the auth header and the single-flight `refreshAccessToken` on a 401). Each feature has its endpoint wrappers in `features/<name>/api.ts`; market data and indicators, used by shared components too, are `shared/api/market.ts` and `shared/api/indicators.ts`. Assets have one wrapper (`assetAPI`), whose functions return the response body.

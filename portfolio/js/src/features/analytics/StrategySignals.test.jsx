@@ -31,6 +31,27 @@ describe("StrategySignals", () => {
           ],
         }),
       ),
+      http.get(`${API}/statistical-indicators/strategies/backtest`, ({ request }) => {
+        const strategy = new URL(request.url).searchParams.get("strategy");
+        return HttpResponse.json({
+          symbol: "ACME",
+          strategy,
+          start: "2021-10-29",
+          end: "2026-10-29",
+          trades:
+            strategy === "macd"
+              ? [
+                  { entry_date: "2022-01-03", entry_price: 100, exit_date: "2022-06-01", exit_price: 110, return_pct: 10, open: false },
+                  { entry_date: "2023-01-03", entry_price: 120, exit_date: "2023-05-01", exit_price: 108, return_pct: -10, open: false },
+                ]
+              : [],
+          win_rate_pct: strategy === "macd" ? 50 : null,
+          average_return_pct: strategy === "macd" ? 0 : null,
+          total_return_pct: strategy === "macd" ? -1 : 0,
+          buy_and_hold_pct: 42.5,
+          days_invested_pct: strategy === "macd" ? 20 : 0,
+        });
+      }),
     );
 
     renderWithProviders(<StrategySignals symbol="ACME" currency="USD" />);
@@ -40,5 +61,8 @@ describe("StrategySignals", () => {
     const actions = screen.getAllByText(/^(buy|sell)$/).map((el) => el.textContent);
     expect(actions).toEqual(["sell", "buy"]);
     expect(screen.getByText("$101.50")).toBeInTheDocument();
+    expect(await screen.findByText("No trades. Holding instead:", { exact: false })).toBeInTheDocument();
+    expect(await screen.findByText("2 (50%)")).toBeInTheDocument();
+    expect(screen.getByText("-1.00%")).toBeInTheDocument();
   });
 });

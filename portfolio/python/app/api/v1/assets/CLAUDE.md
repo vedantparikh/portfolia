@@ -20,13 +20,14 @@
 Route `/assets` → `Assets.jsx` ("Asset Analysis"):
 - 8 highlight cards from `GET /assets/highlights` (`useAssetHighlights`): top gainer and loser, dividend, P/E, volume, beta, growth, momentum. The browser only displays them.
 - `AssetCard` grid/list, infinite scroll (`useAssetPages`: `skip`/`limit` 8, optional 30 s auto-refresh), `AssetFilters` (type, price range, 24h change, market cap and sort; the page turns `"low-high"` ranges into `_min`/`_max` params), "Showing N of total".
-- `AssetModal` (overview and chart tabs; duplicate check against the loaded list) and `BulkAssetModal`. An asset card's analytics button opens `AssetAnalyticsView` in place (see `api/v1/statistical_indicators/CLAUDE.md`).
+- `AssetModal` (overview and chart tabs; duplicate check against the loaded list; the chart tab is `features/analytics/IndicatorChart.jsx`, `EnhancedChart` with the indicator picker; "Open analysis" in its header switches to the analytics view) and `BulkAssetModal`. An asset card's ⋮ menu → Analytics opens `AssetAnalyticsView` in place (see `api/v1/statistical_indicators/CLAUDE.md`).
 - API: `assetAPI` in `js/src/features/assets/api.ts` (returns response bodies). Query hooks in `features/assets/queries.ts`: `useAssets` (`["assets","list"]`, up to 1000, shared by asset search and duplicate checks), `useAssetPages` (`assetAPI.getAssetPage` → `{items, total}`), `useTopAssets` (dashboard).
 
 ## Workflow
 Add Asset / Bulk Entry → assets appear with live detail → click for overview + price chart (EnhancedChart with indicators) → used when creating transactions or watchlist items.
 
 ## Known gaps
+- `GET /{id}/prices` (and `assetAPI.getAssetPrices`) lost its only caller when the modal chart moved to the indicator calculation.
 - Range bounds are in each listing's own currency; mixed-currency lists are not converted.
 
 ## Planned

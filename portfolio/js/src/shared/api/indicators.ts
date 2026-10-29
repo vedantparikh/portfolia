@@ -44,6 +44,16 @@ export const statisticalIndicatorsAPI = {
     (await api.get(`${base}/strategies/gfs`, { params: { symbol } })).data,
   getMacdStrategy: async (symbol: string): Promise<Schemas["MacdStrategyResponse"]> =>
     (await api.get(`${base}/strategies/macd`, { params: { symbol } })).data,
+  getBacktest: async (
+    symbol: string,
+    strategy: "gfs" | "macd",
+    years = 5,
+  ): Promise<Schemas["BacktestResponse"]> =>
+    (
+      await api.get(`${base}/strategies/backtest`, {
+        params: { symbol, strategy, years },
+      })
+    ).data,
   duplicateConfiguration: async (configId: Id, newName: string) => {
     const params = new URLSearchParams({ new_name: newName });
     return (

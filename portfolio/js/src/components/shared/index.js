@@ -1,5 +1,4 @@
 
-export { default as Chart } from "./Chart";
 export { default as ClientSideAssetSearch } from "./ClientSideAssetSearch";
 export { default as LoadingSpinner } from "../../shared/ui/Spinner";
 export { default as Sidebar } from "./Sidebar";

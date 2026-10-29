@@ -15,6 +15,7 @@
 | `POST/GET /configurations`, `GET/PUT/DELETE /configurations/{id}`, `POST /configurations/{id}/duplicate` | Saved sets: `GET /configurations?user_only=true` = your own, otherwise public ones. A private set is visible only to its owner (anonymous callers see public sets only) |
 | `GET /templates`, `POST /templates/{name}/create`, `POST /validate`, `GET /statistics`, `GET /popular` | Templates and helpers. The configuration manager's `ConfigurationLibrary` lists templates (Use = create from template) and popular public sets (Copy = duplicate), with a one-line summary from `/statistics`. `/validate` has no UI |
 | `GET /strategies/gfs?symbol=`, `GET /strategies/macd?symbol=&since=` | Rule outputs from `core/domain/strategies.py` on `get_daily_history` closes (split-adjusted, not dividend-adjusted): GFS = RSI(14) of monthly, weekly and daily closes (all < 30 buy, all > 70 sell, else hold, each with its as-of date); MACD = MACD(12,26,9) crosses up below zero with the close above its 200-day EMA (buy) or down above zero below it (sell), default since one year ago. No history → 404; too little (15 months for GFS, 201 days for MACD) → 400. Tests: `tests/unit/test_strategies.py` (RSI equals the chart's after warm-up) |
+| `GET /strategies/backtest?symbol=&strategy=gfs\|macd&years=5` | `backtest` in `core/domain/strategies.py`: the strategy's signals over the last `years` (1–20), long only, one position, buy/sell at the signal day's close, no costs or taxes, an open trade valued at the last close. Returns trades, win rate, average and compounded total return, buy-and-hold over the same window, % of sessions invested. Past GFS signals use `live_rsi`: each day's close ends its unfinished month and week, so a past day sees only what it knew (tested against recomputing from the truncated history) |
 | `GET /configurations/search?q=` | Name, description or tags (JSON cast to text) contain `q`; own + public |
 
 **Indicators:**
@@ -38,16 +39,16 @@ The old `utils/trading_strategies` were removed (2026-10-29): GFS took daily RSI
 
 ## Frontend
 No route of its own; it lives inside `/assets`:
-- An asset card's analytics button in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
-- `features/analytics/StrategySignals.jsx` (in `AssetAnalyticsView`): GFS action and the three RSIs, and the last 12 months of MACD signals, labelled as rule output, not advice.
+- The asset modal's chart tab uses `features/analytics/IndicatorChart.jsx` (same calculation and indicator picker, no saved sets). An asset card's ⋮ menu → Analytics, or "Open analysis" in the asset modal, in `Assets.jsx` replaces the grid with `features/analytics/AssetAnalyticsView.jsx` ("Back to Assets" returns). It draws on `components/shared/EnhancedChart.jsx` (lightweight-charts v5). Each output is its own series labelled by `utils/indicatorLabels.js` ("MACD signal"); 0/1 flag outputs are not plotted. Each oscillator family (rsi, stoch, cci, roc, williams, momentum, macd, adx, aroon, mfi) gets its own pane (stretch 0.35 vs price 1), RSI fixed 0–100 with 70/30 lines; the rest overlay the price.
+- `features/analytics/StrategySignals.jsx` (in `AssetAnalyticsView`): GFS action and the three RSIs, and the last 12 months of MACD signals, labelled as rule output, not advice; under each, a 5-year backtest (`useStrategyBacktest`) next to buy-and-hold.
 - `features/analytics/IndicatorConfigurationManager.jsx` sits in a `Modal` rendered by `Assets.jsx`, opened from "Manage Configurations" in the analytics view, to create, edit, duplicate and select sets. The selected set is passed to `AssetAnalyticsView` as `selectedConfiguration` and calculated by `configuration_id`; the view also lists your saved sets with Apply. Toggling an indicator by hand leaves the set.
 - API wrapper: `statisticalIndicatorsAPI` in `js/src/shared/api/indicators.ts` (also used by `EnhancedChart` and `Chart`). Query hooks `useIndicatorConfigurations`, `useAvailableIndicators`, `useIndicatorCalculation` in `features/analytics/queries.ts`, keyed under `["indicators", …]`.
 
 ## Workflow
-Assets → an asset card's analytics button → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
+Assets → a symbol → Chart tab (pick indicators), or Open analysis / the card's ⋮ → Analytics → the view loads RSI and MACD (30 days) → "Manage Configurations" to manage sets.
 
 ## Known gaps
-- Strategy signals are rules, not backtested; there is no performance of past signals.
+- The backtest has no costs, taxes, slippage or position sizing, and buys at the same close that produced the signal.
 
 ## Planned
-A backtest of the strategy signals if wanted.
+Nothing scheduled.

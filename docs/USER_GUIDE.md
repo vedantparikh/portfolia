@@ -291,11 +291,9 @@ Reorder by dragging.
 
 ![Asset Analysis](images/09-assets.png)
 
-**Add Asset** looks the ticker up on Yahoo and saves it. **Bulk Entry** takes several tickers. The eight tiles (top gainer, dividend, P/E, volume, and so on) are computed from the rows currently loaded, not from the whole market. Treat **Highest Growth** with suspicion; its percent scale is not confirmed.
+**Add Asset** looks the ticker up on Yahoo and saves it. **Bulk Entry** takes several tickers. The eight tiles (top gainer, dividend, P/E, volume, and so on) are computed by the server over all your assets, not over the whole market. **Filters** narrow the list by type, price, market cap and 24-hour change (up or down by at least 0.5 %, or within that), and sort it; the header shows "Showing N of total". Price and market-cap bounds are in each listing's own currency.
 
-Search and column sorting on this page do not reach the server. Type filtering does. The "of N" count stays empty for the same reason.
-
-Open a symbol for a price chart. The chart starts with RSI and MACD over 30 days, with extra history loaded so the averages are warmed up. **Manage Configurations** saves a named set of indicators and their parameters. Applying a set recalculates the chart from that set. Ticking an indicator by hand leaves the saved set. A private set is visible only to you.
+Open a symbol and its **Chart** tab for a price chart; **Indicators** on the chart picks which ones to draw. It starts with RSI and MACD over 30 days, with extra history loaded so the averages are warmed up. **Open analysis** in the symbol's header (or **⋮ → Analytics** on an asset card) opens the full analysis: the same chart, an indicator summary, saved indicator sets and the strategy signals. **Manage Configurations** saves a named set of indicators and their parameters, and offers templates and popular public sets to copy. Applying a set recalculates the chart from that set. Ticking an indicator by hand leaves the saved set. A private set is visible only to you.
 
 Indicators, all checked against the `ta` library:
 
@@ -306,7 +304,12 @@ Indicators, all checked against the `ta` library:
 | Volatility | Bollinger Bands, ATR, Keltner Channels |
 | Volume | MFI, VPT, VWAP, OBV, Force Index |
 
-The MACD and GFS strategy code in the repository is tests only. There is no strategy screen and no backtest.
+**Strategy signals**, under the chart, show what two fixed rules say. They are not recommendations:
+
+- **Grandfather-father-son**: the 14-period RSI of monthly, weekly and daily closes. All three below 30 is a buy, all three above 70 a sell.
+- **MACD with a 200-day trend**: MACD crossing its signal line below zero while the price is above its 200-day average is a buy; the mirror image is a sell. The last 12 months of signals are listed.
+
+Under each rule, a **backtest** replays its signals over the last five years: buy at the close on a buy signal, sell at the close on the next sell, no costs or taxes, a trade still open valued at today's close. It shows the rule's total return next to simply holding the stock, the number of trades and how many won, and the share of days the rule was invested. GFS rarely fires; "No trades" is a common answer.
 
 ## Financial Concepts
 

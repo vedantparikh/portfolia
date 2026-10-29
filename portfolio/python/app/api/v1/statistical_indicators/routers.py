@@ -4,7 +4,7 @@ Basic API endpoints for user-configurable statistical indicators.
 """
 
 from datetime import date, timedelta
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -17,13 +17,15 @@ from core.auth.dependencies import (
 from core.auth.utils import is_rate_limited
 from core.database.connection import get_db
 from core.database.models.user import User
-from core.domain.strategies import gfs, macd_signals
+from core.domain.strategies import Signal, backtest, gfs, gfs_signals, macd_signals
 from core.errors import NotFoundError, public_message
 from core.schemas.statistical_indicators import (
     AnalysisConfiguration,
     AnalysisConfigurationCreate,
     AnalysisConfigurationListResponse,
     AnalysisConfigurationUpdate,
+    BacktestResponse,
+    BacktestTradeSchema,
     GfsReadingSchema,
     GfsStrategyResponse,
     IndicatorCalculationRequest,
@@ -262,6 +264,45 @@ async def get_macd_strategy(
             )
             for s in found
         ],
+    )
+
+
+@router.get("/strategies/backtest", response_model=BacktestResponse)
+async def get_strategy_backtest(
+    symbol: str = Query(..., min_length=1, max_length=20),
+    strategy: Literal["gfs", "macd"] = Query(...),
+    years: int = Query(5, ge=1, le=20),
+    _current_user: User = Depends(get_current_user),
+) -> BacktestResponse:
+    """The strategy's signals over the last `years`, traded long only without costs."""
+    closes = await _closes(symbol)
+    start = date.today() - timedelta(days=round(365.25 * years))
+    if strategy == "gfs":
+        signals = gfs_signals(closes, since=start)
+    else:
+        signals = [Signal(s.date, s.action) for s in macd_signals(closes, since=start)]
+    result = backtest(closes, signals, start)
+    return BacktestResponse(
+        symbol=symbol.upper(),
+        strategy=strategy,
+        start=result.start,
+        end=result.end,
+        trades=[
+            BacktestTradeSchema(
+                entry_date=t.entry_date,
+                entry_price=t.entry_price,
+                exit_date=t.exit_date,
+                exit_price=t.exit_price,
+                return_pct=t.return_pct,
+                open=t.open,
+            )
+            for t in result.trades
+        ],
+        win_rate_pct=result.win_rate_pct,
+        average_return_pct=result.average_return_pct,
+        total_return_pct=result.total_return_pct,
+        buy_and_hold_pct=result.buy_and_hold_pct,
+        days_invested_pct=result.days_invested_pct,
     )
 
 

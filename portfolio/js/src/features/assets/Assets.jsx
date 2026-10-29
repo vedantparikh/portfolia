@@ -446,6 +446,10 @@ const Assets = () => {
                                         setSelectedAsset(null);
                                     }}
                                     onSave={handleAssetSave}
+                                    onOpenAnalytics={() => {
+                                        setShowModal(false);
+                                        handleAnalyticsClick(selectedAsset);
+                                    }}
                                 />
                             )}
                             {showBulkAssetModal && (

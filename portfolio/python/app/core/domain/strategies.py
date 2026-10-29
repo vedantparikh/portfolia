@@ -7,6 +7,16 @@ advice; the API and UI label them that way.
 - MACD with a trend filter: MACD(12, 26) crossing its 9-period signal line.
   A cross up below zero while the close is above its 200-day EMA → "buy";
   a cross down above zero while the close is below it → "sell".
+- Golden / death cross: the 50-day SMA crossing above / below the 200-day SMA.
+- 200-day trend: the close crossing above / below its 200-day SMA.
+- RSI mean reversion: daily RSI(14) climbing back above 30 → "buy", falling
+  back below 70 → "sell".
+- Bollinger reversion: the close returning inside the 20-day, 2σ bands, above
+  the lower band → "buy", below the upper band → "sell".
+- Breakout: a close above the prior 55-day high → "buy", below the prior
+  20-day low → "sell".
+
+Every rule is in `STRATEGIES`; each reads only closes up to the signal day.
 
 RSI and EMAs match the indicator chart: Wilder RSI (EMA alpha 1/n), recursive
 EMAs (`adjust=False`).
@@ -20,7 +30,7 @@ week (`live_rsi`), so nothing from later in the period leaks in.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Literal, Optional
+from typing import Callable, Dict, List, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -32,6 +42,9 @@ OVERSOLD = 30.0
 OVERBOUGHT = 70.0
 MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
 TREND_EMA = 200
+SMA_FAST, SMA_SLOW = 50, 200
+BOLLINGER_WINDOW, BOLLINGER_WIDTH = 20, 2.0
+BREAKOUT_ENTRY, BREAKOUT_EXIT = 55, 20
 
 Action = Literal["buy", "sell", "hold"]
 Timeframe = Literal["monthly", "weekly", "daily"]
@@ -198,10 +211,17 @@ def gfs_signals(closes: pd.Series, since: Optional[date] = None) -> List[Signal]
             "daily": rsi(closes),
         }
     ).dropna()
+    if frame.empty:
+        raise DomainError(f"Not enough price history for a monthly RSI({RSI_WINDOW})")
     found = []
     previous: Action = "hold"
-    for day, row in frame.iterrows():
-        action = _gfs_action([row["monthly"], row["weekly"], row["daily"]])
+    values = frame.to_numpy()
+    actions = np.select(
+        [(values < OVERSOLD).all(axis=1), (values > OVERBOUGHT).all(axis=1)],
+        ["buy", "sell"],
+        "hold",
+    )
+    for day, action in zip(frame.index, actions.tolist()):
         if action != previous and action != "hold":
             if since is None or day.date() >= since:
                 found.append(Signal(day.date(), action))
@@ -230,6 +250,10 @@ class Backtest:
     buy_and_hold_pct: float
     days_invested_pct: float
 
+    @property
+    def vs_holding_pp(self) -> float:
+        return self.total_return_pct - self.buy_and_hold_pct
+
 
 def backtest(closes: pd.Series, signals: List[Signal], start: date) -> Backtest:
     """Long only, one position at a time, from `start` to the last close."""
@@ -243,7 +267,7 @@ def backtest(closes: pd.Series, signals: List[Signal], start: date) -> Backtest:
     for signal in sorted(signals, key=lambda s: s.date):
         if signal.date < start:
             continue
-        price = float(window[window.index.date <= signal.date].iloc[-1])
+        price = float(window.iloc[_through(window, signal.date) - 1])
         if signal.action == "buy" and entry is None:
             entry = (signal.date, price)
         elif signal.action == "sell" and entry is not None:
@@ -278,7 +302,197 @@ def _trade(
     )
 
 
+def _through(window: pd.Series, day: date) -> int:
+    """Number of sessions in `window` up to and including `day`."""
+    return int(window.index.searchsorted(pd.Timestamp(day), side="right"))
+
+
 def _days(window: pd.Series, first: date, last: date) -> int:
     """Trading days held: sessions after the entry close up to the exit close."""
-    days = window.index.date
-    return int(((days > first) & (days <= last)).sum())
+    return _through(window, last) - _through(window, first)
+
+
+def _sma(closes: pd.Series, window: int) -> pd.Series:
+    return closes.rolling(window, min_periods=window).mean()
+
+
+def _needs(closes: pd.Series, days: int, what: str) -> pd.Series:
+    closes = closes.dropna().sort_index()
+    if len(closes) <= days:
+        raise DomainError(f"Not enough price history for {what}")
+    return closes
+
+
+def _turns(
+    buy: pd.Series, sell: pd.Series, since: Optional[date] = None
+) -> List[Signal]:
+    """A signal on the first of consecutive event days."""
+    buy = buy.fillna(False).astype(bool)
+    sell = sell.fillna(False).astype(bool)
+    starts_buy = buy & ~buy.shift(1, fill_value=True)
+    starts_sell = sell & ~sell.shift(1, fill_value=True)
+    found = []
+    for day, is_buy, is_sell in zip(buy.index, starts_buy, starts_sell):
+        if since is not None and day.date() < since:
+            continue
+        if is_buy:
+            found.append(Signal(day.date(), "buy"))
+        elif is_sell:
+            found.append(Signal(day.date(), "sell"))
+    return found
+
+
+def _crosses(line: pd.Series, level: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Days `line` crosses above and below `level`; nothing until both are known."""
+    before, level_before = line.shift(1), level.shift(1)
+    return (
+        (line > level) & (before <= level_before),
+        (line < level) & (before >= level_before),
+    )
+
+
+def golden_cross_signals(
+    closes: pd.Series, since: Optional[date] = None
+) -> List[Signal]:
+    """50-day SMA crossing above (buy) or below (sell) the 200-day SMA."""
+    closes = _needs(closes, SMA_SLOW, f"the {SMA_SLOW}-day average")
+    return _turns(*_crosses(_sma(closes, SMA_FAST), _sma(closes, SMA_SLOW)), since)
+
+
+def trend_signals(closes: pd.Series, since: Optional[date] = None) -> List[Signal]:
+    """The close crossing above (buy) or below (sell) its 200-day SMA."""
+    closes = _needs(closes, SMA_SLOW, f"the {SMA_SLOW}-day average")
+    return _turns(*_crosses(closes, _sma(closes, SMA_SLOW)), since)
+
+
+def rsi_reversion_signals(
+    closes: pd.Series, since: Optional[date] = None
+) -> List[Signal]:
+    """Daily RSI(14) climbing back above 30 (buy) or falling back below 70 (sell)."""
+    closes = _needs(closes, RSI_WINDOW, f"RSI({RSI_WINDOW})")
+    value = rsi(closes)
+    before = value.shift(1)
+    return _turns(
+        (before < OVERSOLD) & (value >= OVERSOLD),
+        (before > OVERBOUGHT) & (value <= OVERBOUGHT),
+        since,
+    )
+
+
+def bollinger_signals(closes: pd.Series, since: Optional[date] = None) -> List[Signal]:
+    """The close coming back inside the 20-day, 2σ bands: above the lower band
+    (buy) or below the upper band (sell)."""
+    closes = _needs(closes, BOLLINGER_WINDOW, "Bollinger Bands")
+    middle = _sma(closes, BOLLINGER_WINDOW)
+    width = BOLLINGER_WIDTH * closes.rolling(BOLLINGER_WINDOW).std(ddof=0)
+    lower, upper = middle - width, middle + width
+    below, above = closes < lower, closes > upper
+    return _turns(
+        below.shift(1, fill_value=False) & (closes >= lower),
+        above.shift(1, fill_value=False) & (closes <= upper),
+        since,
+    )
+
+
+def breakout_signals(closes: pd.Series, since: Optional[date] = None) -> List[Signal]:
+    """A close above the prior 55-day high (buy) or below the prior 20-day low (sell)."""
+    closes = _needs(closes, BREAKOUT_ENTRY, f"a {BREAKOUT_ENTRY}-day high")
+    high = closes.rolling(BREAKOUT_ENTRY).max().shift(1)
+    low = closes.rolling(BREAKOUT_EXIT).min().shift(1)
+    return _turns(closes > high, closes < low, since)
+
+
+def _macd_turns(closes: pd.Series, since: Optional[date] = None) -> List[Signal]:
+    return [Signal(s.date, s.action) for s in macd_signals(closes, since)]
+
+
+StrategyId = Literal[
+    "gfs",
+    "macd",
+    "golden_cross",
+    "trend_200",
+    "rsi_reversion",
+    "bollinger_reversion",
+    "breakout",
+]
+
+
+@dataclass(frozen=True)
+class Strategy:
+    id: StrategyId
+    name: str
+    rule: str
+    signals: Callable[[pd.Series, Optional[date]], List[Signal]]
+
+
+STRATEGIES: Dict[str, Strategy] = {
+    s.id: s
+    for s in (
+        Strategy(
+            "gfs",
+            "Grandfather-father-son RSI",
+            "Buy when monthly, weekly and daily RSI(14) are all below 30; sell when all are above 70",
+            gfs_signals,
+        ),
+        Strategy(
+            "macd",
+            "MACD with 200-day trend",
+            "Buy a MACD up-cross below zero above the 200-day EMA; sell a down-cross above zero below it",
+            _macd_turns,
+        ),
+        Strategy(
+            "golden_cross",
+            "Golden / death cross",
+            "Buy when the 50-day average crosses above the 200-day; sell when it crosses below",
+            golden_cross_signals,
+        ),
+        Strategy(
+            "trend_200",
+            "200-day trend",
+            "Buy when the close crosses above its 200-day average; sell when it crosses below",
+            trend_signals,
+        ),
+        Strategy(
+            "rsi_reversion",
+            "RSI mean reversion",
+            "Buy when daily RSI(14) climbs back above 30; sell when it falls back below 70",
+            rsi_reversion_signals,
+        ),
+        Strategy(
+            "bollinger_reversion",
+            "Bollinger Band reversion",
+            "Buy when the close returns above the lower band (20 days, 2σ); sell when it returns below the upper band",
+            bollinger_signals,
+        ),
+        Strategy(
+            "breakout",
+            "55/20-day breakout",
+            "Buy a close above the prior 55-day high; sell a close below the prior 20-day low",
+            breakout_signals,
+        ),
+    )
+}
+
+
+@dataclass(frozen=True)
+class StrategyRun:
+    strategy: Strategy
+    result: Optional[Backtest]
+    last_signal: Optional[Signal]
+    error: Optional[str]
+
+
+def backtest_all(closes: pd.Series, start: date) -> List[StrategyRun]:
+    """Every strategy over the same window; a rule without enough history gets its error."""
+    runs = []
+    for strategy in STRATEGIES.values():
+        try:
+            signals = strategy.signals(closes, start)
+            result = backtest(closes, signals, start)
+        except DomainError as error:
+            runs.append(StrategyRun(strategy, None, None, str(error)))
+            continue
+        runs.append(
+            StrategyRun(strategy, result, signals[-1] if signals else None, None)
+        )
+    return runs

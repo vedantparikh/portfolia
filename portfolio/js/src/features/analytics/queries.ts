@@ -87,8 +87,8 @@ export const indicatorKeys = {
   statistics: ["indicators", "configurations", "statistics"] as const,
   popular: ["indicators", "configurations", "popular"] as const,
   strategies: (symbol: string) => ["indicators", "strategies", symbol] as const,
-  backtest: (symbol: string, strategy: string, years: number) =>
-    ["indicators", "backtest", symbol, strategy, years] as const,
+  backtests: (symbol: string, years: number) =>
+    ["indicators", "backtests", symbol, years] as const,
 };
 
 export function useIndicatorTemplates() {
@@ -113,14 +113,10 @@ export function usePopularConfigurations() {
   });
 }
 
-export function useStrategyBacktest(
-  symbol: string | undefined,
-  strategy: "gfs" | "macd",
-  years = 5,
-) {
+export function useStrategyBacktests(symbol: string | undefined, years = 5) {
   return useQuery({
-    queryKey: indicatorKeys.backtest(symbol ?? "", strategy, years),
-    queryFn: () => statisticalIndicatorsAPI.getBacktest(symbol!, strategy, years),
+    queryKey: indicatorKeys.backtests(symbol ?? "", years),
+    queryFn: () => statisticalIndicatorsAPI.getBacktests(symbol!, years),
     enabled: Boolean(symbol),
     retry: false,
   });

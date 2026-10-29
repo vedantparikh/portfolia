@@ -28,7 +28,7 @@ Each page renders its own header: `text-3xl` title, subtitle, actions on the rig
 | `StatCard` | KPI tile: label, info (a `metricGuide` id → ⓘ tip), value, valueClassName, sub, detail, icon, tone (primary/success/danger/warning/gray), className. Green/red only for gains/losses (`getChangeColor`) |
 | `Sparkline` | Plain-SVG line (no dependency) |
 | `LoadingSpinner` | Re-export of `shared/ui/Spinner` |
-| `EnhancedChart` | lightweight-charts v5 price + indicator panes (imported directly, not via the barrel) |
+| `EnhancedChart` | lightweight-charts v5 price + indicator panes, optional buy/sell `markers` by calendar day (imported directly, not via the barrel) |
 | `SymbolSearch`, `ClientSideAssetSearch` | Symbol search (Yahoo) / search over the user's assets (`useAssets`, 5 min) |
 
 Portfolio charts: `features/portfolio/PerformanceSeriesChart.jsx` (Value / Invested / Cost basis), `features/portfolio/AllocationDonut.jsx` (SVG).

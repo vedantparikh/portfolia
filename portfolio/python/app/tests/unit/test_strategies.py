@@ -1,6 +1,7 @@
-"""Rule-based strategy signals: RSI, GFS and MACD with the trend filter."""
+"""Rule-based strategy signals, their backtests and the strategy endpoints."""
 
 from datetime import date
+from typing import get_args
 
 import numpy as np
 import pandas as pd
@@ -10,14 +11,22 @@ import pytest
 from core.auth.dependencies import get_current_user
 from core.database.models import User
 from core.domain.strategies import (
+    STRATEGIES,
     Signal,
+    StrategyId,
     _last_per,
     backtest,
+    backtest_all,
+    bollinger_signals,
+    breakout_signals,
     gfs,
     gfs_signals,
+    golden_cross_signals,
     live_rsi,
     macd_signals,
     rsi,
+    rsi_reversion_signals,
+    trend_signals,
 )
 from core.errors import DomainError
 from core.services.market_data_service import market_data_service
@@ -152,23 +161,41 @@ def test_strategy_endpoints(client, signed_in):
     short = client.get("/api/v1/statistical-indicators/strategies/macd?symbol=DOWN")
     assert short.status_code == 200
     body = client.get(
-        "/api/v1/statistical-indicators/strategies/backtest?symbol=DIP&strategy=macd&years=20"
+        "/api/v1/statistical-indicators/strategies/backtests?symbol=DIP&years=20"
     ).json()
-    assert [(t["open"], t["entry_price"] > 185) for t in body["trades"]] == [
+    rows = {row["strategy"]: row for row in body["strategies"]}
+    assert list(rows) == list(STRATEGIES)
+    macd = rows["macd"]
+    assert [(t["open"], t["entry_price"] > 185) for t in macd["trades"]] == [
         (True, True)
     ]
-    assert body["buy_and_hold_pct"] > body["total_return_pct"] > 0
-    gfs_run = client.get(
-        "/api/v1/statistical-indicators/strategies/backtest?symbol=DOWN&strategy=gfs&years=20"
+    assert macd["invested"] is True
+    assert macd["last_signal"]["action"] == "buy"
+    assert body["buy_and_hold_pct"] > macd["total_return_pct"] > 0
+    assert macd["vs_holding_pp"] == pytest.approx(
+        macd["total_return_pct"] - body["buy_and_hold_pct"]
+    )
+    down = client.get(
+        "/api/v1/statistical-indicators/strategies/backtests?symbol=DOWN&years=20"
     ).json()
-    assert gfs_run["trades"][0]["open"] is True
+    gfs_row = next(row for row in down["strategies"] if row["strategy"] == "gfs")
+    assert gfs_row["trades"][0]["open"] is True
     bad = client.get(
-        "/api/v1/statistical-indicators/strategies/backtest?symbol=DIP&strategy=other"
+        "/api/v1/statistical-indicators/strategies/backtests?symbol=DIP&years=0"
     )
     assert bad.status_code == 422
     signed_in["NEW"] = daily(np.linspace(50, 60, 100))
     too_short = client.get("/api/v1/statistical-indicators/strategies/gfs?symbol=NEW")
     assert too_short.status_code == 400
+    short_rows = {
+        row["strategy"]: row
+        for row in client.get(
+            "/api/v1/statistical-indicators/strategies/backtests?symbol=NEW"
+        ).json()["strategies"]
+    }
+    assert "monthly RSI" in short_rows["gfs"]["error"]
+    assert short_rows["gfs"]["total_return_pct"] is None
+    assert short_rows["breakout"]["error"] is None
 
 
 @pytest.mark.parametrize("rule", ["M", "W"])
@@ -232,3 +259,104 @@ def test_backtest_without_trades_and_without_history():
     assert result.buy_and_hold_pct == pytest.approx(-5.0)
     with pytest.raises(DomainError):
         backtest(closes, [], date(2099, 1, 1))
+
+
+def actions(found):
+    return [s.action for s in found]
+
+
+def test_strategy_registry_matches_the_api_ids():
+    assert list(STRATEGIES) == list(get_args(StrategyId))
+
+
+@pytest.mark.parametrize("strategy", list(STRATEGIES))
+def test_past_signals_only_use_what_each_day_knew(strategy):
+    rng = np.random.default_rng(11)
+    closes = daily(100 * np.exp(rng.normal(0, 0.02, 800).cumsum()))
+    signals = STRATEGIES[strategy].signals
+
+    full = signals(closes, None)
+    for cut in (450, 620, 799):
+        known = closes.iloc[: cut + 1]
+        last = known.index[-1].date()
+        assert signals(known, None) == [s for s in full if s.date <= last]
+
+
+def test_golden_cross_after_the_turn_and_none_while_warming_up():
+    closes = daily(
+        np.concatenate(
+            [
+                np.linspace(100, 300, 300),
+                np.linspace(300, 150, 200),
+                np.linspace(150, 320, 250),
+            ]
+        )
+    )
+    found = golden_cross_signals(closes)
+
+    assert actions(found) == ["sell", "buy"]
+    assert closes.index[500].date() < found[1].date
+    assert golden_cross_signals(daily(np.linspace(100, 300, 300))) == []
+
+
+def test_trend_crosses_the_200_day_average():
+    rising = daily(np.linspace(100, 300, 300))
+    closes = daily(np.concatenate([rising.to_numpy(), np.linspace(300, 200, 40)]))
+
+    assert trend_signals(rising) == []
+    found = trend_signals(closes)
+    assert actions(found) == ["sell"]
+    day = pd.Timestamp(found[0].date)
+    average = closes.rolling(200).mean()
+    assert closes[day] < average[day]
+    assert closes.shift(1)[day] >= average.shift(1)[day]
+
+
+def test_rsi_reversion_buys_the_recovery_not_the_fall():
+    closes = daily(np.concatenate([np.linspace(100, 60, 40), np.linspace(61, 75, 15)]))
+    found = rsi_reversion_signals(closes)
+
+    assert actions(found) == ["buy"]
+    value = rsi(closes)
+    day = pd.Timestamp(found[0].date)
+    assert value[day] >= 30 > value.shift(1)[day]
+
+
+def test_bollinger_buys_the_return_inside_the_lower_band():
+    closes = daily([100.0, 101.0] * 15 + [90.0, 92.0, 100.5])
+
+    found = bollinger_signals(closes)
+
+    assert [(s.action, s.date) for s in found] == [("buy", closes.index[-1].date())]
+
+
+def test_breakout_by_hand():
+    closes = daily([10.0] * 55 + [11.0, 12.0, 11.5] + [11.0] * 20 + [10.5])
+
+    found = breakout_signals(closes)
+
+    assert [(s.action, s.date) for s in found] == [
+        ("buy", closes.index[55].date()),
+        ("sell", closes.index[-1].date()),
+    ]
+
+
+def test_backtest_all_reports_rules_without_enough_history():
+    closes = daily(100 + np.sin(np.arange(120) / 4) * 10)
+
+    runs = backtest_all(closes, closes.index[0].date())
+
+    errors = {run.strategy.id: run.error for run in runs}
+    assert list(errors) == list(STRATEGIES)
+    assert {k for k, v in errors.items() if v} == {
+        "gfs",
+        "macd",
+        "golden_cross",
+        "trend_200",
+    }
+    swing = next(run for run in runs if run.strategy.id == "rsi_reversion")
+    assert swing.result is not None and swing.result.trades
+    assert swing.last_signal == rsi_reversion_signals(closes)[-1]
+    assert swing.result.vs_holding_pp == pytest.approx(
+        swing.result.total_return_pct - swing.result.buy_and_hold_pct
+    )

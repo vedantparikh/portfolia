@@ -309,7 +309,19 @@ Indicators, all checked against the `ta` library:
 - **Grandfather-father-son**: the 14-period RSI of monthly, weekly and daily closes. All three below 30 is a buy, all three above 70 a sell.
 - **MACD with a 200-day trend**: MACD crossing its signal line below zero while the price is above its 200-day average is a buy; the mirror image is a sell. The last 12 months of signals are listed.
 
-Under each rule, a **backtest** replays its signals over the last five years: buy at the close on a buy signal, sell at the close on the next sell, no costs or taxes, a trade still open valued at today's close. It shows the rule's total return next to simply holding the stock, the number of trades and how many won, and the share of days the rule was invested. GFS rarely fires; "No trades" is a common answer.
+**Strategy backtests**, below them, replay seven rules on the symbol's own price history over 1, 3, 5 or 10 years:
+
+| Rule | Buy | Sell |
+|---|---|---|
+| Grandfather-father-son RSI | monthly, weekly and daily RSI all below 30 | all above 70 |
+| MACD with 200-day trend | as above | as above |
+| Golden / death cross | 50-day average crosses above the 200-day | crosses below |
+| 200-day trend | close crosses above its 200-day average | crosses below |
+| RSI mean reversion | daily RSI climbs back above 30 | falls back below 70 |
+| Bollinger Band reversion | close returns above the lower band (20 days, 2σ) | returns below the upper band |
+| 55/20-day breakout | close above the previous 55-day high | close below the previous 20-day low |
+
+Each rule buys at the close on a buy signal and sells at the close on the next sell, long only, with no costs or taxes; a trade still open is valued at today's close. The table shows each rule's latest signal, whether it would hold the stock now, its total return, the difference from simply holding (in percentage points), the number of trades and how many won, and the share of days it was invested. Click a rule to list its trades. The chart button on a row marks that rule's buys (▲) and sells (▼) on the price chart above, widened to the backtest window, with the latest call labelled. The ⓘ next to each rule explains when it tends to work and when it does not. A rule without enough history (GFS needs about 15 months) says so instead of showing numbers.
 
 ## Financial Concepts
 

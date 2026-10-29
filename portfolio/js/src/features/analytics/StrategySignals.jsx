@@ -2,14 +2,8 @@ import { Signal } from "lucide-react";
 
 import InfoTip from "../../shared/ui/InfoTip";
 import LoadingSpinner from "../../shared/ui/Spinner";
-import {
-  formatDate,
-  formatPercentage,
-  formatQuote,
-  formatRatio,
-  getChangeColor,
-} from "../../utils/formatters.jsx";
-import { useStrategyBacktest, useStrategySignals } from "./queries";
+import { formatDate, formatQuote, formatRatio } from "../../utils/formatters.jsx";
+import { useStrategySignals } from "./queries";
 
 const ACTION_STYLE = {
   buy: "text-success-400",
@@ -18,55 +12,6 @@ const ACTION_STYLE = {
 };
 
 const day = (iso) => formatDate(`${iso}T12:00:00`);
-
-const BACKTEST_YEARS = 5;
-
-// The rule's past signals, bought and sold at the close, next to simply holding
-const BacktestLine = ({ symbol, strategy }) => {
-  const { data, isPending, isError } = useStrategyBacktest(symbol, strategy, BACKTEST_YEARS);
-  if (isPending) return <p className="mt-3 text-xs text-gray-500">Backtesting…</p>;
-  if (isError || !data) {
-    return <p className="mt-3 text-xs text-gray-500">No backtest: not enough price history.</p>;
-  }
-  return (
-    <div className="mt-3 pt-3 border-t border-dark-700 text-sm">
-      <p className="text-xs text-gray-500 mb-1">
-        Backtest since {day(data.start)}: bought and sold at the close on each signal, no costs or taxes
-        <InfoTip id="backtest" className="ml-1.5" />
-      </p>
-      {data.trades.length === 0 ? (
-        <p className="text-gray-300">
-          No trades. Holding instead:{" "}
-          <span className={getChangeColor(data.buy_and_hold_pct)}>
-            {formatPercentage(data.buy_and_hold_pct)}
-          </span>
-        </p>
-      ) : (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1">
-          <dt className="text-gray-400">Rule</dt>
-          <dd className={`text-right font-medium ${getChangeColor(data.total_return_pct)}`}>
-            {formatPercentage(data.total_return_pct)}
-          </dd>
-          <dt className="text-gray-400">Holding instead</dt>
-          <dd className={`text-right ${getChangeColor(data.buy_and_hold_pct)}`}>
-            {formatPercentage(data.buy_and_hold_pct)}
-          </dd>
-          <dt className="text-gray-400">
-            Trades (won)
-            <InfoTip id="win_rate" className="ml-1.5" />
-          </dt>
-          <dd className="text-right text-gray-300">
-            {data.trades.length} ({formatPercentage(data.win_rate_pct, { showSign: false, precision: 0 })})
-          </dd>
-          <dt className="text-gray-400">Time invested</dt>
-          <dd className="text-right text-gray-300">
-            {formatPercentage(data.days_invested_pct, { showSign: false, precision: 0 })}
-          </dd>
-        </dl>
-      )}
-    </div>
-  );
-};
 
 // What two rule sets say about the symbol (core/domain/strategies.py); not advice
 const StrategySignals = ({ symbol, currency }) => {
@@ -79,7 +24,7 @@ const StrategySignals = ({ symbol, currency }) => {
         Strategy signals
       </h3>
       <p className="text-xs text-gray-500 mb-4">
-        What two fixed rule sets say about the price history. They are not recommendations.
+        What two fixed rule sets say about the price history today. They are not recommendations; the backtests below show how all the rules would have done.
       </p>
       {isPending ? (
         <LoadingSpinner centered />
@@ -113,7 +58,6 @@ const StrategySignals = ({ symbol, currency }) => {
             ) : (
               <p className="text-sm text-gray-400">Not enough price history.</p>
             )}
-            <BacktestLine symbol={symbol} strategy="gfs" />
           </section>
           <section>
             <h4 className="font-medium text-gray-100">
@@ -140,7 +84,6 @@ const StrategySignals = ({ symbol, currency }) => {
                 ))}
               </ul>
             )}
-            <BacktestLine symbol={symbol} strategy="macd" />
           </section>
         </div>
       )}

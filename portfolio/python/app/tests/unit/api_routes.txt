@@ -61,7 +61,7 @@ GET /api/v1/statistical-indicators/configurations/{config_id}
 GET /api/v1/statistical-indicators/indicators
 GET /api/v1/statistical-indicators/popular
 GET /api/v1/statistical-indicators/statistics
-GET /api/v1/statistical-indicators/strategies/backtest
+GET /api/v1/statistical-indicators/strategies/backtests
 GET /api/v1/statistical-indicators/strategies/gfs
 GET /api/v1/statistical-indicators/strategies/macd
 GET /api/v1/statistical-indicators/templates

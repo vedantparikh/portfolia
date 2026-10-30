@@ -43,10 +43,15 @@ class SavingsPlanRow(BaseModel):
     asset_id: int
     symbol: str
     name: Optional[str] = None
-    rhythm: str
-    interval_days: float
+    rhythm: Literal["weekly", "every two weeks", "monthly", "quarterly"]
+    executions_per_month: float = Field(
+        ..., description="Weekly = 4: broker plans run on four fixed days a month"
+    )
     amount: float = Field(..., description="Median of the last three executions")
-    monthly_amount: float
+    previous_amount: Optional[float] = Field(
+        None, description="The amount before the latest change, if it changed"
+    )
+    monthly_amount: float = Field(..., description="amount × executions_per_month")
     executions: int
     first: date
     last: date

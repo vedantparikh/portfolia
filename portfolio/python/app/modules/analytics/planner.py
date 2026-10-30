@@ -175,26 +175,15 @@ class PlannerService:
         names = self._names(ids)
         rows = []
         for plan in plans:
-            run = [
-                p
-                for p in purchases
-                if p.asset_id == plan.asset_id and plan.first <= p.day <= plan.last
-            ]
-            shares = (
-                sum(
-                    p.quantity
-                    * float(split_factor(splits.get(plan.asset_id, []), p.day))
-                    for p in run
-                    if p.fee_free or not any(q.fee_free for q in run)
-                )
-                if run
-                else plan.quantity
+            shares = sum(
+                p.quantity * float(split_factor(splits.get(plan.asset_id, []), p.day))
+                for p in plan.purchases
             )
             price = prices.get(plan.asset_id)
             asset = names.get(plan.asset_id)
             rows.append(
                 {
-                    **vars(plan),
+                    **{k: v for k, v in vars(plan).items() if k != "purchases"},
                     "symbol": asset.symbol if asset else str(plan.asset_id),
                     "name": asset.name if asset else None,
                     "quantity": shares,

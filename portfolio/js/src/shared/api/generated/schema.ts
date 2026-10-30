@@ -6618,16 +6618,30 @@ export interface components {
             symbol: string;
             /** Name */
             name?: string | null;
-            /** Rhythm */
-            rhythm: string;
-            /** Interval Days */
-            interval_days: number;
+            /**
+             * Rhythm
+             * @enum {string}
+             */
+            rhythm: "weekly" | "every two weeks" | "monthly" | "quarterly";
+            /**
+             * Executions Per Month
+             * @description Weekly = 4: broker plans run on four fixed days a month
+             */
+            executions_per_month: number;
             /**
              * Amount
              * @description Median of the last three executions
              */
             amount: number;
-            /** Monthly Amount */
+            /**
+             * Previous Amount
+             * @description The amount before the latest change, if it changed
+             */
+            previous_amount?: number | null;
+            /**
+             * Monthly Amount
+             * @description amount × executions_per_month
+             */
             monthly_amount: number;
             /** Executions */
             executions: number;

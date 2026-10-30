@@ -20,6 +20,12 @@ const inTenYears = () => {
   d.setFullYear(d.getFullYear() + 10);
   return d.toISOString().slice(0, 10);
 };
+const RHYTHM = {
+  weekly: "weekly · 4× a month",
+  "every two weeks": "every two weeks · 2× a month",
+  monthly: "monthly",
+  quarterly: "quarterly",
+};
 const RETURNS = [
   ["5", "Cautious, 5% a year"],
   ["7", "Long-run, 7% a year"],
@@ -167,8 +173,8 @@ const SavingsPlans = ({ portfolio, plans }) => {
         <p className="text-sm text-gray-400">Savings plans could not be loaded.</p>
       ) : data.plans.length === 0 ? (
         <p className="text-sm text-gray-400">
-          No recurring purchases found in {portfolio.name}. A plan shows up after three purchases of the same holding on
-          a weekly, two-weekly, monthly or quarterly rhythm.
+          No recurring purchases found in {portfolio.name}. A plan shows up after three purchases of the same amount of
+          the same holding on a weekly, two-weekly, monthly or quarterly rhythm.
         </p>
       ) : (
         <>
@@ -181,7 +187,7 @@ const SavingsPlans = ({ portfolio, plans }) => {
                 <tr>
                   <th className="text-left font-normal py-2">Holding</th>
                   <th className="text-left font-normal">Rhythm</th>
-                  <th className="text-right font-normal">Amount</th>
+                  <th className="text-right font-normal">Amount now</th>
                   <th className="text-right font-normal">Per month</th>
                   <th className="text-left font-normal pl-4">Since</th>
                   <th className="text-right font-normal">Invested</th>
@@ -201,8 +207,13 @@ const SavingsPlans = ({ portfolio, plans }) => {
                         <p className="font-medium text-gray-100">{plan.symbol}</p>
                         <p className="text-xs text-gray-500 truncate max-w-[14rem]">{plan.name}</p>
                       </td>
-                      <td className="text-gray-300">{plan.rhythm}</td>
-                      <td className="text-right text-gray-100">{money(plan.amount)}</td>
+                      <td className="text-gray-300">{RHYTHM[plan.rhythm] ?? plan.rhythm}</td>
+                      <td className="text-right text-gray-100">
+                        {money(plan.amount)}
+                        {plan.previous_amount != null && (
+                          <p className="text-xs text-gray-500">from {money(plan.previous_amount)}</p>
+                        )}
+                      </td>
                       <td className="text-right text-gray-300">{money(plan.monthly_amount)}</td>
                       <td className="pl-4 text-gray-300">
                         {day(plan.first)}

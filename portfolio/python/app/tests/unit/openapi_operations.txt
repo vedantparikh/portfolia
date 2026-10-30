@@ -20,6 +20,9 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/benchmarks get_api_v1_analytics_
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/comparison get_api_v1_analytics_portfolios_portfolio_id_performance_comparison
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/history get_api_v1_analytics_portfolios_portfolio_id_performance_history
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/snapshot get_api_v1_analytics_portfolios_portfolio_id_performance_snapshot
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/goal get_api_v1_analytics_portfolios_portfolio_id_planner_goal
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/invest get_api_v1_analytics_portfolios_portfolio_id_planner_invest
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/savings-plans get_api_v1_analytics_portfolios_portfolio_id_planner_savings_plans
 GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/events get_api_v1_analytics_portfolios_portfolio_id_rebalancing_events
 GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/recommendations get_api_v1_analytics_portfolios_portfolio_id_rebalancing_recommendations
 GET /api/v1/analytics/portfolios/{portfolio_id}/risk get_api_v1_analytics_portfolios_portfolio_id_risk

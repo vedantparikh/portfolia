@@ -93,3 +93,37 @@ export const portfolioCalculationsAPI = {
   ): Promise<Schemas["PerformanceInsightResponse"]> =>
     (await api.get(`${calc(portfolioId)}/insight`, { params: { period } })).data,
 };
+
+const planner = (portfolioId: Id) =>
+  `/analytics/portfolios/${portfolioId}/planner`;
+
+export const plannerAPI = {
+  invest: async (
+    portfolioId: Id,
+    amount: number,
+    minAmount = 1,
+  ): Promise<Schemas["InvestPlanResponse"]> =>
+    (
+      await api.get(`${planner(portfolioId)}/invest`, {
+        params: { amount, min_amount: minAmount },
+      })
+    ).data,
+  savingsPlans: async (
+    portfolioId: Id,
+  ): Promise<Schemas["SavingsPlansResponse"]> =>
+    (await api.get(`${planner(portfolioId)}/savings-plans`)).data,
+  goal: async (
+    portfolioId: Id,
+    goal: { target: number; targetDate: string; monthly?: number | null; annualReturn?: number | null },
+  ): Promise<Schemas["GoalProjectionResponse"]> =>
+    (
+      await api.get(`${planner(portfolioId)}/goal`, {
+        params: {
+          target: goal.target,
+          target_date: goal.targetDate,
+          monthly: goal.monthly ?? undefined,
+          annual_return: goal.annualReturn ?? undefined,
+        },
+      })
+    ).data,
+};

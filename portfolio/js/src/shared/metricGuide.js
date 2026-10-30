@@ -436,7 +436,7 @@ export const METRIC_GUIDE = [
     short: "Recurring purchases of the same holding on a steady rhythm, found from your transactions.",
     what: "A holding bought at least three times weekly, every two weeks, monthly or quarterly counts as a plan. Fee-free purchases are used when there are enough of them, because broker savings plans are free. The plan is the latest unbroken run (one skipped execution is allowed); its amount is the median of the last three. Worth today is the plan's shares at today's price.",
     formula: "Per month = amount × 30.44 ÷ days between executions; active if the last execution is within 1.5 rhythms",
-    example: "SAP 150 every week since May → about 652 a month; 22 executions, 3,300 invested, worth 4,263 today.",
+    example: "100 every week since March → about 435 a month; 30 executions, 3,000 invested, worth 3,400 today.",
     read: "The monthly total is what you are committing to the market automatically. Stopped plans show what you used to buy.",
     good: "A steady monthly total you can keep up through falls, spread over broad funds.",
     bad: "Many plans on single stocks, or plans quietly stopped after a bad patch.",

@@ -28,12 +28,14 @@ What to buy with new money, and whether the savings plan is on track.
 
 Built as a Dividends view (eighth icon): received per month or year before tax with the expected months ahead in the same chart, the next 12 months before and after tax, portfolio yield and yield on cost, an expected-payments calendar (payment dates shifted by the usual gap between ex-date and payment in your own payments), and per holding the 12-month dividend per share, yield, yield on cost, growth and what it paid you. Per-share amounts come from the listing's dividend history, else from your own payments.
 
-## 4. German tax view ⏳
+## 4. German tax view ✅
 Information, not tax advice. Trade Republic's taxes paid and refunds are already imported.
 
 - **Sparerpauschbetrag**: how much of the yearly €1,000 allowance (€2,000 jointly assessed) gains and dividends have used, per broker, so the Freistellungsauftrag can be split well.
 - **Vorabpauschale**: an estimate of January's advance tax on accumulating funds (from the Basiszins, the fund's value at the start of the year and its gain), with the 30% Teilfreistellung for equity funds.
 - **Tax-loss harvesting**: positions with unrealised losses that could offset realised gains this year. Share losses offset only share gains, and each broker offsets only its own account until the tax return.
+
+Built as a German tax view (ninth icon) for euro portfolios: every year settled as the bank does (two loss pots carried forward, Teilfreistellung, last January's Vorabpauschale as income and credited back on sale, the allowance at this bank, 26.375 % plus optional church tax) next to what the broker withheld; the year's Vorabpauschale per fund; losses worth harvesting and unused allowance; and the allowance split across euro portfolios. Funds are assumed to be equity funds; crypto is left out (§ 23 EStG). On the real Trade Republic portfolio one year's estimate matched the tax withheld to within a euro, and the Vorabpauschale per fund within cents.
 
 ## 5. ETF look-through ⏳
 - Combined country, sector and currency exposure through the ETFs held, plus direct holdings.

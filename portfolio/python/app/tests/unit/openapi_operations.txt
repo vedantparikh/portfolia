@@ -28,6 +28,8 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/events get_api_v1_an
 GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/recommendations get_api_v1_analytics_portfolios_portfolio_id_rebalancing_recommendations
 GET /api/v1/analytics/portfolios/{portfolio_id}/risk get_api_v1_analytics_portfolios_portfolio_id_risk
 GET /api/v1/analytics/portfolios/{portfolio_id}/summary get_api_v1_analytics_portfolios_portfolio_id_summary
+GET /api/v1/analytics/portfolios/{portfolio_id}/tax/germany get_api_v1_analytics_portfolios_portfolio_id_tax_germany
+GET /api/v1/analytics/tax/germany/allowance get_api_v1_analytics_tax_germany_allowance
 GET /api/v1/analytics/users/dashboard get_api_v1_analytics_users_dashboard
 GET /api/v1/assets/ get_api_v1_assets
 GET /api/v1/assets/highlights get_api_v1_assets_highlights

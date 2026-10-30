@@ -4,6 +4,7 @@ import {
   Lightbulb,
   PiggyBank,
   Coins,
+  Landmark,
   ArrowLeft,
   BarChart3,
   PieChart,
@@ -42,6 +43,7 @@ import PortfolioDetail from "./PortfolioDetail";
 import PortfolioInsight from "./PortfolioInsight";
 import PortfolioDividends from "./PortfolioDividends";
 import PortfolioPlanner from "./PortfolioPlanner";
+import PortfolioTax from "./PortfolioTax";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
 const noPortfolios = [];
@@ -73,7 +75,7 @@ const Portfolio = () => {
     }
   }, [location.state, location.pathname, navigate]);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
-  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight, planner, dividends
+  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight, planner, dividends, tax
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { openSidebar } = useShell();
@@ -506,6 +508,18 @@ const Portfolio = () => {
                   >
                     <Coins size={16} />
                   </button>
+                  <button
+                    onClick={() => setViewMode("tax")}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "tax"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
+                    title="German tax"
+                    aria-label="German tax"
+                  >
+                    <Landmark size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -675,6 +689,10 @@ const Portfolio = () => {
 
                         {viewMode === "dividends" && selectedPortfolio && (
                           <PortfolioDividends portfolio={selectedPortfolio} />
+                        )}
+
+                        {viewMode === "tax" && selectedPortfolio && (
+                          <PortfolioTax portfolio={selectedPortfolio} />
                         )}
                       </>
                     ))}

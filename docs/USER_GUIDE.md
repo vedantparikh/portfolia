@@ -68,7 +68,7 @@ Read it top to bottom:
 
 ## Portfolios
 
-**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Eight icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics, Performance Insight, Planner, Dividends.
+**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Nine icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics, Performance Insight, Planner, Dividends, German tax.
 
 ### Overview
 
@@ -198,6 +198,20 @@ The eighth icon, the coins. What your holdings pay you.
 - **Income**: dividends received per month or per year, before tax. In the monthly view the expected months ahead follow in a lighter colour.
 - **Expected payments**: the next twelve months, each with the holdings expected to pay and how much. Each dividend of the last 12 months is repeated a year later for the shares you hold now; the date moves by the usual gap between ex-date and payment seen in your own payments. These are estimates: companies raise, cut or skip dividends, and a foreign company's dividend in euros moves with the exchange rate.
 - **Paying holdings**: per holding, the shares held, the dividend per share over the last 12 months, what that makes over the next 12, the yield on today's price and on what you paid, the growth of the dividend per share from the year before last to last year, and everything it has paid you. Holdings without any dividend on record are listed underneath.
+
+### German tax
+
+The ninth icon, the bank building. For portfolios in euros: your capital income as a German bank settles it. An estimate for information, not tax advice.
+
+- **Settings** (remembered per portfolio): the year, the Freistellungsauftrag you gave this broker (empty = the full allowance: 1,000, or 801 before 2023), church tax, and joint assessment.
+- **Tiles**: capital income before the allowance (the share pot and everything else), the allowance used and left, the estimated tax next to what your broker withheld net of refunds, and losses carried into next year.
+- **What counts**: per holding, sale gains and losses, dividends, last January's Vorabpauschale, and for funds the Vorabpauschalen already taxed, which are deducted when you sell. Funds count at 70 % (Teilfreistellung).
+- **Vorabpauschale**: per fund, the advance tax charged in early January: start-of-year price, price now (or at year end), distributions, per share and in total, and roughly what it will cost. Keep that much cash in the account.
+- **Before the year ends** (this year only): holdings below what you paid and how much tax selling each would save this year; and, if allowance is left, which gains you could realise tax-free.
+- **Year by year**: every year since your first transaction, carrying losses forward, with the estimate next to what was withheld. A gap usually means the Freistellungsauftrag at this broker was different that year.
+- **Freistellungsauftrag across your portfolios**: with two or more euro portfolios, what each earned and a split of the allowance that covers the largest first.
+
+Not covered: foreign withholding tax credits, losses from another bank, interest, and bond or mixed funds (every fund is treated as an equity fund). Crypto is left out; it is taxed as a private sale and is tax-free after a year.
 
 ### Portfolio Assets
 

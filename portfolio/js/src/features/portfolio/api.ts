@@ -99,6 +99,29 @@ export const dividendsAPI = {
     (await api.get(`/analytics/portfolios/${portfolioId}/dividends`)).data,
 };
 
+export type GermanTaxQuery = {
+  year: number | null;
+  allowance: number | null;
+  joint: boolean;
+  churchPct: number;
+};
+
+export const germanTaxAPI = {
+  year: async (portfolioId: Id, q: GermanTaxQuery): Promise<Schemas["GermanTaxResponse"]> =>
+    (
+      await api.get(`/analytics/portfolios/${portfolioId}/tax/germany`, {
+        params: {
+          ...(q.year != null && { year: q.year }),
+          ...(q.allowance != null && { allowance: q.allowance }),
+          joint: q.joint,
+          church_pct: q.churchPct,
+        },
+      })
+    ).data,
+  allowance: async (year: number, joint: boolean): Promise<Schemas["AllowanceSplitResponse"]> =>
+    (await api.get(`/analytics/tax/germany/allowance`, { params: { year, joint } })).data,
+};
+
 const planner = (portfolioId: Id) =>
   `/analytics/portfolios/${portfolioId}/planner`;
 

@@ -112,34 +112,101 @@ def test_detects_a_monthly_plan_and_ignores_extra_manual_buys():
     assert plan.invested == 600
     assert plan.quantity == pytest.approx(12)
     assert (plan.first, plan.last) == (date(2026, 1, 2), date(2026, 6, 2))
-    assert plan.monthly_amount == pytest.approx(100)
+    assert (plan.executions_per_month, plan.monthly_amount) == (1, 100)
     assert plan.active
 
 
-def test_weekly_plan_amount_follows_the_latest_executions():
-    rows = monthly(B, date(2026, 5, 4), 7, amount=25.0, step=7) + monthly(
-        B, date(2026, 6, 22), 3, amount=50.0, step=7
+def broker_days(first_month, months, days=(2, 9, 16, 23)):
+    """A broker's plan calendar: fixed days of the month, a weekend moved to Monday."""
+    found = []
+    for i in range(months):
+        year = first_month.year + (first_month.month - 1 + i) // 12
+        month = (first_month.month - 1 + i) % 12 + 1
+        for d in days:
+            day = date(year, month, d)
+            found.append(
+                day
+                + timedelta(days=(7 - day.weekday()) % 7 if day.weekday() >= 5 else 0)
+            )
+    return found
+
+
+def plan_buys(asset_id, days, amount, fee_free=True):
+    return [Purchase(asset_id, d, amount, amount / 50, fee_free) for d in days]
+
+
+def test_a_weekly_broker_plan_is_four_executions_a_month():
+    # 2nd, 9th, 16th, 23rd from June to October 2026: 20 executions, gaps of
+    # 7 days and 9–12 across the month end (weekends moved to Monday). Five
+    # weeks in a month still means four executions.
+    days = broker_days(date(2026, 6, 1), 5)
+    assert date(2026, 8, 3) in days  # 2 August 2026 is a Sunday
+
+    (plan,) = detect_savings_plans(plan_buys(A, days, 150.0), date(2026, 10, 28))
+
+    assert (plan.rhythm, plan.executions_per_month, plan.executions) == (
+        "weekly",
+        4,
+        20,
+    )
+    assert plan.monthly_amount == 600
+    assert plan.invested == 20 * 150
+    assert plan.previous_amount is None
+    assert plan.active
+
+
+def test_two_weekly_and_monthly_plans_by_their_executions_a_month():
+    twice = broker_days(date(2026, 3, 1), 6, days=(2, 16))
+    once = broker_days(date(2026, 3, 1), 6, days=(2,))
+
+    plans = {
+        p.asset_id: p
+        for p in detect_savings_plans(
+            plan_buys(A, twice, 100.0) + plan_buys(B, once, 250.0), date(2026, 8, 20)
+        )
+    }
+
+    assert (plans[A].rhythm, plans[A].monthly_amount) == ("every two weeks", 200)
+    assert (plans[B].rhythm, plans[B].monthly_amount) == ("monthly", 250)
+
+
+def test_a_raised_plan_shows_the_amount_before_the_change():
+    days = broker_days(date(2026, 1, 1), 10)
+    rows = plan_buys(A, days[:17], 100.0) + plan_buys(A, days[17:], 300.0)
+
+    (plan,) = detect_savings_plans(rows, date(2026, 10, 28))
+
+    # 17 × 100 + 23 × 300; the per-month figure uses today's amount
+    assert (plan.amount, plan.previous_amount) == (300, 100)
+    assert plan.invested == 17 * 100 + 23 * 300
+    assert plan.monthly_amount == 1200
+    assert plan.executions == 40
+
+
+def test_a_restarted_plan_shows_its_earlier_run_as_stopped():
+    earlier = plan_buys(C, broker_days(date(2025, 8, 1), 3)[:10], 100.0)
+    later = plan_buys(C, broker_days(date(2026, 5, 1), 6)[3:], 150.0)
+    stopped = plan_buys(D, broker_days(date(2025, 1, 1), 5, days=(10,)), 50.0)
+
+    plans = detect_savings_plans(earlier + later + stopped, date(2026, 10, 28))
+
+    assert [(p.asset_id, p.executions, p.amount, p.active) for p in plans] == [
+        (C, 21, 150, True),
+        (C, 10, 100, False),
+        (D, 5, 50, False),
+    ]
+    assert plans[1].last == earlier[-1].day
+    assert sum(p.quantity for p in plans[0].purchases) == pytest.approx(
+        plans[0].quantity
     )
 
-    (plan,) = detect_savings_plans(rows, date(2026, 7, 8))
 
-    assert (plan.rhythm, plan.executions, plan.amount) == ("weekly", 10, 50)
-    # 50 a week ≈ 50 × 30.44 / 7 a month
-    assert plan.monthly_amount == pytest.approx(50 * 30.44 / 7)
-    assert plan.invested == 7 * 25 + 3 * 50
+def test_changing_amounts_on_a_steady_rhythm_are_not_a_plan():
+    days = broker_days(date(2024, 2, 1), 2)
+    amounts = [3205.0, 4120.5, 7755.2, 2990.0, 5100.0, 3376.6, 6410.0, 4800.0]
+    rows = [Purchase(A, d, a, 1, True) for d, a in zip(days, amounts)]
 
-
-def test_a_restarted_plan_counts_from_the_restart_and_old_plans_are_inactive():
-    rows = monthly(C, date(2025, 1, 10), 4) + monthly(C, date(2026, 1, 10), 4)
-    stopped = monthly(D, date(2025, 1, 10), 5)
-
-    plans = detect_savings_plans(rows + stopped, date(2026, 5, 1))
-
-    assert [(p.asset_id, p.executions, p.active) for p in plans] == [
-        (C, 4, True),
-        (D, 5, False),
-    ]
-    assert plans[0].first == date(2026, 1, 10)
+    assert detect_savings_plans(rows, date(2024, 4, 1)) == []
 
 
 def test_irregular_buys_are_not_a_plan():

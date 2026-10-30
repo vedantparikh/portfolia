@@ -49,16 +49,16 @@ describe("PortfolioPlanner", () => {
         HttpResponse.json({
           portfolio_id: 7,
           currency: "EUR",
-          monthly_total: 434.86,
+          monthly_total: 400,
           plans: [
             {
-              asset_id: 1, symbol: "ACME.F", name: "Acme SE", rhythm: "weekly", interval_days: 7, amount: 100,
-              monthly_amount: 434.86, executions: 30, first: "2026-03-23", last: "2026-10-23", invested: 3000,
+              asset_id: 1, symbol: "ACME.F", name: "Acme SE", rhythm: "weekly", executions_per_month: 4, amount: 100,
+              previous_amount: 50, monthly_amount: 400, executions: 30, first: "2026-03-23", last: "2026-10-23", invested: 3000,
               quantity: 20, value_now: 3876, active: true,
             },
             {
-              asset_id: 2, symbol: "BETA.F", name: "Beta Inc", rhythm: "weekly", interval_days: 7, amount: 200,
-              monthly_amount: 869.71, executions: 40, first: "2025-08-18", last: "2026-08-24", invested: 8000,
+              asset_id: 2, symbol: "BETA.F", name: "Beta Inc", rhythm: "weekly", executions_per_month: 4, amount: 200,
+              previous_amount: null, monthly_amount: 800, executions: 40, first: "2025-08-18", last: "2026-08-24", invested: 8000,
               quantity: 30, value_now: null, active: false,
             },
           ],
@@ -74,7 +74,7 @@ describe("PortfolioPlanner", () => {
           target_date: params.get("target_date"),
           months: 120,
           start_value: 40000,
-          monthly: 434.86,
+          monthly: 400,
           deposits: 118274.8,
           final: { 10: 150000, 25: 180000, 50: 210000, 75: 245000, 90: 290000 },
           probability_pct: 82,
@@ -110,7 +110,9 @@ describe("PortfolioPlanner", () => {
     expect(asked.invest).toEqual([["500", "1"], ["1200", "1"]]);
 
     // Savings plans: monthly total, active and stopped
-    expect(await screen.findByText("€434.86", { selector: "span" })).toBeInTheDocument();
+    expect(await screen.findByText("€400.00", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getAllByText("weekly · 4× a month")).toHaveLength(2);
+    expect(screen.getByText("from €50.00")).toBeInTheDocument();
     expect(screen.getByText("+29.2%")).toBeInTheDocument();
     expect(screen.getByText("stopped Aug 24, 2026")).toBeInTheDocument();
 
@@ -118,7 +120,7 @@ describe("PortfolioPlanner", () => {
     expect(await screen.findByText("82%")).toBeInTheDocument();
     expect(asked.goal[0].annual_return).toBe("7");
     expect(asked.goal[0].monthly).toBeUndefined();
-    expect(screen.getByPlaceholderText("435 (your plans)")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("400 (your plans)")).toBeInTheDocument();
     expect(screen.getByText(/shifted to average 7.0% a year/)).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Return assumption"), "history");

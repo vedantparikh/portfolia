@@ -8,10 +8,15 @@ savings lead. Money in the portfolio currency; percent units (15.0).
   most underweight holdings are topped up first and all bought holdings end
   at the same fraction of their target; nothing is sold. Buys below
   `min_amount` are dropped and the amount split again over the rest.
-- Savings plans: a holding's purchases on a steady rhythm (weekly, every two
-  weeks, monthly, quarterly). Fee-free purchases are used when there are
-  enough of them (broker savings plans are free); the plan is the latest run
-  of purchases whose gaps fit the rhythm, allowing one skipped execution.
+- Savings plans: a holding's purchases on a steady rhythm. Broker plans run
+  on fixed days of the month moved to the next trading day, so weekly means
+  4 executions a month (never 4.35), every two weeks 2, monthly 1,
+  quarterly 1/3; the rhythm comes from the median gap. Fee-free purchases
+  are used when there are enough of them (broker savings plans are free).
+  Every run of purchases whose gaps fit the rhythm and whose amount stays the
+  same from one execution to the next (a plan is a fixed amount; an
+  occasional raise is fine) is a plan, one skipped execution allowed; a
+  restarted plan shows its earlier runs as stopped.
 - Goal projection: monthly paths built from 12-month blocks of historical
   monthly returns (a block bootstrap keeps good and bad years together),
   contributions at the start of each month. A path ends at V0·G + C·A
@@ -21,10 +26,10 @@ savings lead. Money in the portfolio currency; percent units (15.0).
   swings, so one strong stretch of history does not set the expectation.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from statistics import median
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -117,8 +122,9 @@ class Purchase:
 class SavingsPlan:
     asset_id: int
     rhythm: str
-    interval_days: float
+    executions_per_month: float
     amount: float
+    previous_amount: Optional[float]
     monthly_amount: float
     executions: int
     first: date
@@ -126,72 +132,124 @@ class SavingsPlan:
     invested: float
     quantity: float
     active: bool
+    purchases: Tuple[Purchase, ...]
 
 
+@dataclass(frozen=True)
+class Rhythm:
+    name: str
+    per_month: float
+    median_days: Tuple[float, float]
+    gap_days: Tuple[int, int]
+
+
+# Broker plans run on fixed days of the month, moved to the next trading day
+# when one is not: weekly = 4 a month (e.g. the 2nd, 9th, 16th and 23rd), every
+# two weeks = 2. A gap between executions therefore varies around the rhythm.
 RHYTHMS = (
-    ("weekly", 7.0, 5, 9),
-    ("every two weeks", 14.0, 12, 17),
-    ("monthly", 30.44, 25, 36),
-    ("quarterly", 91.3, 80, 100),
+    Rhythm("weekly", 4, (5, 10.5), (4, 13)),
+    Rhythm("every two weeks", 2, (10.5, 20), (11, 20)),
+    Rhythm("monthly", 1, (24, 38), (24, 38)),
+    Rhythm("quarterly", 1 / 3, (80, 100), (80, 100)),
 )
 DAYS_PER_MONTH = 30.44
 
 
-def _rhythm(gap: float) -> Optional[tuple[str, float, int, int]]:
-    return next((r for r in RHYTHMS if r[2] <= gap <= r[3]), None)
+def _rhythm(median_gap: float) -> Optional[Rhythm]:
+    return next(
+        (r for r in RHYTHMS if r.median_days[0] <= median_gap <= r.median_days[1]),
+        None,
+    )
+
+
+def _plan(
+    asset_id: int, run: List[tuple[date, List[Purchase]]], rhythm: Rhythm, today: date
+) -> SavingsPlan:
+    amounts = [sum(p.amount for p in ps) for _, ps in run]
+    amount = median(amounts[-3:])
+    previous = next(
+        (a for a in reversed(amounts) if abs(a - amount) > 0.01 * amount), None
+    )
+    last = run[-1][0]
+    purchases = tuple(p for _, ps in run for p in ps)
+    return SavingsPlan(
+        asset_id=asset_id,
+        rhythm=rhythm.name,
+        executions_per_month=rhythm.per_month,
+        amount=amount,
+        previous_amount=previous,
+        monthly_amount=amount * rhythm.per_month,
+        executions=len(run),
+        first=run[0][0],
+        last=last,
+        invested=sum(amounts),
+        quantity=sum(p.quantity for p in purchases),
+        active=(today - last).days <= 1.5 * DAYS_PER_MONTH / rhythm.per_month + 4,
+        purchases=purchases,
+    )
 
 
 def detect_savings_plans(
     purchases: Sequence[Purchase], today: date, min_executions: int = 3
 ) -> List[SavingsPlan]:
-    """Recurring purchases per holding, largest monthly amount first."""
+    """
+    Every run of recurring purchases per holding, newest run first: a plan
+    that was stopped and restarted shows as two. Only the newest run of a
+    holding can be active. Active plans by monthly amount, then stopped ones
+    by when they stopped.
+    """
     by_asset: Dict[int, List[Purchase]] = {}
     for p in purchases:
         by_asset.setdefault(p.asset_id, []).append(p)
 
-    plans = []
+    plans: List[SavingsPlan] = []
     for asset_id, rows in by_asset.items():
         free = [p for p in rows if p.fee_free]
         rows = free if len(free) >= min_executions else rows
         days: Dict[date, List[Purchase]] = {}
         for p in rows:
             days.setdefault(p.day, []).append(p)
-        dated = sorted(days.items())
-        if len(dated) < min_executions:
-            continue
-        gaps = [(b[0] - a[0]).days for a, b in zip(dated, dated[1:])]
-        rhythm = _rhythm(median(gaps[-12:]))
-        if rhythm is None:
-            continue
-        name, interval, _, high = rhythm
-        start = len(dated) - 1
-        while start > 0 and gaps[start - 1] <= 2 * high:
-            start -= 1
-        run = dated[start:]
-        if len(run) < min_executions:
-            continue
-        in_rhythm = sum(1 for g in gaps[start:] if _rhythm(g) == rhythm)
-        if in_rhythm < 0.6 * len(gaps[start:]):
-            continue
-        amounts = [sum(p.amount for p in ps) for _, ps in run]
-        amount = median(amounts[-3:])
-        last = run[-1][0]
-        plans.append(
-            SavingsPlan(
-                asset_id=asset_id,
-                rhythm=name,
-                interval_days=interval,
-                amount=amount,
-                monthly_amount=amount * DAYS_PER_MONTH / interval,
-                executions=len(run),
-                first=run[0][0],
-                last=last,
-                invested=sum(amounts),
-                quantity=sum(p.quantity for _, ps in run for p in ps),
-                active=(today - last).days <= 1.5 * interval + 4,
+        rest = sorted(days.items())
+        while len(rest) >= min_executions:
+            gaps = [(b[0] - a[0]).days for a, b in zip(rest, rest[1:])]
+            rhythm = _rhythm(median(gaps[-12:]))
+            if rhythm is None:
+                rest = rest[:-1]
+                continue
+            start = len(rest) - 1
+            while start > 0 and gaps[start - 1] <= 2 * rhythm.gap_days[1]:
+                start -= 1
+            run_gaps = gaps[start:]
+            low, high = rhythm.gap_days
+            fits = sum(1 for g in run_gaps if low <= g <= high)
+            amounts = [sum(p.amount for p in ps) for _, ps in rest[start:]]
+            steady = sum(
+                1
+                for a, b in zip(amounts, amounts[1:])
+                if abs(b - a) <= 0.02 * max(a, b)
             )
-        )
-    return sorted(plans, key=lambda p: (not p.active, -p.monthly_amount, p.asset_id))
+            if (
+                len(rest) - start < min_executions
+                or fits < 0.6 * len(run_gaps)
+                or steady < 0.6 * (len(amounts) - 1)
+            ):
+                rest = rest[:-1]
+                continue
+            plan = _plan(asset_id, rest[start:], rhythm, today)
+            if any(p.asset_id == asset_id for p in plans):
+                plan = replace(plan, active=False)
+            plans.append(plan)
+            rest = rest[:start]
+
+    active = sorted(
+        (p for p in plans if p.active), key=lambda p: (-p.monthly_amount, p.asset_id)
+    )
+    stopped = sorted(
+        (p for p in plans if not p.active),
+        key=lambda p: (p.last, p.asset_id),
+        reverse=True,
+    )
+    return active + stopped
 
 
 @dataclass(frozen=True)

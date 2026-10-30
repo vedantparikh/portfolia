@@ -68,7 +68,7 @@ Read it top to bottom:
 
 ## Portfolios
 
-**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Seven icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics, Performance Insight, Planner.
+**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Eight icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics, Performance Insight, Planner, Dividends.
 
 ### Overview
 
@@ -189,6 +189,15 @@ The seventh icon, the piggy bank. Three tools for new money; they calculate, the
 - **Invest new money**: type an amount and the smallest order you would place, and **Plan** shows how much of each holding to buy, about how many shares that is at today's price, and each holding's weight now, after and its target. It only buys: the holdings furthest below their target get money first, and nothing is sold (selling realises gains and, in Germany, tax). Without targets the money follows today's weights; set targets in Holdings Detail → Allocations to steer it.
 - **Savings plans**: recurring purchases found in your transactions, such as a Trade Republic savings plan: the same amount of a holding bought at least three times weekly, every two weeks, monthly or quarterly. A weekly plan runs on four fixed days a month (moved to the next trading day at a weekend), so it counts as four executions a month, also in a month with five weeks. For each plan: rhythm, the amount now (and what it was before a raise), per month, since when and how often, what you put in and what those shares are worth today. A plan you stopped and restarted shows its earlier run as a separate, stopped plan; stopped plans are greyed out. The line on top is what your active plans invest each month.
 - **Goal**: a target amount and date, your monthly saving (empty = your active plans' total) and a return assumption. **Project** shows the chance of reaching the goal, the typical outcome with a bad and a good case (1 in 10 below, 1 in 10 above), what you put in, and the monthly saving that reaches the goal for an even chance, 3 in 4 or 9 in 10. The chart fans out the range month by month. It is simulated from 12-month stretches of your benchmark's real monthly returns, so good and bad years stay together. By default those returns are shifted to average 7 % a year ("Long-run"), because the last 15 years were unusually strong; "Cautious" uses 5 %, "Benchmark history" the history as it was. Results are before inflation, costs and tax.
+
+### Dividends
+
+The eighth icon, the coins. What your holdings pay you.
+
+- **Tiles**: received in the last 12 months after tax (and before), expected over the next 12 months before tax and about after tax (at the share of tax withheld on your payments of the last year), the portfolio's yield and its yield on cost, and everything received since the first payment.
+- **Income**: dividends received per month or per year, before tax. In the monthly view the expected months ahead follow in a lighter colour.
+- **Expected payments**: the next twelve months, each with the holdings expected to pay and how much. Each dividend of the last 12 months is repeated a year later for the shares you hold now; the date moves by the usual gap between ex-date and payment seen in your own payments. These are estimates: companies raise, cut or skip dividends, and a foreign company's dividend in euros moves with the exchange rate.
+- **Paying holdings**: per holding, the shares held, the dividend per share over the last 12 months, what that makes over the next 12, the yield on today's price and on what you paid, the growth of the dividend per share from the year before last to last year, and everything it has paid you. Holdings without any dividend on record are listed underneath.
 
 ### Portfolio Assets
 

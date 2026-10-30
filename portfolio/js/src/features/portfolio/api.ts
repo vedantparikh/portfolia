@@ -94,6 +94,11 @@ export const portfolioCalculationsAPI = {
     (await api.get(`${calc(portfolioId)}/insight`, { params: { period } })).data,
 };
 
+export const dividendsAPI = {
+  get: async (portfolioId: Id): Promise<Schemas["DividendsResponse"]> =>
+    (await api.get(`/analytics/portfolios/${portfolioId}/dividends`)).data,
+};
+
 const planner = (portfolioId: Id) =>
   `/analytics/portfolios/${portfolioId}/planner`;
 

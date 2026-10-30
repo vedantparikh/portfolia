@@ -3,6 +3,7 @@ import {
   Activity,
   Lightbulb,
   PiggyBank,
+  Coins,
   ArrowLeft,
   BarChart3,
   PieChart,
@@ -39,6 +40,7 @@ import PortfolioCard from "./PortfolioCard";
 import PortfolioChart from "./PortfolioChart";
 import PortfolioDetail from "./PortfolioDetail";
 import PortfolioInsight from "./PortfolioInsight";
+import PortfolioDividends from "./PortfolioDividends";
 import PortfolioPlanner from "./PortfolioPlanner";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
@@ -71,7 +73,7 @@ const Portfolio = () => {
     }
   }, [location.state, location.pathname, navigate]);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
-  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight, planner
+  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight, planner, dividends
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { openSidebar } = useShell();
@@ -492,6 +494,18 @@ const Portfolio = () => {
                   >
                     <PiggyBank size={16} />
                   </button>
+                  <button
+                    onClick={() => setViewMode("dividends")}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "dividends"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
+                    title="Dividends"
+                    aria-label="Dividends"
+                  >
+                    <Coins size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -657,6 +671,10 @@ const Portfolio = () => {
 
                         {viewMode === "planner" && selectedPortfolio && (
                           <PortfolioPlanner portfolio={selectedPortfolio} />
+                        )}
+
+                        {viewMode === "dividends" && selectedPortfolio && (
+                          <PortfolioDividends portfolio={selectedPortfolio} />
                         )}
                       </>
                     ))}

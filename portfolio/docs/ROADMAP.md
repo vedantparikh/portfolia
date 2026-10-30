@@ -20,11 +20,13 @@ What to buy with new money, and whether the savings plan is on track.
 - **Savings plans**: detect recurring purchases (Trade Republic "Savings plan execution" rows are already parsed) and show amount, rhythm, total invested per plan, and what each plan's money is worth now.
 - **Goal projection**: target amount and date, plus current value and monthly savings, give a likely range of outcomes (bootstrapped from the benchmark's monthly returns, by default shifted to a 7 % yearly average) and the monthly amount needed to reach the goal in a typical market.
 
-## 3. Dividend income ⏳
+## 3. Dividend income ✅
 - Income received per month and year, and the next 12 months expected from current holdings (last 12 months' dividend per share × shares held).
 - Yield on cost (dividends per share ÷ your average cost) next to current yield.
 - Dividend growth per holding (year-on-year change of the dividend per share).
 - A month-by-month calendar of expected payments.
+
+Built as a Dividends view (eighth icon): received per month or year before tax with the expected months ahead in the same chart, the next 12 months before and after tax, portfolio yield and yield on cost, an expected-payments calendar (payment dates shifted by the usual gap between ex-date and payment in your own payments), and per holding the 12-month dividend per share, yield, yield on cost, growth and what it paid you. Per-share amounts come from the listing's dividend history, else from your own payments.
 
 ## 4. German tax view ⏳
 Information, not tax advice. Trade Republic's taxes paid and refunds are already imported.

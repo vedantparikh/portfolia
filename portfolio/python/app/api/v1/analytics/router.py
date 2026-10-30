@@ -22,6 +22,7 @@ from core.database.models.portfolio_analytics import (
 from core.domain.positions import OversellError
 from core.domain.valuation import MissingPriceError
 from core.errors import public_message
+from core.schemas.dividends import DividendsResponse
 from core.schemas.planner import (
     GoalProjectionResponse,
     InvestPlanResponse,
@@ -48,6 +49,7 @@ from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
 from core.services.utils import PeriodType
 from modules.analytics.advance_risk import PortfolioAdvanceRiskMetricsService
 from modules.analytics.calculations import PortfolioCalculationService
+from modules.analytics.dividends import DividendService
 from modules.analytics.planner import PlannerService
 from modules.analytics.repository import AnalyticsRepository
 from modules.analytics.risk import PortfolioRiskMetricsService
@@ -315,6 +317,15 @@ async def project_goal(
     return await PlannerService(db).goal(
         portfolio, target, target_date, monthly, annual_return
     )
+
+
+@router.get("/portfolios/{portfolio_id}/dividends", response_model=DividendsResponse)
+async def get_dividends(
+    portfolio: Portfolio = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """Dividends received, the next 12 months expected, yields and growth per holding."""
+    return await DividendService(db).income(portfolio)
 
 
 # Portfolio Risk Analysis

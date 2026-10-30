@@ -17,6 +17,7 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/advance-risk get_api_v1_analytic
 GET /api/v1/analytics/portfolios/{portfolio_id}/allocations get_api_v1_analytics_portfolios_portfolio_id_allocations
 GET /api/v1/analytics/portfolios/{portfolio_id}/allocations/analysis get_api_v1_analytics_portfolios_portfolio_id_allocations_analysis
 GET /api/v1/analytics/portfolios/{portfolio_id}/benchmarks get_api_v1_analytics_portfolios_portfolio_id_benchmarks
+GET /api/v1/analytics/portfolios/{portfolio_id}/dividends get_api_v1_analytics_portfolios_portfolio_id_dividends
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/comparison get_api_v1_analytics_portfolios_portfolio_id_performance_comparison
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/history get_api_v1_analytics_portfolios_portfolio_id_performance_history
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/snapshot get_api_v1_analytics_portfolios_portfolio_id_performance_snapshot

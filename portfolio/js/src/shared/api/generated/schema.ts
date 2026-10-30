@@ -1603,6 +1603,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/portfolios/{portfolio_id}/tax/germany": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get German Tax
+         * @description A euro portfolio's year as a German bank settles it, with Vorabpauschale and harvesting.
+         */
+        get: operations["get_api_v1_analytics_portfolios_portfolio_id_tax_germany"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/tax/germany/allowance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Allowance Split
+         * @description Capital income per euro portfolio and a split of the Sparerpauschbetrag.
+         */
+        get: operations["get_api_v1_analytics_tax_germany_allowance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/portfolios/{portfolio_id}/risk": {
         parameters: {
             query?: never;
@@ -2630,6 +2670,28 @@ export interface components {
              * @description Quantity held
              */
             quantity?: string | null;
+        };
+        /** AllowancePortfolio */
+        AllowancePortfolio: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Name */
+            name: string;
+            /** Income */
+            income: number;
+            /** Suggested */
+            suggested: number;
+        };
+        /** AllowanceSplitResponse */
+        AllowanceSplitResponse: {
+            /** Year */
+            year: number;
+            /** Allowance */
+            allowance: number;
+            /** Income */
+            income: number;
+            /** Portfolios */
+            portfolios: components["schemas"]["AllowancePortfolio"][];
         };
         /**
          * AnalysisConfiguration
@@ -4076,6 +4138,33 @@ export interface components {
              */
             price: string;
         };
+        /** GermanTaxResponse */
+        GermanTaxResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Currency */
+            currency: string;
+            /** Year */
+            year: number;
+            /** Years */
+            years: number[];
+            assumptions: components["schemas"]["TaxAssumptions"];
+            settlement: components["schemas"]["TaxSettlement"];
+            /** Items */
+            items: components["schemas"]["TaxItem"][];
+            /** History */
+            history: components["schemas"]["TaxYear"][];
+            vorabpauschale: components["schemas"]["Vorabpauschale"];
+            /** Harvest */
+            harvest: components["schemas"]["HarvestCandidate"][];
+            /** Tax Free Gains */
+            tax_free_gains: components["schemas"]["HarvestCandidate"][];
+            /**
+             * Excluded
+             * @description Crypto: private sales (§ 23 EStG), not capital income
+             */
+            excluded?: string[];
+        };
         /** GfsReadingSchema */
         GfsReadingSchema: {
             /**
@@ -4201,6 +4290,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HarvestCandidate */
+        HarvestCandidate: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "share" | "fund" | "other";
+            /** Unrealized */
+            unrealized: number;
+            /**
+             * Taxable
+             * @description After Teilfreistellung for funds
+             */
+            taxable: number;
+            /**
+             * Tax Saved
+             * @description This year's tax less if sold today
+             * @default 0
+             */
+            tax_saved: number;
         };
         /**
          * HoldingContribution
@@ -7160,6 +7276,121 @@ export interface components {
              */
             market_cap?: number | null;
         };
+        /** TaxAssumptions */
+        TaxAssumptions: {
+            /**
+             * Allowance
+             * @description Freistellungsauftrag at this bank
+             */
+            allowance: number;
+            /** Joint */
+            joint: boolean;
+            /** Church Pct */
+            church_pct: number;
+            /**
+             * Rate Pct
+             * @description Abgeltungsteuer + Soli (+ church tax)
+             */
+            rate_pct: number;
+            /** Basiszins Pct */
+            basiszins_pct?: number | null;
+            /** Equity Fund Exemption Pct */
+            equity_fund_exemption_pct: number;
+        };
+        /** TaxItem */
+        TaxItem: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "share" | "fund" | "other";
+            /** Sale Gain */
+            sale_gain: number;
+            /**
+             * Vorabpauschale Credit
+             * @description Vorabpauschalen already taxed on the sold fund shares
+             */
+            vorabpauschale_credit: number;
+            /** Dividends */
+            dividends: number;
+            /**
+             * Vorabpauschale
+             * @description Last year's, taxed in January
+             */
+            vorabpauschale: number;
+            /** Taxable */
+            taxable: number;
+        };
+        /** TaxSettlement */
+        TaxSettlement: {
+            /**
+             * Share Net
+             * @description Share sale gains less share sale losses
+             */
+            share_net: number;
+            /**
+             * Other Net
+             * @description Everything else after Teilfreistellung: fund and other sales, dividends, Vorabpauschale
+             */
+            other_net: number;
+            /**
+             * Share Loss In
+             * @description Share loss carried in from last year
+             */
+            share_loss_in: number;
+            /** Other Loss In */
+            other_loss_in: number;
+            /**
+             * Income
+             * @description Taxable capital income before the allowance
+             */
+            income: number;
+            /** Allowance */
+            allowance: number;
+            /** Allowance Used */
+            allowance_used: number;
+            /** Allowance Left */
+            allowance_left: number;
+            /** Taxable */
+            taxable: number;
+            /** Tax */
+            tax: number;
+            /**
+             * Share Loss Carried
+             * @description Carried into next year (≤ 0)
+             */
+            share_loss_carried: number;
+            /** Other Loss Carried */
+            other_loss_carried: number;
+            /**
+             * Withheld
+             * @description Tax the broker withheld this year, net of refunds
+             */
+            withheld: number;
+        };
+        /** TaxYear */
+        TaxYear: {
+            /** Year */
+            year: number;
+            /** Income */
+            income: number;
+            /** Allowance Used */
+            allowance_used: number;
+            /** Tax */
+            tax: number;
+            /** Withheld */
+            withheld: number;
+            /** Share Loss Carried */
+            share_loss_carried: number;
+            /** Other Loss Carried */
+            other_loss_carried: number;
+        };
         /**
          * TimingEffect
          * @description Actual profit against the same flows at the period's steady TWR rate.
@@ -7629,6 +7860,68 @@ export interface components {
              * @description Color for volume bars
              */
             color?: string | null;
+        };
+        /** Vorabpauschale */
+        Vorabpauschale: {
+            /** Year */
+            year: number;
+            /** Basiszins Pct */
+            basiszins_pct?: number | null;
+            /**
+             * Estimate
+             * @description True while the year is still running
+             */
+            estimate: boolean;
+            /**
+             * Due
+             * Format: date
+             */
+            due: string;
+            /** Funds */
+            funds: components["schemas"]["VorabpauschaleFund"][];
+            /** Amount */
+            amount: number;
+            /** Taxable */
+            taxable: number;
+            /**
+             * Tax
+             * @description At the rate, before any allowance left
+             */
+            tax: number;
+        };
+        /** VorabpauschaleFund */
+        VorabpauschaleFund: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "share" | "fund" | "other";
+            /** Shares */
+            shares: number;
+            /** Start Price */
+            start_price: number;
+            /**
+             * End Price
+             * @description Latest close while the year runs
+             */
+            end_price: number;
+            /**
+             * Distributions
+             * @description Per share in the year
+             */
+            distributions: number;
+            /** Per Share */
+            per_share: number;
+            /** Amount */
+            amount: number;
+            /** Taxable */
+            taxable: number;
         };
         /**
          * WatchlistBulkAddRequest
@@ -10999,6 +11292,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DividendsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_portfolios_portfolio_id_tax_germany: {
+        parameters: {
+            query?: {
+                /** @description Default: this year */
+                year?: number | null;
+                /** @description Freistellungsauftrag here; default: the full allowance */
+                allowance?: number | null;
+                /** @description Jointly assessed (double allowance) */
+                joint?: boolean;
+                /** @description Church tax rate, 8 or 9 */
+                church_pct?: number;
+            };
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GermanTaxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_tax_germany_allowance: {
+        parameters: {
+            query: {
+                year: number;
+                joint?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowanceSplitResponse"];
                 };
             };
             /** @description Validation Error */

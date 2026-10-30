@@ -23,6 +23,7 @@ from core.domain.positions import OversellError
 from core.domain.valuation import MissingPriceError
 from core.errors import public_message
 from core.schemas.dividends import DividendsResponse
+from core.schemas.german_tax import AllowanceSplitResponse, GermanTaxResponse
 from core.schemas.planner import (
     GoalProjectionResponse,
     InvestPlanResponse,
@@ -50,6 +51,7 @@ from core.services.utils import PeriodType
 from modules.analytics.advance_risk import PortfolioAdvanceRiskMetricsService
 from modules.analytics.calculations import PortfolioCalculationService
 from modules.analytics.dividends import DividendService
+from modules.analytics.german_tax import GermanTaxService
 from modules.analytics.planner import PlannerService
 from modules.analytics.repository import AnalyticsRepository
 from modules.analytics.risk import PortfolioRiskMetricsService
@@ -326,6 +328,42 @@ async def get_dividends(
 ):
     """Dividends received, the next 12 months expected, yields and growth per holding."""
     return await DividendService(db).income(portfolio)
+
+
+@router.get("/portfolios/{portfolio_id}/tax/germany", response_model=GermanTaxResponse)
+async def get_german_tax(
+    year: Optional[int] = Query(
+        None, ge=2000, le=2100, description="Default: this year"
+    ),
+    allowance: Optional[float] = Query(
+        None,
+        ge=0,
+        le=1e6,
+        description="Freistellungsauftrag here; default: the full allowance",
+    ),
+    joint: bool = Query(False, description="Jointly assessed (double allowance)"),
+    church_pct: float = Query(0.0, ge=0, le=9, description="Church tax rate, 8 or 9"),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """A euro portfolio's year as a German bank settles it, with Vorabpauschale and harvesting."""
+    return await GermanTaxService(db).year(
+        portfolio, year, allowance, joint, church_pct
+    )
+
+
+@router.get("/tax/germany/allowance", response_model=AllowanceSplitResponse)
+async def get_allowance_split(
+    year: int = Query(..., ge=2000, le=2100),
+    joint: bool = Query(False),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Capital income per euro portfolio and a split of the Sparerpauschbetrag."""
+    portfolios = AnalyticsRepository(db).active_portfolios(current_user.id)
+    return await GermanTaxService(db).allowance(
+        sorted(portfolios, key=lambda p: p.id), year, joint
+    )
 
 
 # Portfolio Risk Analysis

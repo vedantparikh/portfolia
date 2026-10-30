@@ -3,7 +3,14 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Id } from "../../shared/api/client";
 import { analyticsAPI } from "../analytics/api";
 import { transactionAPI } from "../transactions/api";
-import { dividendsAPI, plannerAPI, portfolioAPI, portfolioCalculationsAPI } from "./api";
+import {
+  dividendsAPI,
+  germanTaxAPI,
+  type GermanTaxQuery,
+  plannerAPI,
+  portfolioAPI,
+  portfolioCalculationsAPI,
+} from "./api";
 
 export const portfolioKeys = {
   all: ["portfolios"] as const,
@@ -27,6 +34,9 @@ export const portfolioKeys = {
     ["portfolios", id, "planner", "invest", amount, minAmount] as const,
   savingsPlans: (id: Id) => ["portfolios", id, "planner", "savings-plans"] as const,
   dividends: (id: Id) => ["portfolios", id, "dividends"] as const,
+  germanTax: (id: Id, q: GermanTaxQuery) => ["portfolios", id, "tax", "germany", q] as const,
+  allowanceSplit: (year: number, joint: boolean) =>
+    ["portfolios", "tax", "germany", "allowance", year, joint] as const,
   goal: (id: Id, goal: Record<string, unknown>) =>
     ["portfolios", id, "planner", "goal", goal] as const,
   allocationAnalysis: (id: Id) =>
@@ -259,6 +269,23 @@ export function useDividends(portfolioId: Id | null | undefined) {
     queryKey: portfolioKeys.dividends(portfolioId ?? "none"),
     queryFn: () => dividendsAPI.get(portfolioId!),
     enabled: isId(portfolioId),
+  });
+}
+
+export function useGermanTax(portfolioId: Id | null | undefined, q: GermanTaxQuery) {
+  return useQuery({
+    queryKey: portfolioKeys.germanTax(portfolioId ?? "none", q),
+    queryFn: () => germanTaxAPI.year(portfolioId!, q),
+    enabled: isId(portfolioId),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAllowanceSplit(year: number | null | undefined, joint: boolean) {
+  return useQuery({
+    queryKey: portfolioKeys.allowanceSplit(year ?? 0, joint),
+    queryFn: () => germanTaxAPI.allowance(year!, joint),
+    enabled: year != null,
   });
 }
 

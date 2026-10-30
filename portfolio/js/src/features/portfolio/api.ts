@@ -1,4 +1,5 @@
 import { api, type Id, type Params } from "../../shared/api/client";
+import type { Schemas } from "../../shared/api/schema";
 
 export const portfolioAPI = {
   getPortfolios: async () => {
@@ -86,4 +87,9 @@ export const portfolioCalculationsAPI = {
         params: { period, symbol: symbol || undefined },
       })
     ).data,
+  getPerformanceInsight: async (
+    portfolioId: Id,
+    period = "inception",
+  ): Promise<Schemas["PerformanceInsightResponse"]> =>
+    (await api.get(`${calc(portfolioId)}/insight`, { params: { period } })).data,
 };

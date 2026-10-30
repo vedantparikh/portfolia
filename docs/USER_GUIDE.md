@@ -68,7 +68,7 @@ Read it top to bottom:
 
 ## Portfolios
 
-**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Five icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics.
+**Portfolio** in the sidebar. The dropdown in the page, and the same dropdown in the sidebar, pick which book you are looking at. Six icons under the dropdown switch the view: Overview, Holdings Detail, Portfolio Assets, Performance Chart, Performance Metrics, Performance Insight.
 
 ### Overview
 
@@ -169,6 +169,18 @@ The timing note compares TWR with MWR. TWR above MWR means, roughly, that cash w
 **Multi-Period Performance** (Show Details) puts several windows side by side from one calculation. **Additional Metrics** opens the rest of the risk block.
 
 The benchmark paragraph at the bottom points back at **Compare with**. It does not draw the comparison itself.
+
+### Performance Insight
+
+The sixth icon, the light bulb. It answers "what drove my return?" for YTD, 1, 3 or 5 years, or since the first trade.
+
+- **What drove the return**: every holding's profit in the period, and its share of the time-weighted return in percentage points, as a bar left (drag) or right (gain) of the centre. Holdings sold during the period are included and marked "sold". The parts add up exactly to the portfolio's profit and return. With more than ten holdings it shows the seven best and three worst; **Show all** lists the rest. A holding quoted in another currency shows how much of its profit came from the exchange rate.
+- **Monthly and yearly returns**: a grid of time-weighted returns per month (green up, red down, stronger for bigger moves), with the year's return, the benchmark's return over the same days and the difference. The benchmark is the portfolio's primary one, else the default for its currency. A month or year the period covers only partly has a *. If the benchmark pays dividends that its price leaves out, a note says so; pick an accumulating ETF as the primary benchmark to compare fairly.
+- **Drawdowns and recovery**: how far below its previous high the portfolio was on each day, and the five deepest falls with the peak, the low, how long the fall lasted, the day it got back to the peak and how long that took ("not yet" while still under).
+- **Timing of your money**: your profit next to the profit the same deposits and withdrawals would have made at a steady daily rate equal to the period's time-weighted return. The difference is what the timing of your money added (positive) or cost (negative).
+- **Currency**: for holdings quoted in another currency, the profit from exchange rates per currency, and the rest from prices and dividends.
+
+Each section's ⓘ explains how to read it and what it implies.
 
 ### Portfolio Assets
 

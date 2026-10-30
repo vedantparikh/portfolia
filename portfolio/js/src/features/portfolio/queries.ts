@@ -21,6 +21,8 @@ export const portfolioKeys = {
     ["portfolios", "benchmark-options", currency] as const,
   benchmark: (id: Id, period: string, symbol: string) =>
     ["portfolios", id, "benchmark", period, symbol] as const,
+  insight: (id: Id, period: string) =>
+    ["portfolios", id, "insight", period] as const,
   allocationAnalysis: (id: Id) =>
     ["portfolios", id, "analytics", "allocation-analysis"] as const,
   sync: (id: Id) => ["portfolios", id, "sync"] as const,
@@ -107,6 +109,19 @@ export function useBenchmarkComparison(
         symbol,
       ),
     enabled: isId(portfolioId) && Boolean(symbol),
+  });
+}
+
+export function usePerformanceInsight(
+  portfolioId: Id | null | undefined,
+  period: string,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.insight(portfolioId ?? "none", period),
+    queryFn: () =>
+      portfolioCalculationsAPI.getPerformanceInsight(portfolioId!, period),
+    enabled: isId(portfolioId),
+    placeholderData: keepPreviousData,
   });
 }
 

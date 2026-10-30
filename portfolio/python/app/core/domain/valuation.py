@@ -10,7 +10,7 @@ is flagged. A held asset with no price at all is an error, never valued at cost.
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 
 import pandas as pd
 
@@ -85,8 +85,23 @@ def daily_series(
         stale_price    a held asset's close is more than STALE_PRICE_DAYS sessions old
         stale_symbols  those symbols, or "asset {id}" when no name was given
     """
+    return daily_series_by_asset(trades, closes, end, symbols)[0]
+
+
+def daily_series_by_asset(
+    trades: Sequence[Trade],
+    closes: Mapping[int, pd.Series],
+    end: date,
+    symbols: Optional[Mapping[int, str]] = None,
+) -> Tuple[pd.DataFrame, Dict[int, pd.DataFrame]]:
+    """
+    `daily_series` plus one frame per asset on the same days, whose columns
+    add up to the portfolio's: value, inflow, outflow (sale cash and that
+    asset's dividends), quantity held at the close and the close used (NaN
+    while no price is known).
+    """
     if not trades:
-        return pd.DataFrame()
+        return pd.DataFrame(), {}
     symbols = symbols or {}
     days = trading_days(closes, trades[0].transaction_date, end)
     if days.empty:
@@ -108,10 +123,14 @@ def daily_series(
     lots: Dict[int, Lots] = defaultdict(Lots)
     net_invested = realized = dividends = Decimal(0)
     rows = []
+    asset_rows: Dict[int, List[Dict[str, float]]] = defaultdict(list)
+    asset_ids = sorted({trade.asset_id for trade in trades})
     next_trade = 0
 
     for i, day in enumerate(days):
         inflow = outflow = Decimal(0)
+        asset_in: Dict[int, Decimal] = defaultdict(Decimal)
+        asset_out: Dict[int, Decimal] = defaultdict(Decimal)
         while (
             next_trade < len(trades)
             and pd.Timestamp(trades[next_trade].transaction_date) <= day
@@ -124,6 +143,7 @@ def daily_series(
             ):
                 lots[trade.asset_id].buy(trade.quantity, trade.total_amount)
                 inflow += trade.total_amount
+                asset_in[trade.asset_id] += trade.total_amount
             elif trade.transaction_type in (
                 TransactionType.SELL,
                 TransactionType.TRANSFER_OUT,
@@ -131,17 +151,31 @@ def daily_series(
                 sold = lots[trade.asset_id].sell(trade.quantity, trade.transaction_date)
                 realized += realized_proceeds(trade) - sold
                 outflow += trade.total_amount
+                asset_out[trade.asset_id] += trade.total_amount
             elif trade.transaction_type == TransactionType.DIVIDEND:
                 dividends += trade.total_amount
                 outflow += trade.total_amount
+                asset_out[trade.asset_id] += trade.total_amount
 
         value = Decimal(0)
         stale = []
-        for asset_id, asset_lots in lots.items():
-            quantity = asset_lots.quantity
+        for asset_id in asset_ids:
+            quantity = lots[asset_id].quantity if asset_id in lots else Decimal(0)
+            close = prices[asset_id][day] if asset_id in prices else float("nan")
+            held = Decimal(0)
+            if quantity > 0 and not pd.isna(close):
+                held = quantity * Decimal(str(close))
+            asset_rows[asset_id].append(
+                {
+                    "value": float(held),
+                    "inflow": float(asset_in[asset_id]),
+                    "outflow": float(asset_out[asset_id]),
+                    "quantity": float(max(quantity, Decimal(0))),
+                    "price": float(close),
+                }
+            )
             if quantity <= 0:
                 continue
-            close = prices[asset_id][day] if asset_id in prices else float("nan")
             name = symbols.get(asset_id, f"asset {asset_id}")
             if pd.isna(close):
                 raise MissingPriceError(
@@ -150,7 +184,7 @@ def daily_series(
             age = ages[asset_id][i] if asset_id in ages else None
             if age is not None and age > STALE_PRICE_DAYS:
                 stale.append(name)
-            value += quantity * Decimal(str(close))
+            value += held
 
         net_invested += inflow - outflow
         rows.append(
@@ -170,4 +204,8 @@ def daily_series(
             }
         )
 
-    return pd.DataFrame(rows).set_index("date")
+    portfolio = pd.DataFrame(rows).set_index("date")
+    return portfolio, {
+        asset_id: pd.DataFrame(asset_rows[asset_id], index=portfolio.index)
+        for asset_id in asset_ids
+    }

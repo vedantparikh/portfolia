@@ -43,6 +43,7 @@ GET /api/v1/portfolios/ get_api_v1_portfolios
 GET /api/v1/portfolios/calculations/benchmarks get_api_v1_portfolios_calculations_benchmarks
 GET /api/v1/portfolios/calculations/periods get_api_v1_portfolios_calculations_periods
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/benchmark get_api_v1_portfolios_calculations_portfolio_portfolio_id_benchmark
+GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/insight get_api_v1_portfolios_calculations_portfolio_portfolio_id_insight
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/multi-period get_api_v1_portfolios_calculations_portfolio_portfolio_id_multi_period
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/overview get_api_v1_portfolios_calculations_portfolio_portfolio_id_overview
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance get_api_v1_portfolios_calculations_portfolio_portfolio_id_performance

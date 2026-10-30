@@ -20,6 +20,9 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/benchmarks
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/comparison
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/history
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/snapshot
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/goal
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/invest
+GET /api/v1/analytics/portfolios/{portfolio_id}/planner/savings-plans
 GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/events
 GET /api/v1/analytics/portfolios/{portfolio_id}/rebalancing/recommendations
 GET /api/v1/analytics/portfolios/{portfolio_id}/risk

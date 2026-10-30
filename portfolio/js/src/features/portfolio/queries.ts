@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Id } from "../../shared/api/client";
 import { analyticsAPI } from "../analytics/api";
 import { transactionAPI } from "../transactions/api";
-import { portfolioAPI, portfolioCalculationsAPI } from "./api";
+import { plannerAPI, portfolioAPI, portfolioCalculationsAPI } from "./api";
 
 export const portfolioKeys = {
   all: ["portfolios"] as const,
@@ -23,6 +23,11 @@ export const portfolioKeys = {
     ["portfolios", id, "benchmark", period, symbol] as const,
   insight: (id: Id, period: string) =>
     ["portfolios", id, "insight", period] as const,
+  plannerInvest: (id: Id, amount: number, minAmount: number) =>
+    ["portfolios", id, "planner", "invest", amount, minAmount] as const,
+  savingsPlans: (id: Id) => ["portfolios", id, "planner", "savings-plans"] as const,
+  goal: (id: Id, goal: Record<string, unknown>) =>
+    ["portfolios", id, "planner", "goal", goal] as const,
   allocationAnalysis: (id: Id) =>
     ["portfolios", id, "analytics", "allocation-analysis"] as const,
   sync: (id: Id) => ["portfolios", id, "sync"] as const,
@@ -224,5 +229,39 @@ export function usePortfolioSync(portfolioId: Id | null | undefined, enabled: bo
     queryKey: portfolioKeys.sync(portfolioId ?? "none"),
     queryFn: () => portfolioAPI.getSync(portfolioId as Id),
     enabled: enabled && isId(portfolioId),
+  });
+}
+
+export function useInvestPlan(
+  portfolioId: Id | null | undefined,
+  amount: number,
+  minAmount: number,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.plannerInvest(portfolioId ?? "none", amount, minAmount),
+    queryFn: () => plannerAPI.invest(portfolioId!, amount, minAmount),
+    enabled: isId(portfolioId) && amount > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useSavingsPlans(portfolioId: Id | null | undefined) {
+  return useQuery({
+    queryKey: portfolioKeys.savingsPlans(portfolioId ?? "none"),
+    queryFn: () => plannerAPI.savingsPlans(portfolioId!),
+    enabled: isId(portfolioId),
+  });
+}
+
+export function useGoalProjection(
+  portfolioId: Id | null | undefined,
+  goal: { target: number; targetDate: string; monthly?: number | null; annualReturn?: number | null } | null,
+) {
+  return useQuery({
+    queryKey: portfolioKeys.goal(portfolioId ?? "none", goal ?? {}),
+    queryFn: () => plannerAPI.goal(portfolioId!, goal!),
+    enabled: isId(portfolioId) && Boolean(goal && goal.target > 0 && goal.targetDate),
+    placeholderData: keepPreviousData,
+    retry: false,
   });
 }

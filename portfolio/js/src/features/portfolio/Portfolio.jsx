@@ -2,6 +2,7 @@ import { CurrencyProvider } from "../../contexts/CurrencyContext";
 import {
   Activity,
   Lightbulb,
+  PiggyBank,
   ArrowLeft,
   BarChart3,
   PieChart,
@@ -38,6 +39,7 @@ import PortfolioCard from "./PortfolioCard";
 import PortfolioChart from "./PortfolioChart";
 import PortfolioDetail from "./PortfolioDetail";
 import PortfolioInsight from "./PortfolioInsight";
+import PortfolioPlanner from "./PortfolioPlanner";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
 const noPortfolios = [];
@@ -69,7 +71,7 @@ const Portfolio = () => {
     }
   }, [location.state, location.pathname, navigate]);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
-  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight
+  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight, planner
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { openSidebar } = useShell();
@@ -478,6 +480,18 @@ const Portfolio = () => {
                   >
                     <Lightbulb size={16} />
                   </button>
+                  <button
+                    onClick={() => setViewMode("planner")}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "planner"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
+                    title="Planner"
+                    aria-label="Planner"
+                  >
+                    <PiggyBank size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -639,6 +653,10 @@ const Portfolio = () => {
 
                         {viewMode === "insight" && selectedPortfolio && (
                           <PortfolioInsight portfolio={selectedPortfolio} />
+                        )}
+
+                        {viewMode === "planner" && selectedPortfolio && (
+                          <PortfolioPlanner portfolio={selectedPortfolio} />
                         )}
                       </>
                     ))}

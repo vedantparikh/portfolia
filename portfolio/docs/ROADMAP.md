@@ -13,12 +13,12 @@ What drove the portfolio's return, in a Performance Insight view next to Perform
 - **Timing effect**: actual profit against the profit the same deposits and withdrawals would have made at a steady rate equal to the period's time-weighted return. The difference is what the timing of your money added or cost, in money.
 - **Currency effect**: for holdings quoted in another currency, the part of the profit that came from the exchange rate rather than the price, per currency.
 
-## 2. Next-euro planner ⏳
+## 2. Next-euro planner ✅
 What to buy with new money, and whether the savings plan is on track.
 
 - **Buy-only rebalancing**: given an amount to invest, split it across holdings to move toward the target allocation without selling. Selling realises gains and, in Germany, tax. The current Rebalancing tab only proposes sells and buys to hit targets exactly.
 - **Savings plans**: detect recurring purchases (Trade Republic "Savings plan execution" rows are already parsed) and show amount, rhythm, total invested per plan, and what each plan's money is worth now.
-- **Goal projection**: target amount and date, plus current value and monthly savings, give a likely range of outcomes (bootstrapped from the portfolio's or the benchmark's monthly returns) and the monthly amount needed to reach the goal in a typical market.
+- **Goal projection**: target amount and date, plus current value and monthly savings, give a likely range of outcomes (bootstrapped from the benchmark's monthly returns, by default shifted to a 7 % yearly average) and the monthly amount needed to reach the goal in a typical market.
 
 ## 3. Dividend income ⏳
 - Income received per month and year, and the next 12 months expected from current holdings (last 12 months' dividend per share × shares held).

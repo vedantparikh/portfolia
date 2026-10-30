@@ -4,7 +4,7 @@ Comprehensive API endpoints for portfolio analysis, risk management, and perform
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -22,6 +22,11 @@ from core.database.models.portfolio_analytics import (
 from core.domain.positions import OversellError
 from core.domain.valuation import MissingPriceError
 from core.errors import public_message
+from core.schemas.planner import (
+    GoalProjectionResponse,
+    InvestPlanResponse,
+    SavingsPlansResponse,
+)
 from core.schemas.portfolio_advance_risk_metrics import AdvanceRiskCalculationResponse
 from core.schemas.portfolio_analytics import (
     AllocationAnalysisResponse,
@@ -43,6 +48,7 @@ from core.schemas.portfolio_risk_metrics import RiskCalculationResponse
 from core.services.utils import PeriodType
 from modules.analytics.advance_risk import PortfolioAdvanceRiskMetricsService
 from modules.analytics.calculations import PortfolioCalculationService
+from modules.analytics.planner import PlannerService
 from modules.analytics.repository import AnalyticsRepository
 from modules.analytics.risk import PortfolioRiskMetricsService
 from modules.analytics.service import PortfolioAnalyticsService
@@ -260,6 +266,55 @@ async def analyze_portfolio_allocation(
     analysis = await analytics_service.analyze_portfolio_allocation(portfolio_id)
 
     return analysis
+
+
+@router.get(
+    "/portfolios/{portfolio_id}/planner/invest", response_model=InvestPlanResponse
+)
+async def plan_new_money(
+    amount: float = Query(..., gt=0, le=1e9, description="Money to invest"),
+    min_amount: float = Query(1.0, ge=0, description="Smallest buy worth placing"),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """Split new money over the holdings toward their targets, buying only."""
+    return await PlannerService(db).invest(portfolio, amount, min_amount)
+
+
+@router.get(
+    "/portfolios/{portfolio_id}/planner/savings-plans",
+    response_model=SavingsPlansResponse,
+)
+async def get_savings_plans(
+    portfolio: Portfolio = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """Recurring purchases found in the portfolio's buys."""
+    return await PlannerService(db).savings_plans(portfolio)
+
+
+@router.get(
+    "/portfolios/{portfolio_id}/planner/goal", response_model=GoalProjectionResponse
+)
+async def project_goal(
+    target: float = Query(..., gt=0, le=1e12, description="Goal amount"),
+    target_date: date = Query(..., description="When the goal should be reached"),
+    monthly: Optional[float] = Query(
+        None, ge=0, le=1e9, description="Monthly saving; default: active savings plans"
+    ),
+    annual_return: Optional[float] = Query(
+        7.0,
+        ge=-10,
+        le=20,
+        description="Assumed average return per year; omit for the history's own",
+    ),
+    portfolio: Portfolio = Depends(get_owned_portfolio),
+    db: Session = Depends(get_db),
+):
+    """The likely range of the portfolio's value at the goal date."""
+    return await PlannerService(db).goal(
+        portfolio, target, target_date, monthly, annual_return
+    )
 
 
 # Portfolio Risk Analysis

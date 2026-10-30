@@ -1523,6 +1523,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/portfolios/{portfolio_id}/planner/invest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan New Money
+         * @description Split new money over the holdings toward their targets, buying only.
+         */
+        get: operations["get_api_v1_analytics_portfolios_portfolio_id_planner_invest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/portfolios/{portfolio_id}/planner/savings-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Savings Plans
+         * @description Recurring purchases found in the portfolio's buys.
+         */
+        get: operations["get_api_v1_analytics_portfolios_portfolio_id_planner_savings_plans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/portfolios/{portfolio_id}/planner/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Goal
+         * @description The likely range of the portfolio's value at the goal date.
+         */
+        get: operations["get_api_v1_analytics_portfolios_portfolio_id_planner_goal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/portfolios/{portfolio_id}/risk": {
         parameters: {
             query?: never;
@@ -3855,6 +3915,97 @@ export interface components {
             /** Readings */
             readings: components["schemas"]["GfsReadingSchema"][];
         };
+        /** GoalBasis */
+        GoalBasis: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name: string;
+            /**
+             * First Month
+             * Format: date
+             */
+            first_month: string;
+            /** Months Of History */
+            months_of_history: number;
+            /**
+             * History Annual Pct
+             * @description The history's own average, per year
+             */
+            history_annual_pct: number;
+            /**
+             * Assumed Annual Pct
+             * @description Average the simulation used instead; null = the history's
+             */
+            assumed_annual_pct?: number | null;
+            /** Paths */
+            paths: number;
+        };
+        /** GoalPoint */
+        GoalPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** P10 */
+            p10: number;
+            /** P25 */
+            p25: number;
+            /** P50 */
+            p50: number;
+            /** P75 */
+            p75: number;
+            /** P90 */
+            p90: number;
+        };
+        /**
+         * GoalProjectionResponse
+         * @description Simulated range of the portfolio's value at the goal date (block bootstrap).
+         */
+        GoalProjectionResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Currency */
+            currency: string;
+            /** Target */
+            target: number;
+            /**
+             * Target Date
+             * Format: date
+             */
+            target_date: string;
+            /** Months */
+            months: number;
+            /** Start Value */
+            start_value: number;
+            /** Monthly */
+            monthly: number;
+            /**
+             * Deposits
+             * @description Today's value plus every monthly amount
+             */
+            deposits: number;
+            /**
+             * Final
+             * @description Percentile (10…90) → value
+             */
+            final: {
+                [key: string]: number;
+            };
+            /** Probability Pct */
+            probability_pct?: number | null;
+            /**
+             * Required Monthly
+             * @description Monthly amount reaching the goal on 50/75/90 % of paths
+             */
+            required_monthly: {
+                [key: string]: number;
+            };
+            /** Points */
+            points: components["schemas"]["GoalPoint"][];
+            basis: components["schemas"]["GoalBasis"];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -4418,6 +4569,38 @@ export interface components {
             asset_id?: number | null;
             /** Candidates */
             candidates?: components["schemas"]["ListingCandidate"][];
+        };
+        /**
+         * InvestPlanResponse
+         * @description Where new money goes to move toward the targets without selling.
+         */
+        InvestPlanResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Currency */
+            currency: string;
+            /** Amount */
+            amount: number;
+            /** Min Amount */
+            min_amount: number;
+            /**
+             * Mode
+             * @description current_weights when the portfolio has no targets
+             * @enum {string}
+             */
+            mode: "targets" | "current_weights";
+            /** Buys */
+            buys: components["schemas"]["PlannedBuy"][];
+            /**
+             * Untargeted Value
+             * @description Value of holdings without a target, left out of the weights
+             */
+            untargeted_value: number;
+            /**
+             * Unpriced
+             * @description Targeted holdings without a price, skipped
+             */
+            unpriced?: string[];
         };
         /**
          * ListingCandidate
@@ -5146,6 +5329,34 @@ export interface components {
             max_drawdown_pct?: number | null;
             best_day?: components["schemas"]["DayReturn"] | null;
             worst_day?: components["schemas"]["DayReturn"] | null;
+        };
+        /** PlannedBuy */
+        PlannedBuy: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Amount */
+            amount: number;
+            /**
+             * Shares
+             * @description amount ÷ today's price
+             */
+            shares?: number | null;
+            /** Price */
+            price?: number | null;
+            /** Value Before */
+            value_before: number;
+            /** Value After */
+            value_after: number;
+            /** Weight Before Pct */
+            weight_before_pct: number;
+            /** Weight After Pct */
+            weight_after_pct: number;
+            /** Target Pct */
+            target_pct: number;
         };
         /**
          * PopularAssetsResponse
@@ -6398,6 +6609,66 @@ export interface components {
              * @description Calmar ratio.
              */
             calmar_ratio?: string | null;
+        };
+        /** SavingsPlanRow */
+        SavingsPlanRow: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Rhythm */
+            rhythm: string;
+            /** Interval Days */
+            interval_days: number;
+            /**
+             * Amount
+             * @description Median of the last three executions
+             */
+            amount: number;
+            /** Monthly Amount */
+            monthly_amount: number;
+            /** Executions */
+            executions: number;
+            /**
+             * First
+             * Format: date
+             */
+            first: string;
+            /**
+             * Last
+             * Format: date
+             */
+            last: string;
+            /** Invested */
+            invested: number;
+            /**
+             * Quantity
+             * @description Shares bought by the plan, in today's units
+             */
+            quantity: number;
+            /**
+             * Value Now
+             * @description Those shares at today's price, ignoring later sales
+             */
+            value_now?: number | null;
+            /** Active */
+            active: boolean;
+        };
+        /** SavingsPlansResponse */
+        SavingsPlansResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Currency */
+            currency: string;
+            /** Plans */
+            plans: components["schemas"]["SavingsPlanRow"][];
+            /**
+             * Monthly Total
+             * @description Active plans, per month
+             */
+            monthly_total: number;
         };
         /**
          * SearchSuggestionItem
@@ -10385,6 +10656,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AllocationAnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_portfolios_portfolio_id_planner_invest: {
+        parameters: {
+            query: {
+                /** @description Money to invest */
+                amount: number;
+                /** @description Smallest buy worth placing */
+                min_amount?: number;
+            };
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_portfolios_portfolio_id_planner_savings_plans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavingsPlansResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_portfolios_portfolio_id_planner_goal: {
+        parameters: {
+            query: {
+                /** @description Goal amount */
+                target: number;
+                /** @description When the goal should be reached */
+                target_date: string;
+                /** @description Monthly saving; default: active savings plans */
+                monthly?: number | null;
+                /** @description Assumed average return per year; omit for the history's own */
+                annual_return?: number | null;
+            };
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalProjectionResponse"];
                 };
             };
             /** @description Validation Error */

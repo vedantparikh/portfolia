@@ -17,6 +17,7 @@ GET /api/v1/analytics/portfolios/{portfolio_id}/advance-risk
 GET /api/v1/analytics/portfolios/{portfolio_id}/allocations
 GET /api/v1/analytics/portfolios/{portfolio_id}/allocations/analysis
 GET /api/v1/analytics/portfolios/{portfolio_id}/benchmarks
+GET /api/v1/analytics/portfolios/{portfolio_id}/dividends
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/comparison
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/history
 GET /api/v1/analytics/portfolios/{portfolio_id}/performance/snapshot

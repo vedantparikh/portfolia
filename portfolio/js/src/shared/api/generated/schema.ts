@@ -1583,6 +1583,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/portfolios/{portfolio_id}/dividends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dividends
+         * @description Dividends received, the next 12 months expected, yields and growth per holding.
+         */
+        get: operations["get_api_v1_analytics_portfolios_portfolio_id_dividends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/portfolios/{portfolio_id}/risk": {
         parameters: {
             query?: never;
@@ -3758,6 +3778,161 @@ export interface components {
              */
             message: string;
         };
+        /** DividendHolding */
+        DividendHolding: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Source
+             * @description market: the listing's ex-dates; payments: your own payments per share
+             * @enum {string}
+             */
+            source: "market" | "payments";
+            /** Per Share 12M */
+            per_share_12m: number;
+            /** Expected 12M */
+            expected_12m: number;
+            /** Current Yield Pct */
+            current_yield_pct?: number | null;
+            /** Yield On Cost Pct */
+            yield_on_cost_pct?: number | null;
+            /**
+             * Growth Pct
+             * @description Last complete year's dividend per share vs the year before
+             */
+            growth_pct?: number | null;
+            /** Per Share By Year */
+            per_share_by_year: components["schemas"]["DividendPerShareYear"][];
+            /**
+             * Last Dividend
+             * Format: date
+             */
+            last_dividend: string;
+            /**
+             * Pay Lag Days
+             * @description Median days from ex-date to payment
+             */
+            pay_lag_days: number;
+            /** Received Total */
+            received_total: number;
+            /** Received 12M */
+            received_12m: number;
+        };
+        /** DividendIncome */
+        DividendIncome: {
+            /**
+             * Period
+             * Format: date
+             * @description First day of the month or year
+             */
+            period: string;
+            /** Gross */
+            gross: number;
+            /** Tax */
+            tax: number;
+            /** Net */
+            net: number;
+            /** Payments */
+            payments: number;
+        };
+        /** DividendMonth */
+        DividendMonth: {
+            /**
+             * Month
+             * Format: date
+             */
+            month: string;
+            /** Amount */
+            amount: number;
+            /** Payments */
+            payments: components["schemas"]["ExpectedDividend"][];
+        };
+        /** DividendPerShareYear */
+        DividendPerShareYear: {
+            /** Year */
+            year: number;
+            /** Per Share */
+            per_share: number;
+        };
+        /** DividendsExpected */
+        DividendsExpected: {
+            /**
+             * Gross 12M
+             * @description Last 12 months' dividends per share × shares held now
+             */
+            gross_12m: number;
+            /**
+             * Net 12M
+             * @description gross_12m less tax at tax_rate_pct
+             */
+            net_12m: number;
+            /**
+             * Tax Rate Pct
+             * @description Tax withheld ÷ gross over the last 12 months' payments
+             */
+            tax_rate_pct: number;
+            /**
+             * Yield Pct
+             * @description gross_12m ÷ portfolio value
+             */
+            yield_pct?: number | null;
+            /**
+             * Yield On Cost Pct
+             * @description gross_12m ÷ cost of the paying holdings
+             */
+            yield_on_cost_pct?: number | null;
+        };
+        /** DividendsReceived */
+        DividendsReceived: {
+            /**
+             * Gross
+             * @description Before tax withheld
+             */
+            gross: number;
+            /** Tax */
+            tax: number;
+            /** Net */
+            net: number;
+            /**
+             * Gross 12M
+             * @description Paid in the last 12 months
+             */
+            gross_12m: number;
+            /** Net 12M */
+            net_12m: number;
+            /** Payments */
+            payments: number;
+            /** First */
+            first?: string | null;
+        };
+        /** DividendsResponse */
+        DividendsResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Currency */
+            currency: string;
+            received: components["schemas"]["DividendsReceived"];
+            expected: components["schemas"]["DividendsExpected"];
+            /** Monthly */
+            monthly: components["schemas"]["DividendIncome"][];
+            /** Yearly */
+            yearly: components["schemas"]["DividendIncome"][];
+            /** Calendar */
+            calendar: components["schemas"]["DividendMonth"][];
+            /** Holdings */
+            holdings: components["schemas"]["DividendHolding"][];
+            /**
+             * No Dividends
+             * @description Held listings without any dividend on record
+             */
+            no_dividends?: string[];
+        };
         /** DrawdownEpisode */
         DrawdownEpisode: {
             /**
@@ -3842,6 +4017,22 @@ export interface components {
              * @description Exchange breakdown
              */
             exchanges: components["schemas"]["ExchangeBreakdownItem"][];
+        };
+        /** ExpectedDividend */
+        ExpectedDividend: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /** Per Share */
+            per_share: number;
+            /** Amount */
+            amount: number;
         };
         /**
          * FailedAssetInfo
@@ -10777,6 +10968,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GoalProjectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_analytics_portfolios_portfolio_id_dividends: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DividendsResponse"];
                 };
             };
             /** @description Validation Error */

@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { Id } from "../../shared/api/client";
 import { analyticsAPI } from "../analytics/api";
 import { transactionAPI } from "../transactions/api";
-import { plannerAPI, portfolioAPI, portfolioCalculationsAPI } from "./api";
+import { dividendsAPI, plannerAPI, portfolioAPI, portfolioCalculationsAPI } from "./api";
 
 export const portfolioKeys = {
   all: ["portfolios"] as const,
@@ -26,6 +26,7 @@ export const portfolioKeys = {
   plannerInvest: (id: Id, amount: number, minAmount: number) =>
     ["portfolios", id, "planner", "invest", amount, minAmount] as const,
   savingsPlans: (id: Id) => ["portfolios", id, "planner", "savings-plans"] as const,
+  dividends: (id: Id) => ["portfolios", id, "dividends"] as const,
   goal: (id: Id, goal: Record<string, unknown>) =>
     ["portfolios", id, "planner", "goal", goal] as const,
   allocationAnalysis: (id: Id) =>
@@ -249,6 +250,14 @@ export function useSavingsPlans(portfolioId: Id | null | undefined) {
   return useQuery({
     queryKey: portfolioKeys.savingsPlans(portfolioId ?? "none"),
     queryFn: () => plannerAPI.savingsPlans(portfolioId!),
+    enabled: isId(portfolioId),
+  });
+}
+
+export function useDividends(portfolioId: Id | null | undefined) {
+  return useQuery({
+    queryKey: portfolioKeys.dividends(portfolioId ?? "none"),
+    queryFn: () => dividendsAPI.get(portfolioId!),
     enabled: isId(portfolioId),
   });
 }

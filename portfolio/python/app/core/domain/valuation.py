@@ -10,8 +10,9 @@ is flagged. A held asset with no price at all is an error, never valued at cost.
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
+import numpy as np
 import pandas as pd
 
 from core.database.models.transaction import TransactionType
@@ -47,20 +48,14 @@ def trading_days(
     return pd.DatetimeIndex(sorted(days))
 
 
-def _price_age(observed: pd.DatetimeIndex, days: pd.DatetimeIndex) -> list[int | None]:
-    """Trading days on `days` after the last print, through each day. None if none."""
-    ages: list[int | None] = []
-    for day in days:
-        pos = int(observed.searchsorted(day, side="right")) - 1
-        if pos < 0:
-            ages.append(None)
-            continue
-        last = observed[pos]
-        ages.append(
-            int(days.searchsorted(day, side="right"))
-            - int(days.searchsorted(last, side="right"))
-        )
-    return ages
+def _price_age(observed: pd.DatetimeIndex, days: pd.DatetimeIndex) -> np.ndarray:
+    """Trading days on `days` after the last print, through each day; -1 if none."""
+    if observed.empty:
+        return np.full(len(days), -1)
+    pos = observed.searchsorted(days, side="right") - 1
+    last = observed[np.clip(pos, 0, None)]
+    ages = days.searchsorted(days, side="right") - days.searchsorted(last, side="right")
+    return np.where(pos < 0, -1, ages)
 
 
 def daily_series(
@@ -107,8 +102,8 @@ def daily_series_by_asset(
     if days.empty:
         raise MissingPriceError("No prices in the valuation period")
 
-    prices = {}
-    ages = {}
+    prices: Dict[int, np.ndarray] = {}
+    ages: Dict[int, np.ndarray] = {}
     for asset_id, series in closes.items():
         series = (
             pd.Series(series.values, index=_day_index(series.index))
@@ -117,20 +112,25 @@ def daily_series_by_asset(
         )
         series = series[~series.index.duplicated(keep="last")]
         prices[asset_id] = (
-            series.reindex(series.index.union(days)).ffill().reindex(days)
+            series.reindex(series.index.union(days))
+            .ffill()
+            .reindex(days)
+            .to_numpy(dtype=float)
         )
         ages[asset_id] = _price_age(pd.DatetimeIndex(series.index), days)
     lots: Dict[int, Lots] = defaultdict(Lots)
     net_invested = realized = dividends = Decimal(0)
     rows = []
-    asset_rows: Dict[int, List[Dict[str, float]]] = defaultdict(list)
     asset_ids = sorted({trade.asset_id for trade in trades})
+    columns = ("value", "inflow", "outflow", "quantity")
+    per_asset = {
+        asset_id: {column: np.zeros(len(days)) for column in columns}
+        for asset_id in asset_ids
+    }
     next_trade = 0
 
     for i, day in enumerate(days):
         inflow = outflow = Decimal(0)
-        asset_in: Dict[int, Decimal] = defaultdict(Decimal)
-        asset_out: Dict[int, Decimal] = defaultdict(Decimal)
         while (
             next_trade < len(trades)
             and pd.Timestamp(trades[next_trade].transaction_date) <= day
@@ -143,7 +143,7 @@ def daily_series_by_asset(
             ):
                 lots[trade.asset_id].buy(trade.quantity, trade.total_amount)
                 inflow += trade.total_amount
-                asset_in[trade.asset_id] += trade.total_amount
+                per_asset[trade.asset_id]["inflow"][i] += float(trade.total_amount)
             elif trade.transaction_type in (
                 TransactionType.SELL,
                 TransactionType.TRANSFER_OUT,
@@ -151,39 +151,29 @@ def daily_series_by_asset(
                 sold = lots[trade.asset_id].sell(trade.quantity, trade.transaction_date)
                 realized += realized_proceeds(trade) - sold
                 outflow += trade.total_amount
-                asset_out[trade.asset_id] += trade.total_amount
+                per_asset[trade.asset_id]["outflow"][i] += float(trade.total_amount)
             elif trade.transaction_type == TransactionType.DIVIDEND:
                 dividends += trade.total_amount
                 outflow += trade.total_amount
-                asset_out[trade.asset_id] += trade.total_amount
+                per_asset[trade.asset_id]["outflow"][i] += float(trade.total_amount)
 
         value = Decimal(0)
         stale = []
-        for asset_id in asset_ids:
-            quantity = lots[asset_id].quantity if asset_id in lots else Decimal(0)
-            close = prices[asset_id][day] if asset_id in prices else float("nan")
-            held = Decimal(0)
-            if quantity > 0 and not pd.isna(close):
-                held = quantity * Decimal(str(close))
-            asset_rows[asset_id].append(
-                {
-                    "value": float(held),
-                    "inflow": float(asset_in[asset_id]),
-                    "outflow": float(asset_out[asset_id]),
-                    "quantity": float(max(quantity, Decimal(0))),
-                    "price": float(close),
-                }
-            )
+        for asset_id, asset_lots in lots.items():
+            quantity = asset_lots.quantity
             if quantity <= 0:
                 continue
+            close = prices[asset_id][i] if asset_id in prices else float("nan")
             name = symbols.get(asset_id, f"asset {asset_id}")
-            if pd.isna(close):
+            if np.isnan(close):
                 raise MissingPriceError(
                     f"No price for {name} on or before {day:%Y-%m-%d}"
                 )
-            age = ages[asset_id][i] if asset_id in ages else None
-            if age is not None and age > STALE_PRICE_DAYS:
+            if asset_id in ages and ages[asset_id][i] > STALE_PRICE_DAYS:
                 stale.append(name)
+            held = quantity * Decimal(str(close))
+            per_asset[asset_id]["value"][i] = float(held)
+            per_asset[asset_id]["quantity"][i] = float(quantity)
             value += held
 
         net_invested += inflow - outflow
@@ -205,7 +195,11 @@ def daily_series_by_asset(
         )
 
     portfolio = pd.DataFrame(rows).set_index("date")
+    missing = np.full(len(days), np.nan)
     return portfolio, {
-        asset_id: pd.DataFrame(asset_rows[asset_id], index=portfolio.index)
+        asset_id: pd.DataFrame(
+            {**per_asset[asset_id], "price": prices.get(asset_id, missing)},
+            index=portfolio.index,
+        )
         for asset_id in asset_ids
     }

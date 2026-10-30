@@ -1,6 +1,7 @@
 import { CurrencyProvider } from "../../contexts/CurrencyContext";
 import {
   Activity,
+  Lightbulb,
   ArrowLeft,
   BarChart3,
   PieChart,
@@ -36,6 +37,7 @@ import PortfolioAssets from "./PortfolioAssets";
 import PortfolioCard from "./PortfolioCard";
 import PortfolioChart from "./PortfolioChart";
 import PortfolioDetail from "./PortfolioDetail";
+import PortfolioInsight from "./PortfolioInsight";
 import PortfolioPerformanceMetrics from "./PortfolioPerformanceMetrics";
 
 const noPortfolios = [];
@@ -67,7 +69,7 @@ const Portfolio = () => {
     }
   }, [location.state, location.pathname, navigate]);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
-  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance
+  const [viewMode, setViewMode] = useState("overview"); // overview, detail, chart, assets, performance, insight
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobile, setIsMobile] = useState(false);
   const { openSidebar } = useShell();
@@ -464,6 +466,18 @@ const Portfolio = () => {
                   >
                     <BarChart3 size={16} />
                   </button>
+                  <button
+                    onClick={() => setViewMode("insight")}
+                    className={`p-2 rounded-lg transition-colors ${
+                      viewMode === "insight"
+                        ? "bg-primary-600 text-white"
+                        : "bg-dark-700 text-gray-400 hover:bg-dark-600"
+                    }`}
+                    title="Performance Insight"
+                    aria-label="Performance Insight"
+                  >
+                    <Lightbulb size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -621,6 +635,10 @@ const Portfolio = () => {
                           <PortfolioPerformanceMetrics
                             portfolio={selectedPortfolio}
                           />
+                        )}
+
+                        {viewMode === "insight" && selectedPortfolio && (
+                          <PortfolioInsight portfolio={selectedPortfolio} />
                         )}
                       </>
                     ))}

@@ -2,7 +2,7 @@
 
 Self-hosted investment-portfolio tracker (holdings, P&L, TWR/XIRR, risk metrics, watchlists, broker-PDF import). Python 3.14 / FastAPI + SQLAlchemy 2.1 (sync) + Postgres 16 + Redis + pandas 3 / polars 2 / yfinance 1 backend (`python/app`); React 19 + React Router 8 + Vite 8 + Tailwind 4 frontend (`js`, Node 22). No Sentry/telemetry.
 
-Git root is the parent dir (`../`: `.github/workflows/{ci,release}.yml`, `.pre-commit-config.yaml`, `.gitleaksignore`). Developer README: `README.md`. Adding features: `CONTRIBUTING.md`. Operations: `docs/RUNBOOK.md`. Decisions: `docs/adr/`. Refactor record and progress log: `REFACTOR_PLAN.md`.
+Git root is the parent dir (`../`: `.github/workflows/{ci,release}.yml`, `.pre-commit-config.yaml`, `.gitleaksignore`). Developer README: `README.md`. Adding features: `CONTRIBUTING.md`. Operations: `docs/RUNBOOK.md`. Decisions: `docs/adr/`. Refactor record and progress log: `REFACTOR_PLAN.md`. Feature roadmap (long-term investing, one PR per item): `docs/ROADMAP.md`.
 
 ## Host: shared NVIDIA Jetson AGX Xavier (prod server)
 - arm64, JetPack 5.1.6/CUDA 11.4, 30 GB unified RAM, ~35 other containers (immich, jellyfin, ollama use the GPU). The Docker data-root is `/mnt/samsung_ufs/docker_data`, and eMMC `/` is nearly full.
@@ -98,6 +98,6 @@ Each feature has a `CLAUDE.md` with purpose, state, endpoints, UI, workflow, kno
 - Lint policy: ruff ignores E501 (the formatter owns line length) and E712 (SQLAlchemy `== True`). ESLint has `react/prop-types` off. Use `eslint-disable-next-line react-hooks/exhaustive-deps -- <reason>` only when adding the dependency would change when the effect runs.
 - FastAPI 0.143 wraps included routers in a private `_IncludedRouter`, so `app.routes` does not list endpoints. Test routing through `TestClient` (see `tests/unit/test_route_order.py`). Integration tests use an `https://testserver` client so the `Secure` cookie comes back.
 - The SQLite test DB returns naive datetimes, so `calculate_portfolio_performance` (aware `now()` minus `transaction_date`) can't run against `test_db`. Test the engine through `get_performance_series` or stub it.
-- Dev stack: `main.py`, `config.py`, `start_api.py` etc. are **single-file** bind mounts. A tool that replaces a file atomically (e.g. `ruff format`) leaves the container on the old inode — `docker compose restart api` after editing them. Directory mounts (`core/`, `api/`) are fine.
+- Dev stack: `python/app/modules/` is **not** bind-mounted into the dev `api` (it is baked into the dev image), so a change there needs `docker cp` into `portfolio-dev-api-1` plus a restart, or an image rebuild, before the running dev API sees it; the gate builds its own images. `main.py`, `config.py`, `start_api.py` etc. are **single-file** bind mounts. A tool that replaces a file atomically (e.g. `ruff format`) leaves the container on the old inode — `docker compose restart api` after editing them. Directory mounts (`core/`, `api/`) are fine.
 - Technical indicators (`utils/indicators/`) are pinned to the `ta` library (a dev dependency in `pyproject.toml`) by `tests/unit/test_indicator_reference.py`; deliberate differences (OBV start, PSAR two-lows cap) are documented there.
 - `docker system prune -a` on this host deletes every image no running container uses, including freshly built `portfolia-*:prod` images; build right before starting a container.

@@ -43,6 +43,7 @@ GET /api/v1/portfolios/
 GET /api/v1/portfolios/calculations/benchmarks
 GET /api/v1/portfolios/calculations/periods
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/benchmark
+GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/insight
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/multi-period
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/overview
 GET /api/v1/portfolios/calculations/portfolio/{portfolio_id}/performance

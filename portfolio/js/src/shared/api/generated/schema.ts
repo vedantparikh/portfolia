@@ -2078,6 +2078,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portfolios/calculations/portfolio/{portfolio_id}/insight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Performance Insight
+         * @description Contribution per holding, monthly and yearly returns, drawdowns, timing and currency effects.
+         */
+        get: operations["get_api_v1_portfolios_calculations_portfolio_portfolio_id_insight"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portfolios/calculations/portfolio/{portfolio_id}/overview": {
         parameters: {
             query?: never;
@@ -3411,6 +3431,33 @@ export interface components {
              */
             source_key?: string | null;
         };
+        /** CalendarReturnRow */
+        CalendarReturnRow: {
+            /**
+             * Period
+             * @description "2026-03" or "2026"
+             */
+            period: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /** Return Pct */
+            return_pct: number;
+            /** Benchmark Pct */
+            benchmark_pct?: number | null;
+            /**
+             * Partial
+             * @description The period covers only part of the month or year
+             */
+            partial: boolean;
+        };
         /**
          * ChartMetadata
          * @description Chart metadata information.
@@ -3569,6 +3616,25 @@ export interface components {
              */
             created_at: string;
         };
+        /** CurrencyEffect */
+        CurrencyEffect: {
+            /** Total */
+            total: number;
+            /**
+             * Profit
+             * @description The period's whole profit, for scale
+             */
+            profit: number;
+            /** By Currency */
+            by_currency: components["schemas"]["CurrencyEffectRow"][];
+        };
+        /** CurrencyEffectRow */
+        CurrencyEffectRow: {
+            /** Currency */
+            currency: string;
+            /** Effect */
+            effect: number;
+        };
         /**
          * CurrencyTotals
          * @description Active portfolios in one currency, summed (values are never mixed across currencies).
@@ -3631,6 +3697,51 @@ export interface components {
              * @description Success message
              */
             message: string;
+        };
+        /** DrawdownEpisode */
+        DrawdownEpisode: {
+            /**
+             * Peak Date
+             * Format: date
+             */
+            peak_date: string;
+            /**
+             * Trough Date
+             * Format: date
+             */
+            trough_date: string;
+            /** Recovery Date */
+            recovery_date?: string | null;
+            /** Depth Pct */
+            depth_pct: number;
+            /** Days To Trough */
+            days_to_trough: number;
+            /**
+             * Days To Recover
+             * @description Calendar days from peak back to it; null while under
+             */
+            days_to_recover?: number | null;
+        };
+        /** DrawdownPoint */
+        DrawdownPoint: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Drawdown Pct */
+            drawdown_pct: number;
+        };
+        /** DrawdownSummary */
+        DrawdownSummary: {
+            /** Current Pct */
+            current_pct: number;
+            /** Max Pct */
+            max_pct: number;
+            /** Episodes */
+            episodes: components["schemas"]["DrawdownEpisode"][];
+            /** Points */
+            points: components["schemas"]["DrawdownPoint"][];
         };
         /**
          * EmailVerification
@@ -3748,6 +3859,52 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HoldingContribution
+         * @description One holding's share of the period: profit in money, return in percentage points.
+         */
+        HoldingContribution: {
+            /** Asset Id */
+            asset_id: number;
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Start Value */
+            start_value: number;
+            /** End Value */
+            end_value: number;
+            /**
+             * Inflow
+             * @description Bought in the period, fees included
+             */
+            inflow: number;
+            /**
+             * Outflow
+             * @description Sale cash and dividends in the period
+             */
+            outflow: number;
+            /**
+             * Profit
+             * @description end − start − inflow + outflow
+             */
+            profit: number;
+            /**
+             * Contribution Pp
+             * @description Share of the period's TWR; all holdings sum to it
+             */
+            contribution_pp: number;
+            /**
+             * Quote Currency
+             * @description Set when quoted in another currency than the portfolio
+             */
+            quote_currency?: string | null;
+            /**
+             * Currency Effect
+             * @description Part of the profit from the exchange rate
+             */
+            currency_effect?: number | null;
         };
         /** ImportedCheckRequest */
         ImportedCheckRequest: {
@@ -4221,6 +4378,17 @@ export interface components {
              * @description Expected type
              */
             expected_type?: string | null;
+        };
+        /** InsightBenchmark */
+        InsightBenchmark: {
+            /** Symbol */
+            symbol: string;
+            /** Name */
+            name?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /** InstrumentMapping */
         InstrumentMapping: {
@@ -4753,6 +4921,36 @@ export interface components {
             benchmark_performance?: {
                 [key: string]: unknown;
             }[] | null;
+        };
+        /**
+         * PerformanceInsightResponse
+         * @description What drove the period's return (core/domain/insight.py).
+         */
+        PerformanceInsightResponse: {
+            /** Portfolio Id */
+            portfolio_id: number;
+            /** Period */
+            period: string;
+            /** Currency */
+            currency: string;
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Twr Pct */
+            twr_pct?: number | null;
+            /** Contributions */
+            contributions: components["schemas"]["HoldingContribution"][];
+            /** Months */
+            months: components["schemas"]["CalendarReturnRow"][];
+            /** Years */
+            years: components["schemas"]["CalendarReturnRow"][];
+            drawdown?: components["schemas"]["DrawdownSummary"] | null;
+            timing?: components["schemas"]["TimingEffect"] | null;
+            currency_effect?: components["schemas"]["CurrencyEffect"] | null;
+            benchmark?: components["schemas"]["InsightBenchmark"] | null;
+            /** Error */
+            error?: string | null;
         };
         /**
          * PerformanceMetrics
@@ -6485,6 +6683,20 @@ export interface components {
              * @description Market cap
              */
             market_cap?: number | null;
+        };
+        /**
+         * TimingEffect
+         * @description Actual profit against the same flows at the period's steady TWR rate.
+         */
+        TimingEffect: {
+            /** Profit */
+            profit: number;
+            /** Steady Profit */
+            steady_profit: number;
+            /** Timing Effect */
+            timing_effect: number;
+            /** Steady Daily Pct */
+            steady_daily_pct: number;
         };
         /**
          * Token
@@ -11255,6 +11467,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BenchmarkComparisonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_api_v1_portfolios_calculations_portfolio_portfolio_id_insight: {
+        parameters: {
+            query?: {
+                /** @description Period code */
+                period?: string;
+            };
+            header?: never;
+            path: {
+                portfolio_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerformanceInsightResponse"];
                 };
             };
             /** @description Validation Error */

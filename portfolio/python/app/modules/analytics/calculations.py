@@ -29,10 +29,23 @@ from core.database.models import (
     TransactionType,
 )
 from core.domain.benchmark import shadow_series
-from core.domain.fx import convert_closes, convert_trades
+from core.domain.fx import canonical_currency, convert_closes, convert_trades
+from core.domain.insight import (
+    benchmark_returns,
+    calendar_returns,
+    contributions,
+    currency_effects,
+    drawdowns,
+    timing_effect,
+)
 from core.domain.positions import OversellError, Split, to_trades
-from core.domain.returns import compute_daily_returns, period_summary, split_period
-from core.domain.valuation import MissingPriceError, daily_series
+from core.domain.returns import (
+    compute_daily_returns,
+    period_summary,
+    split_period,
+    twr_pct,
+)
+from core.domain.valuation import MissingPriceError, daily_series_by_asset
 from core.errors import NotFoundError
 from core.services.fx import load_rates
 from core.services.market_data_service import MarketDataService
@@ -640,6 +653,18 @@ class PortfolioCalculationService:
         self, all_transactions: List[Transaction], end_date: datetime
     ) -> pd.DataFrame:
         """The canonical daily series from inception (see core.domain.valuation)."""
+        return (await self.get_portfolio_breakdown(all_transactions, end_date))[
+            "series"
+        ]
+
+    async def get_portfolio_breakdown(
+        self, all_transactions: List[Transaction], end_date: datetime
+    ) -> Dict[str, Any]:
+        """
+        The daily series plus what it was built from: per-asset frames, the
+        quote currency of each foreign-quoted asset and its rate series
+        (portfolio currency per unit of quote, = converted ÷ local close).
+        """
         key = (
             tuple(sorted(getattr(t, "id", None) or id(t) for t in all_transactions)),
             end_date.date(),
@@ -666,6 +691,7 @@ class PortfolioCalculationService:
                 portfolio_currency,
                 list(currencies.values()) + list(cash_currency.values()),
             )
+            local = closes
             closes = {
                 asset_id: convert_closes(
                     series,
@@ -681,9 +707,28 @@ class PortfolioCalculationService:
                 portfolio_currency,
                 rates,
             )
-            self._series_cache[key] = daily_series(
+            series, assets = daily_series_by_asset(
                 trades, closes, end_date.date(), symbols
             )
+            portfolio_major = canonical_currency(portfolio_currency)[0]
+            foreign = {
+                asset_id: canonical_currency(currency)[0]
+                for asset_id, currency in currencies.items()
+                if asset_id in local
+                and canonical_currency(currency)[0] != portfolio_major
+            }
+            self._series_cache[key] = {
+                "series": series,
+                "assets": assets,
+                "symbols": symbols,
+                "currencies": foreign,
+                "rates": {
+                    asset_id: (
+                        closes[asset_id] / local[asset_id].astype(float)
+                    ).replace([np.inf, -np.inf], np.nan)
+                    for asset_id in foreign
+                },
+            }
         return self._series_cache[key]
 
     async def get_performance_series(
@@ -831,6 +876,133 @@ class PortfolioCalculationService:
                 "the shadow paid out what it had"
             )
         return result
+
+    async def get_performance_insight(
+        self, portfolio_id: int, user_id: int, period: str
+    ) -> Dict[str, Any]:
+        """What drove the period's return (core.domain.insight)."""
+        portfolio = self.get_portfolio(portfolio_id, user_id)
+        if not portfolio:
+            raise NotFoundError(f"Portfolio {portfolio_id} not found")
+        end = datetime.now(timezone.utc)
+        start = PeriodType.get_start_date(period, end)
+        result: Dict[str, Any] = {
+            "portfolio_id": portfolio_id,
+            "period": period,
+            "currency": portfolio.currency,
+            "contributions": [],
+            "months": [],
+            "years": [],
+        }
+        transactions = self.get_transactions(portfolio_id, None, end)
+        if not transactions:
+            return result
+        try:
+            breakdown = await self.get_portfolio_breakdown(transactions, end)
+        except (MissingPriceError, OversellError) as e:
+            result["error"] = str(e)
+            return result
+
+        series = breakdown["series"]
+        start_day = start.date() if start else None
+        window, opening_value, start_date = split_period(series, start_day)
+        if window.empty:
+            return result
+        end_date = window.index[-1].date()
+        returns = compute_daily_returns(window, opening_value)
+        result.update(start_date=start_date, end_date=end_date)
+        result["twr_pct"] = twr_pct(returns)
+
+        effects = currency_effects(breakdown["assets"], breakdown["rates"], start_day)
+        names = self._asset_names(list(breakdown["assets"]))
+        result["contributions"] = [
+            {
+                **vars(c),
+                "symbol": breakdown["symbols"].get(c.asset_id, str(c.asset_id)),
+                "name": names.get(c.asset_id),
+                "quote_currency": breakdown["currencies"].get(c.asset_id),
+                "currency_effect": effects.get(c.asset_id),
+            }
+            for c in contributions(series, breakdown["assets"], start_day)
+        ]
+        by_currency: Dict[str, float] = {}
+        for asset_id, effect in effects.items():
+            code = breakdown["currencies"][asset_id]
+            by_currency[code] = by_currency.get(code, 0.0) + effect
+        timing = timing_effect(series, start_day)
+        profit = timing.profit if timing else 0.0
+        result["timing"] = vars(timing) if timing else None
+        result["currency_effect"] = {
+            "total": sum(by_currency.values()),
+            "profit": profit,
+            "by_currency": [
+                {"currency": code, "effect": effect}
+                for code, effect in sorted(by_currency.items())
+            ],
+        }
+
+        bench = None
+        symbol = self.default_benchmark(portfolio)
+        result["benchmark"] = {"symbol": symbol}
+        try:
+            history = await self.market_data_service.get_daily_history(symbol)
+            info = await self.market_data_service.get_ticker_info(symbol) or {}
+            result["benchmark"]["name"] = (
+                info.get("long_name") or info.get("short_name") or symbol
+            )
+            if history:
+                closes = history["close"]
+                if info.get("currency"):
+                    rates = await load_rates(
+                        self.market_data_service, portfolio.currency, [info["currency"]]
+                    )
+                    closes = convert_closes(
+                        closes, info["currency"], portfolio.currency, rates
+                    )
+                bench = benchmark_returns(closes, window.index)
+                paid_on = pd.DatetimeIndex(history["dividends"].index)
+                if paid_on.tz is not None:
+                    paid_on = paid_on.tz_localize(None)
+                if (paid_on >= window.index[0]).any():
+                    result["benchmark"]["note"] = (
+                        f"{symbol} paid dividends its price does not include, so its "
+                        "returns are understated; an accumulating ETF or a "
+                        "total-return index compares fairly"
+                    )
+            else:
+                result["benchmark"]["error"] = f"No price history for {symbol}"
+        except MissingPriceError as e:
+            result["benchmark"]["error"] = str(e)
+
+        for frequency, key in (("M", "months"), ("Y", "years")):
+            own = calendar_returns(returns, frequency, start_date, end_date)
+            theirs = (
+                {
+                    row.period: row.return_pct
+                    for row in calendar_returns(bench, frequency, start_date, end_date)
+                }
+                if bench is not None
+                else {}
+            )
+            result[key] = [
+                {**vars(row), "benchmark_pct": theirs.get(row.period)} for row in own
+            ]
+
+        found = drawdowns(returns, start_date)
+        result["drawdown"] = {
+            "current_pct": found.current_pct,
+            "max_pct": found.max_pct,
+            "episodes": [vars(e) for e in found.episodes],
+            "points": [
+                {"date": day.date(), "drawdown_pct": float(level)}
+                for day, level in found.underwater.items()
+            ],
+        }
+        return result
+
+    def _asset_names(self, asset_ids: List[int]) -> Dict[int, Optional[str]]:
+        rows = self.db.query(Asset.id, Asset.name).filter(Asset.id.in_(asset_ids))
+        return {asset_id: name for asset_id, name in rows}
 
     async def get_portfolio_history(
         self,

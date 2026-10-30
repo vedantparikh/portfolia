@@ -306,3 +306,105 @@ class BenchmarkDifference(BaseModel):
     profit: Optional[float] = None
     twr_pct: Optional[float] = None
     mwr_pct: Optional[float] = None
+
+
+class HoldingContribution(BaseModel):
+    """One holding's share of the period: profit in money, return in percentage points."""
+
+    asset_id: int
+    symbol: str
+    name: Optional[str] = None
+    start_value: float
+    end_value: float
+    inflow: float = Field(..., description="Bought in the period, fees included")
+    outflow: float = Field(..., description="Sale cash and dividends in the period")
+    profit: float = Field(..., description="end − start − inflow + outflow")
+    contribution_pp: float = Field(
+        ..., description="Share of the period's TWR; all holdings sum to it"
+    )
+    quote_currency: Optional[str] = Field(
+        None, description="Set when quoted in another currency than the portfolio"
+    )
+    currency_effect: Optional[float] = Field(
+        None, description="Part of the profit from the exchange rate"
+    )
+
+
+class CalendarReturnRow(BaseModel):
+    period: str = Field(..., description='"2026-03" or "2026"')
+    start: date
+    end: date
+    return_pct: float
+    benchmark_pct: Optional[float] = None
+    partial: bool = Field(
+        ..., description="The period covers only part of the month or year"
+    )
+
+
+class DrawdownEpisode(BaseModel):
+    peak_date: date
+    trough_date: date
+    recovery_date: Optional[date] = None
+    depth_pct: float
+    days_to_trough: int
+    days_to_recover: Optional[int] = Field(
+        None, description="Calendar days from peak back to it; null while under"
+    )
+
+
+class DrawdownPoint(BaseModel):
+    date: date
+    drawdown_pct: float
+
+
+class DrawdownSummary(BaseModel):
+    current_pct: float
+    max_pct: float
+    episodes: List[DrawdownEpisode]
+    points: List[DrawdownPoint]
+
+
+class TimingEffect(BaseModel):
+    """Actual profit against the same flows at the period's steady TWR rate."""
+
+    profit: float
+    steady_profit: float
+    timing_effect: float
+    steady_daily_pct: float
+
+
+class CurrencyEffectRow(BaseModel):
+    currency: str
+    effect: float
+
+
+class CurrencyEffect(BaseModel):
+    total: float
+    profit: float = Field(..., description="The period's whole profit, for scale")
+    by_currency: List[CurrencyEffectRow]
+
+
+class InsightBenchmark(BaseModel):
+    symbol: str
+    name: Optional[str] = None
+    note: Optional[str] = None
+    error: Optional[str] = None
+
+
+class PerformanceInsightResponse(BaseModel):
+    """What drove the period's return (core/domain/insight.py)."""
+
+    portfolio_id: int
+    period: str
+    currency: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    twr_pct: Optional[float] = None
+    contributions: List[HoldingContribution]
+    months: List[CalendarReturnRow]
+    years: List[CalendarReturnRow]
+    drawdown: Optional[DrawdownSummary] = None
+    timing: Optional[TimingEffect] = None
+    currency_effect: Optional[CurrencyEffect] = None
+    benchmark: Optional[InsightBenchmark] = None
+    error: Optional[str] = None

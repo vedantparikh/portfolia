@@ -24,6 +24,7 @@ from core.schemas.portfolio_calculations import (
     BenchmarkOptionsResponse,
     MultiPeriodPerformanceResponse,
     PerformanceCalculationRequest,
+    PerformanceInsightResponse,
     PerformanceSeriesResponse,
     PortfolioPerformanceOverview,
     PortfolioPerformanceResponse,
@@ -300,6 +301,28 @@ async def get_benchmark_comparison(
     try:
         return await PortfolioCalculationService(db).get_benchmark_comparison(
             portfolio_id, current_user.id, period, symbol
+        )
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail="Portfolio not found") from e
+
+
+@router.get(
+    "/portfolio/{portfolio_id}/insight", response_model=PerformanceInsightResponse
+)
+async def get_performance_insight(
+    portfolio_id: int,
+    period: str = Query(default=PeriodType.INCEPTION, description="Period code"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Contribution per holding, monthly and yearly returns, drawdowns, timing and currency effects."""
+    try:
+        PeriodType.get_start_date(period)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Unknown period") from None
+    try:
+        return await PortfolioCalculationService(db).get_performance_insight(
+            portfolio_id, current_user.id, period
         )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail="Portfolio not found") from e
